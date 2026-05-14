@@ -1,6 +1,6 @@
 # Ronlab Game Assistant
 
-Specially made for small servers. Assists admins/players in changing game modes. Provides a frontend for switching between 'modes', and manages the world infrastructure, parties, and game states. 
+Specially made for small servers. Assists admins/players in changing game modes. Provides a frontend for switching between 'modes', by managing the world infrastructure, parties, and game states. 
 
 ## Authors
 
