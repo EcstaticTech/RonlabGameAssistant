@@ -9,6 +9,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -31,16 +32,13 @@ public class HubListener implements Listener {
         Player player = event.getPlayer();
         String hubWorld = plugin.getConfigManager().getHubWorld();
 
-        // Mark inventory manager to ignore the world change caused by our teleport
         plugin.getInventoryManager().markIgnoreNextWorldChange(player.getUniqueId());
 
-        // Delay teleport to ensure player is fully loaded
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             World hub = Bukkit.getWorld(hubWorld);
             if (hub != null) {
                 player.teleport(hub.getSpawnLocation());
             }
-            // Clear inventory and give compass after teleport
             plugin.getInventoryManager().clearPlayer(player);
             giveCompass(player);
         }, 5L);
@@ -54,7 +52,6 @@ public class HubListener implements Listener {
         String oldWorld = event.getFrom().getName();
 
         if (newWorld.equalsIgnoreCase(hubWorld)) {
-            // Give compass after a tick so InventoryManager's clear runs first
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 giveCompass(player);
             }, 1L);
@@ -63,6 +60,38 @@ public class HubListener implements Listener {
             if (removeOnLeave) {
                 removeCompass(player);
             }
+        }
+    }
+
+    /**
+     * Catch-all respawn handler — sends players to Hub unless they are
+     * in an SMP world or an active minigame world (those are handled by
+     * their own listeners at higher priority).
+     */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        String currentWorld = player.getWorld().getName();
+        String hubWorld = plugin.getConfigManager().getHubWorld();
+        List<String> smpWorlds = plugin.getConfigManager().getSmpWorlds();
+
+        // Already being handled by MinigameWorldListener at HIGH priority
+        if (currentWorld.startsWith("minigame_")) return;
+
+        // SMP worlds — let them respawn normally there
+        if (smpWorlds.contains(currentWorld)) return;
+
+        // Already in Hub — nothing to do
+        if (currentWorld.equalsIgnoreCase(hubWorld)) return;
+
+        // Any configured world (Creative, Adventure, Parkour etc.)
+        // let them respawn normally in their own world
+        if (plugin.getWorldManager().getSettings(currentWorld) != null) return;
+
+        // Only redirect truly unknown worlds to Hub
+        World hub = Bukkit.getWorld(hubWorld);
+        if (hub != null) {
+            event.setRespawnLocation(hub.getSpawnLocation());
         }
     }
 
