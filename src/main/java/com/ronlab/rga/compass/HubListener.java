@@ -75,7 +75,18 @@ public class HubListener implements Listener {
         String hubWorld = plugin.getConfigManager().getHubWorld();
         List<String> smpWorlds = plugin.getConfigManager().getSmpWorlds();
 
-        // Already being handled by MinigameWorldListener at HIGH priority
+        // Player whose game was concluded while they were dead
+        // Route them to Hub regardless of current world
+        if (plugin.getPartyManager().isConcluded(player.getUniqueId())) {
+            World hub = Bukkit.getWorld(hubWorld);
+            if (hub != null) {
+                event.setRespawnLocation(hub.getSpawnLocation());
+                player.sendMessage("§6The game has ended! You have been returned to Hub.");
+            }
+            return;
+        }
+
+        // Active minigame world — handled by MinigameWorldListener at HIGH priority
         if (currentWorld.startsWith("minigame_")) return;
 
         // SMP worlds — let them respawn normally there

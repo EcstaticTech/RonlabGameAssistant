@@ -21,6 +21,9 @@ public class PartyManager implements Listener {
     private final Map<String, Party> activeParties = new HashMap<>();
     private final Map<UUID, Party> playerParties = new HashMap<>();
 
+    // Players whose game has concluded but may still need to respawn
+    private final Set<UUID> concludedPlayers = new HashSet<>();
+
     public PartyManager(RGA plugin) {
         this.plugin = plugin;
         this.worldCopyManager = new WorldCopyManager(plugin);
@@ -308,19 +311,28 @@ public class PartyManager implements Listener {
         Minigame minigame = party.getMinigame();
         World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
 
-        for (UUID uuid : party.getMembers()) {
-            Player p = Bukkit.getPlayer(uuid);
-            if (p != null) {
-                if (hub != null) p.teleport(hub.getSpawnLocation());
-                p.sendMessage("§6The game has ended! You have been returned to Hub.");
-            }
-        }
-
+        // Remove inventory groups immediately so dead players respawn with Hub inventory
         if (minigame.getWorldType() == Minigame.WorldType.VANILLA) {
             plugin.getInventoryManager().removeTemporaryGroup(worldName);
-            // Also remove nether and end dimension entries
             plugin.getInventoryManager().removeTemporaryGroup(worldName + "_the_nether");
             plugin.getInventoryManager().removeTemporaryGroup(worldName + "_the_end");
+        }
+
+        // Mark players as concluded so respawn handler can route them to Hub
+        for (UUID uuid : party.getMembers()) {
+            concludedPlayers.add(uuid);
+        }
+
+        // Teleport alive players to Hub immediately
+        // Dead players will be routed to Hub via PlayerRespawnEvent
+        for (UUID uuid : party.getMembers()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && !p.isDead()) {
+                if (hub != null) p.teleport(hub.getSpawnLocation());
+                p.sendMessage("§6The game has ended! You have been returned to Hub.");
+            } else if (p != null) {
+                p.sendMessage("§6The game has ended! You will be returned to Hub on respawn.");
+            }
         }
 
         for (UUID uuid : party.getMembers()) {
@@ -328,11 +340,17 @@ public class PartyManager implements Listener {
         }
         activeParties.remove(party.getMinigameId());
 
+        // Capture member list before lambda since party reference is not final
+        List<UUID> finalMembers = new ArrayList<>(party.getMembers());
         String finalWorldName = worldName;
         boolean isVanilla = minigame.getWorldType() == Minigame.WorldType.VANILLA;
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            // Clear concluded player flags
+            for (UUID uuid : finalMembers) {
+                concludedPlayers.remove(uuid);
+            }
             worldCopyManager.cleanupWorld(finalWorldName, isVanilla);
-        }, 40L);
+        }, 300L);
 
         plugin.getLogger().info("Concluded minigame '" + minigame.getName()
                 + "' in world '" + worldName + "'.");
@@ -358,4 +376,5 @@ public class PartyManager implements Listener {
     public Party getPartyForPlayer(UUID uuid) { return playerParties.get(uuid); }
     public Party getPartyForMinigame(String minigameId) { return activeParties.get(minigameId); }
     public Map<String, Party> getActiveParties() { return Collections.unmodifiableMap(activeParties); }
+    public boolean isConcluded(UUID uuid) { return concludedPlayers.contains(uuid); }
 }
