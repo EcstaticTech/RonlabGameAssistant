@@ -41,6 +41,9 @@ public class PartyManager implements Listener {
         if (party.getState() == Party.State.IN_GAME) {
             playerParties.remove(player.getUniqueId());
             party.removeMember(player.getUniqueId());
+            // Clear advancement data for disconnected players — they will
+            // need to re-earn advancements naturally when they reconnect
+            plugin.getAdvancementManager().clearSaved(player.getUniqueId());
             if (party.getMemberCount() == 0 && party.getActiveWorldName() != null) {
                 concludeGame(party.getActiveWorldName());
             }
@@ -217,6 +220,8 @@ public class PartyManager implements Listener {
                     p.setGameMode(org.bukkit.GameMode.SURVIVAL);
                     p.sendMessage("§aThe game has started! Good luck!");
                     playerNames.add(p.getName());
+                    // Save and revoke advancements for clean minigame state
+                    plugin.getAdvancementManager().saveAndRevoke(p);
                 }
             }
 
@@ -330,8 +335,14 @@ public class PartyManager implements Listener {
             if (p != null && !p.isDead()) {
                 if (hub != null) p.teleport(hub.getSpawnLocation());
                 p.sendMessage("§6The game has ended! You have been returned to Hub.");
+                // Restore advancements for alive players immediately
+                plugin.getAdvancementManager().restore(p);
             } else if (p != null) {
                 p.sendMessage("§6The game has ended! You will be returned to Hub on respawn.");
+                // Dead players — restore handled in HubListener after respawn
+            } else {
+                // Offline players — clear saved data
+                plugin.getAdvancementManager().clearSaved(uuid);
             }
         }
 

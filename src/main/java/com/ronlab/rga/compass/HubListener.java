@@ -76,12 +76,16 @@ public class HubListener implements Listener {
         List<String> smpWorlds = plugin.getConfigManager().getSmpWorlds();
 
         // Player whose game was concluded while they were dead
-        // Route them to Hub regardless of current world
+        // Route them to Hub and restore their advancements
         if (plugin.getPartyManager().isConcluded(player.getUniqueId())) {
             World hub = Bukkit.getWorld(hubWorld);
             if (hub != null) {
                 event.setRespawnLocation(hub.getSpawnLocation());
                 player.sendMessage("§6The game has ended! You have been returned to Hub.");
+                // Restore advancements after respawn on next tick
+                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                    plugin.getAdvancementManager().restore(player);
+                }, 1L);
             }
             return;
         }

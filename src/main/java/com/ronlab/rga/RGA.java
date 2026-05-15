@@ -11,6 +11,7 @@ import com.ronlab.rga.minigame.MinigameManager;
 import com.ronlab.rga.minigame.MinigameWorldListener;
 import com.ronlab.rga.party.LobbyGui;
 import com.ronlab.rga.party.PartyManager;
+import com.ronlab.rga.player.AdvancementManager;
 import com.ronlab.rga.player.InventoryManager;
 import com.ronlab.rga.player.LocationTracker;
 import com.ronlab.rga.world.WorldEnforcementListener;
@@ -27,6 +28,7 @@ public class RGA extends JavaPlugin {
     private MenuManager menuManager;
     private LocationTracker locationTracker;
     private InventoryManager inventoryManager;
+    private AdvancementManager advancementManager;
     private MinigameManager minigameManager;
     private PartyManager partyManager;
     private LobbyGui lobbyGui;
@@ -44,6 +46,7 @@ public class RGA extends JavaPlugin {
         configManager = new ConfigManager(this);
         locationTracker = new LocationTracker(this);
         inventoryManager = new InventoryManager(this);
+        advancementManager = new AdvancementManager(this);
         worldManager = new WorldManager(this);
         menuManager = new MenuManager(this);
         minigameManager = new MinigameManager(this);
@@ -94,6 +97,7 @@ public class RGA extends JavaPlugin {
     public MenuManager getMenuManager() { return menuManager; }
     public LocationTracker getLocationTracker() { return locationTracker; }
     public InventoryManager getInventoryManager() { return inventoryManager; }
+    public AdvancementManager getAdvancementManager() { return advancementManager; }
     public MinigameManager getMinigameManager() { return minigameManager; }
     public PartyManager getPartyManager() { return partyManager; }
     public LobbyGui getLobbyGui() { return lobbyGui; }
