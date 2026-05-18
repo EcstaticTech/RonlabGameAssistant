@@ -14,6 +14,7 @@ import com.ronlab.rga.party.PartyManager;
 import com.ronlab.rga.player.AdvancementManager;
 import com.ronlab.rga.player.InventoryManager;
 import com.ronlab.rga.player.LocationTracker;
+import com.ronlab.rga.world.PortalBlockListener;
 import com.ronlab.rga.world.WorldEnforcementListener;
 import com.ronlab.rga.world.WorldManager;
 import org.bukkit.command.PluginCommand;
@@ -60,6 +61,7 @@ public class RGA extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CompassListener(this, menuManager, hubListener), this);
         getServer().getPluginManager().registerEvents(new MenuListener(this, menuManager), this);
         getServer().getPluginManager().registerEvents(new WorldEnforcementListener(this), this);
+        getServer().getPluginManager().registerEvents(new PortalBlockListener(this), this);
         getServer().getPluginManager().registerEvents(new MinigameWorldListener(this), this);
 
         RGACommand rgaCommand = new RGACommand(this);
