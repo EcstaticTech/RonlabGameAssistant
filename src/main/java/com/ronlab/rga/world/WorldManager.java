@@ -191,7 +191,7 @@ public class WorldManager {
     public void setWorldGamemode(String worldName, GameMode gamemode) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(gamemode, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, -1, false));
+                        Difficulty.NORMAL, worldName, false, -1, false, false, false));
         worldSettings.put(worldName, new WorldSettings(gamemode, old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
@@ -202,7 +202,7 @@ public class WorldManager {
     public void setWorldPvp(String worldName, boolean pvp) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, pvp, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, -1, false));
+                        Difficulty.NORMAL, worldName, false, -1, false, false, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), pvp,
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
@@ -213,7 +213,7 @@ public class WorldManager {
     public void setWorldDifficulty(String worldName, Difficulty difficulty) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        difficulty, worldName, false, -1, false));
+                        difficulty, worldName, false, -1, false, false, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), difficulty, old.getAlias(),
                 old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
@@ -226,7 +226,7 @@ public class WorldManager {
     public void setWorldTimeLock(String worldName, long time) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, time, false));
+                        Difficulty.NORMAL, worldName, false, time, false, false, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 old.isTemplate(), time, old.isWeatherLock(),
@@ -245,7 +245,7 @@ public class WorldManager {
     public void setWorldWeatherLock(String worldName, boolean locked) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, -1, locked));
+                        Difficulty.NORMAL, worldName, false, -1, locked, false, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 old.isTemplate(), old.getTimeLock(), locked,
@@ -265,7 +265,7 @@ public class WorldManager {
     public void setWorldAlias(String worldName, String alias) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, alias, false, -1, false));
+                        Difficulty.NORMAL, alias, false, -1, false, false, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), alias,
                 old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
@@ -276,7 +276,7 @@ public class WorldManager {
     public void setWorldTemplate(String worldName, boolean template) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, template, -1, false));
+                        Difficulty.NORMAL, worldName, template, -1, false, false, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 template, old.getTimeLock(), old.isWeatherLock(),
