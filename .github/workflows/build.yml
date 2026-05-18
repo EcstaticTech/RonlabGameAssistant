@@ -1,19 +1,17 @@
-name: Build RonlabGameAssistant
+name: Build SumoGame Plugin
 
 on:
   workflow_dispatch:
-  release:
-    types: [created]
 
 permissions:
   contents: write
-
+  
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java 21
@@ -24,19 +22,11 @@ jobs:
           cache: maven
 
       - name: Build with Maven
-        run: mvn clean package --no-transfer-progress
-
-      - name: List jar contents
-        run: jar tf target/RonlabGameAssistant-1.0.0.jar
-
-      - name: Upload JAR to Release
-        uses: softprops/action-gh-release@v1
-        if: github.event_name == 'release'
-        with:
-          files: target/RonlabGameAssistant-1.0.0.jar
+        run: mvn package --no-transfer-progress
 
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RonlabGameAssistant
-          path: target/RonlabGameAssistant-1.0.0.jar
+          name: SumoGame-${{ github.sha }}
+          path: target/sumo-*.jar
+          retention-days: 30
