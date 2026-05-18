@@ -36,4 +36,6 @@ public class WorldSettings {
     public boolean isTemplate() { return template; }
     public long getTimeLock() { return timeLock; }
     public boolean isWeatherLock() { return weatherLock; }
+    public boolean isDisableNether() { return disableNether; }
+    public boolean isDisableEnd() { return disableEnd; }
 }
