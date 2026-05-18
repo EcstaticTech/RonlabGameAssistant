@@ -66,6 +66,7 @@ public class MinigameManager {
 
             String templateWorld = mg.getString("template-world", null);
             List<String> startCommands = mg.getStringList("start-commands");
+            List<String> concludeCommands = mg.getStringList("conclude-commands");
 
             // ── World settings ────────────────────────────────────
             ConfigurationSection ws = mg.getConfigurationSection("world-settings");
@@ -102,7 +103,7 @@ public class MinigameManager {
 
             minigames.put(id, new Minigame(id, name, material, lore,
                     maxPlayers, minPlayers, worldType, templateWorld,
-                    startCommands, gameMode, pvp, difficulty, gamerules));
+                    startCommands, concludeCommands, gameMode, pvp, difficulty, gamerules));
         }
 
         plugin.getLogger().info("Loaded " + minigames.size() + " minigame(s) from minigames.yml.");

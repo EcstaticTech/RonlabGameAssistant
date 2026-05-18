@@ -239,6 +239,22 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§aGame concluded for world: " + args[1]);
             }
 
+            case "concludeall" -> {
+                var parties = plugin.getPartyManager().getActiveParties();
+                if (parties.isEmpty()) {
+                    sender.sendMessage("§eNo active games to conclude.");
+                    return true;
+                }
+                int count = parties.size();
+                // Copy values to avoid concurrent modification
+                new java.util.ArrayList<>(parties.values()).forEach(party -> {
+                    if (party.getActiveWorldName() != null) {
+                        plugin.getPartyManager().concludeGame(party.getActiveWorldName());
+                    }
+                });
+                sender.sendMessage("§aConcluded " + count + " active game(s).");
+            }
+
             default -> sendHelp(sender);
         }
 
@@ -274,7 +290,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 "createworld", "importworld", "loadworld", "unloadworld", "deleteworld",
                 "setspawn", "setworldgamemode", "setworldpvp", "setworlddifficulty",
                 "setworldtime", "setworldweather", "setworldalias", "setworldtemplate",
-                "gamerule", "conclude"
+                "gamerule", "conclude", "concludeall"
             ));
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
@@ -297,6 +313,14 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                     }
                 }
                 case "createworld" -> completions.add("<worldname>");
+                case "conclude" -> {
+                    // Suggest active minigame world names
+                    plugin.getPartyManager().getActiveParties().values().forEach(party -> {
+                        if (party.getActiveWorldName() != null) {
+                            completions.add(party.getActiveWorldName());
+                        }
+                    });
+                }
             }
         } else if (args.length == 3) {
             switch (args[0].toLowerCase()) {
@@ -358,6 +382,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§e/rga setworldalias <world> <alias> §7- Set display name");
         sender.sendMessage("§e/rga setworldtemplate <world> <true/false> §7- Mark as template");
         sender.sendMessage("§e/rga gamerule <world> <rule> <value>");
+        sender.sendMessage("§e/rga conclude <worldname> §7- Manually conclude a minigame");
+        sender.sendMessage("§e/rga concludeall §7- Conclude all active minigames");
         sender.sendMessage("§e/hub §7- Return to the Hub world");
         sender.sendMessage("§6§l====================================");
     }

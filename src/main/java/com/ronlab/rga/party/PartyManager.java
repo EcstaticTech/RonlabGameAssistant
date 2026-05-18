@@ -41,9 +41,6 @@ public class PartyManager implements Listener {
         if (party.getState() == Party.State.IN_GAME) {
             playerParties.remove(player.getUniqueId());
             party.removeMember(player.getUniqueId());
-            // Clear advancement data for disconnected players — they will
-            // need to re-earn advancements naturally when they reconnect
-            plugin.getAdvancementManager().clearSaved(player.getUniqueId());
             if (party.getMemberCount() == 0 && party.getActiveWorldName() != null) {
                 concludeGame(party.getActiveWorldName());
             }
@@ -220,8 +217,8 @@ public class PartyManager implements Listener {
                     p.setGameMode(org.bukkit.GameMode.SURVIVAL);
                     p.sendMessage("§aThe game has started! Good luck!");
                     playerNames.add(p.getName());
-                    // Save and revoke advancements for clean minigame state
-                    plugin.getAdvancementManager().saveAndRevoke(p);
+                    // Revoke all advancements for clean minigame state
+                    plugin.getAdvancementManager().revokeAll(p);
                 }
             }
 
@@ -316,6 +313,21 @@ public class PartyManager implements Listener {
         Minigame minigame = party.getMinigame();
         World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
 
+        // Fire conclude commands before cleanup so game plugin can do its own teardown
+        if (!minigame.getConcludeCommands().isEmpty()) {
+            // Build player info for placeholders
+            List<String> playerNames = new ArrayList<>();
+            Player leaderPlayer = Bukkit.getPlayer(party.getLeaderUuid());
+            String leaderName = leaderPlayer != null ? leaderPlayer.getName() : "";
+            for (UUID uuid : party.getMembers()) {
+                Player p = Bukkit.getPlayer(uuid);
+                if (p != null) playerNames.add(p.getName());
+            }
+            String allPlayers = String.join(",", playerNames);
+            executeStartCommands(minigame.getConcludeCommands(), worldName,
+                    leaderName, allPlayers, playerNames, leaderPlayer);
+        }
+
         // Remove inventory groups immediately so dead players respawn with Hub inventory
         if (minigame.getWorldType() == Minigame.WorldType.VANILLA) {
             plugin.getInventoryManager().removeTemporaryGroup(worldName);
@@ -335,14 +347,9 @@ public class PartyManager implements Listener {
             if (p != null && !p.isDead()) {
                 if (hub != null) p.teleport(hub.getSpawnLocation());
                 p.sendMessage("§6The game has ended! You have been returned to Hub.");
-                // Restore advancements for alive players immediately
-                plugin.getAdvancementManager().restore(p);
             } else if (p != null) {
                 p.sendMessage("§6The game has ended! You will be returned to Hub on respawn.");
-                // Dead players — restore handled in HubListener after respawn
             } else {
-                // Offline players — clear saved data
-                plugin.getAdvancementManager().clearSaved(uuid);
             }
         }
 

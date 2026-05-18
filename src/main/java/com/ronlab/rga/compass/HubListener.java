@@ -82,10 +82,7 @@ public class HubListener implements Listener {
             if (hub != null) {
                 event.setRespawnLocation(hub.getSpawnLocation());
                 player.sendMessage("§6The game has ended! You have been returned to Hub.");
-                // Restore advancements after respawn on next tick
-                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                    plugin.getAdvancementManager().restore(player);
-                }, 1L);
+
             }
             return;
         }

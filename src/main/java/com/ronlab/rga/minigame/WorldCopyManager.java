@@ -30,7 +30,6 @@ public class WorldCopyManager {
         String netherName    = baseName + "_the_nether";
         String endName       = baseName + "_the_end";
 
-        // ── Overworld ─────────────────────────────────────────────
         WorldCreator overworldCreator = new WorldCreator(overworldName);
         overworldCreator.environment(World.Environment.NORMAL);
         overworldCreator.generateStructures(true);
@@ -41,7 +40,6 @@ public class WorldCopyManager {
         }
         applyMinigameSettings(overworld, minigame);
 
-        // ── Nether ────────────────────────────────────────────────
         WorldCreator netherCreator = new WorldCreator(netherName);
         netherCreator.environment(World.Environment.NETHER);
         netherCreator.generateStructures(true);
@@ -53,7 +51,6 @@ public class WorldCopyManager {
         }
         applyMinigameSettings(nether, minigame);
 
-        // ── End ───────────────────────────────────────────────────
         WorldCreator endCreator = new WorldCreator(endName);
         endCreator.environment(World.Environment.THE_END);
         endCreator.generateStructures(true);
@@ -72,7 +69,7 @@ public class WorldCopyManager {
     }
 
     /**
-     * Copies a template world and applies minigame settings.
+     * Copies a template world dimension folder to a new dimension folder.
      * Returns the new world name, or null on failure.
      */
     public String copyTemplateWorld(Minigame minigame) {
@@ -87,6 +84,7 @@ public class WorldCopyManager {
         }
 
         File destination = new File(templateFolder.getParentFile(), newWorldName);
+
         try {
             copyFolder(templateFolder.toPath(), destination.toPath());
         } catch (IOException e) {
@@ -94,7 +92,8 @@ public class WorldCopyManager {
             return null;
         }
 
-        new File(destination, "session.lock").delete();
+        // Delete files that cause Paper to detect this as a duplicate world
+        deleteDuplicateFiles(destination);
 
         WorldCreator creator = new WorldCreator(newWorldName);
         creator.environment(World.Environment.NORMAL);
@@ -119,7 +118,6 @@ public class WorldCopyManager {
         world.setPVP(minigame.isPvp());
         world.setDifficulty(minigame.getDifficulty());
 
-        // Apply configured gamerules
         for (Map.Entry<String, String> entry : minigame.getGamerules().entrySet()) {
             GameRule<?> rule = GameRule.getByName(entry.getKey());
             if (rule == null) {
@@ -163,6 +161,7 @@ public class WorldCopyManager {
             }
             Bukkit.unloadWorld(world, false);
         }
+
         File folder = findWorldFolder(worldName);
         if (folder != null && folder.exists()) {
             deleteFolder(folder);
@@ -175,6 +174,7 @@ public class WorldCopyManager {
     public File findWorldFolder(String worldName) {
         File topLevel = new File(Bukkit.getWorldContainer(), worldName);
         if (topLevel.exists()) return topLevel;
+
         File[] topFolders = Bukkit.getWorldContainer().listFiles(File::isDirectory);
         if (topFolders == null) return null;
         for (File worldFolder : topFolders) {
@@ -188,6 +188,23 @@ public class WorldCopyManager {
             }
         }
         return null;
+    }
+
+    /**
+     * Recursively deletes files that cause Paper duplicate world detection.
+     */
+    private void deleteDuplicateFiles(File folder) {
+        File[] files = folder.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            if (file.isDirectory()) {
+                deleteDuplicateFiles(file);
+            } else if (file.getName().equals("uid.dat")
+                    || file.getName().equals("session.lock")
+                    || file.getName().equals("metadata.dat")) {
+                file.delete();
+            }
+        }
     }
 
     private void copyFolder(Path source, Path destination) throws IOException {

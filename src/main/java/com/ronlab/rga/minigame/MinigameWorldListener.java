@@ -77,14 +77,35 @@ public class MinigameWorldListener implements Listener {
         Player player = event.getPlayer();
         String currentWorld = player.getWorld().getName();
 
-        if (!isMinigameWorld(currentWorld)) return;
+        // Check if this is a minigame world that is still active
+        if (isMinigameWorld(currentWorld)) {
+            String baseName = getBaseName(currentWorld);
+            if (baseName != null) {
+                // If the player has a bed or respawn anchor set, respect it
+                // Only override if they have no custom respawn point
+                Location bedSpawn = player.getBedSpawnLocation();
+                if (bedSpawn != null && isMinigameWorld(bedSpawn.getWorld().getName())) {
+                    // Bed is in a minigame world — let vanilla handle it
+                    return;
+                }
 
-        String baseName = getBaseName(currentWorld);
-        if (baseName == null) return;
+                // No bed set or bed is outside the minigame — use world spawn
+                World overworld = Bukkit.getWorld(baseName);
+                if (overworld != null) {
+                    event.setRespawnLocation(overworld.getSpawnLocation());
+                    return;
+                }
+            }
+        }
 
-        World overworld = Bukkit.getWorld(baseName);
-        if (overworld != null) {
-            event.setRespawnLocation(overworld.getSpawnLocation());
+        // World is gone (conclude fired before respawn) or not a minigame world
+        // Check if the world name looks like a minigame world that was just deleted
+        if (currentWorld.startsWith("minigame_")) {
+            // Redirect to Hub since the world no longer exists
+            World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
+            if (hub != null) {
+                event.setRespawnLocation(hub.getSpawnLocation());
+            }
         }
     }
 

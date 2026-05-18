@@ -20,6 +20,7 @@ public class Minigame {
     private final WorldType worldType;
     private final String templateWorld;
     private final List<String> startCommands;
+    private final List<String> concludeCommands;
 
     // World settings applied when the game world is created
     private final GameMode gameMode;
@@ -29,7 +30,8 @@ public class Minigame {
 
     public Minigame(String id, String name, Material displayItem, List<String> displayLore,
                     int maxPlayers, int minPlayers, WorldType worldType, String templateWorld,
-                    List<String> startCommands, GameMode gameMode, boolean pvp,
+                    List<String> startCommands, List<String> concludeCommands,
+                    GameMode gameMode, boolean pvp,
                     Difficulty difficulty, Map<String, String> gamerules) {
         this.id = id;
         this.name = name;
@@ -40,6 +42,7 @@ public class Minigame {
         this.worldType = worldType;
         this.templateWorld = templateWorld;
         this.startCommands = startCommands;
+        this.concludeCommands = concludeCommands;
         this.gameMode = gameMode;
         this.pvp = pvp;
         this.difficulty = difficulty;
@@ -55,6 +58,7 @@ public class Minigame {
     public WorldType getWorldType() { return worldType; }
     public String getTemplateWorld() { return templateWorld; }
     public List<String> getStartCommands() { return startCommands; }
+    public List<String> getConcludeCommands() { return concludeCommands; }
     public GameMode getGameMode() { return gameMode; }
     public boolean isPvp() { return pvp; }
     public Difficulty getDifficulty() { return difficulty; }
