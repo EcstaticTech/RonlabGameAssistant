@@ -12,12 +12,15 @@ public class WorldSettings {
     private final Difficulty difficulty;
     private final String alias;
     private final boolean template;
-    private final long timeLock;      // -1 = no lock, otherwise ticks (0-24000)
+    private final long timeLock;
     private final boolean weatherLock;
+    private final boolean disableNether;
+    private final boolean disableEnd;
 
     public WorldSettings(GameMode gamemode, boolean pvp, World.Environment environment,
                          Difficulty difficulty, String alias, boolean template,
-                         long timeLock, boolean weatherLock) {
+                         long timeLock, boolean weatherLock,
+                         boolean disableNether, boolean disableEnd) {
         this.gamemode = gamemode;
         this.pvp = pvp;
         this.environment = environment;
@@ -26,6 +29,8 @@ public class WorldSettings {
         this.template = template;
         this.timeLock = timeLock;
         this.weatherLock = weatherLock;
+        this.disableNether = disableNether;
+        this.disableEnd = disableEnd;
     }
 
     public GameMode getGamemode() { return gamemode; }
