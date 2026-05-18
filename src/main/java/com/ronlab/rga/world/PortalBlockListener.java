@@ -1,7 +1,6 @@
 package com.ronlab.rga.world;
 
 import com.ronlab.rga.RGA;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -18,10 +17,6 @@ public class PortalBlockListener implements Listener {
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPortal(PlayerPortalEvent event) {
-        // MinigameWorldListener handles portals for minigame worlds at HIGH priority
-        // This listener handles persistent worlds at NORMAL priority
-        if (!(event.getWhoClicked() instanceof Player player)) return;
-
         String currentWorld = event.getPlayer().getWorld().getName();
 
         // Skip minigame worlds — handled by MinigameWorldListener
