@@ -44,9 +44,11 @@ public class WorldManager {
             boolean template = section.getBoolean("template", false);
             long timeLock = section.getLong("time-lock", -1);
             boolean weatherLock = section.getBoolean("weather-lock", false);
+            boolean disableNether = section.getBoolean("disable-nether", false);
+            boolean disableEnd = section.getBoolean("disable-end", false);
 
             WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
-                    difficulty, alias, template, timeLock, weatherLock);
+                    difficulty, alias, template, timeLock, weatherLock, disableNether, disableEnd);
             worldSettings.put(worldName, settings);
 
             if (loadOnStartup) loadWorld(worldName, environment, settings);
@@ -80,7 +82,7 @@ public class WorldManager {
 
         WorldSettings settings = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, -1, false));
+                        Difficulty.NORMAL, worldName, false, -1, false, false, false));
 
         WorldCreator creator = new WorldCreator(worldName).environment(settings.getEnvironment());
         World world = Bukkit.createWorld(creator);
@@ -106,7 +108,7 @@ public class WorldManager {
 
         // Load with default settings
         WorldSettings settings = new WorldSettings(GameMode.SURVIVAL, true,
-                World.Environment.NORMAL, Difficulty.NORMAL, worldName, false, -1, false);
+                World.Environment.NORMAL, Difficulty.NORMAL, worldName, false, -1, false, false, false);
 
         WorldCreator creator = new WorldCreator(worldName);
         World world = Bukkit.createWorld(creator);
@@ -174,7 +176,7 @@ public class WorldManager {
         if (world == null) return false;
 
         WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
-                Difficulty.NORMAL, worldName, false, -1, false);
+                Difficulty.NORMAL, worldName, false, -1, false, false, false);
         worldSettings.put(worldName, settings);
         applySettings(world, settings);
         saveWorldToConfig(worldName, environment, gamemode, pvp,
@@ -192,7 +194,8 @@ public class WorldManager {
                         Difficulty.NORMAL, worldName, false, -1, false));
         worldSettings.put(worldName, new WorldSettings(gamemode, old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
-                old.isTemplate(), old.getTimeLock(), old.isWeatherLock()));
+                old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
+                old.isDisableNether(), old.isDisableEnd()));
         updateWorldConfig(worldName, "gamemode", gamemode.name());
     }
 
@@ -202,7 +205,8 @@ public class WorldManager {
                         Difficulty.NORMAL, worldName, false, -1, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), pvp,
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
-                old.isTemplate(), old.getTimeLock(), old.isWeatherLock()));
+                old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
+                old.isDisableNether(), old.isDisableEnd()));
         updateWorldConfig(worldName, "pvp", String.valueOf(pvp));
     }
 
@@ -212,7 +216,8 @@ public class WorldManager {
                         difficulty, worldName, false, -1, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), difficulty, old.getAlias(),
-                old.isTemplate(), old.getTimeLock(), old.isWeatherLock()));
+                old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
+                old.isDisableNether(), old.isDisableEnd()));
         updateWorldConfig(worldName, "difficulty", difficulty.name());
         World world = Bukkit.getWorld(worldName);
         if (world != null) world.setDifficulty(difficulty);
@@ -224,7 +229,8 @@ public class WorldManager {
                         Difficulty.NORMAL, worldName, false, time, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
-                old.isTemplate(), time, old.isWeatherLock()));
+                old.isTemplate(), time, old.isWeatherLock(),
+                old.isDisableNether(), old.isDisableEnd()));
         updateWorldConfig(worldName, "time-lock", String.valueOf(time));
         // Apply immediately
         World world = Bukkit.getWorld(worldName);
@@ -242,7 +248,8 @@ public class WorldManager {
                         Difficulty.NORMAL, worldName, false, -1, locked));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
-                old.isTemplate(), old.getTimeLock(), locked));
+                old.isTemplate(), old.getTimeLock(), locked,
+                old.isDisableNether(), old.isDisableEnd()));
         updateWorldConfig(worldName, "weather-lock", String.valueOf(locked));
         World world = Bukkit.getWorld(worldName);
         if (world != null && locked) {
@@ -261,7 +268,8 @@ public class WorldManager {
                         Difficulty.NORMAL, alias, false, -1, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), alias,
-                old.isTemplate(), old.getTimeLock(), old.isWeatherLock()));
+                old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
+                old.isDisableNether(), old.isDisableEnd()));
         updateWorldConfig(worldName, "alias", alias);
     }
 
@@ -271,7 +279,8 @@ public class WorldManager {
                         Difficulty.NORMAL, worldName, template, -1, false));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
-                template, old.getTimeLock(), old.isWeatherLock()));
+                template, old.getTimeLock(), old.isWeatherLock(),
+                old.isDisableNether(), old.isDisableEnd()));
         updateWorldConfig(worldName, "template", String.valueOf(template));
     }
 
