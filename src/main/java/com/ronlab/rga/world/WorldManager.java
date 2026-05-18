@@ -49,6 +49,13 @@ public class WorldManager {
                     difficulty, alias, template, timeLock, weatherLock);
             worldSettings.put(worldName, settings);
 
+            // Template worlds are never loaded — they sit on disk as reference
+            // folders and get copied when a minigame starts
+            if (template) {
+                plugin.getLogger().info("Registered template world: " + worldName + " (not loaded)");
+                continue;
+            }
+
             if (loadOnStartup) loadWorld(worldName, environment, settings);
         }
     }
