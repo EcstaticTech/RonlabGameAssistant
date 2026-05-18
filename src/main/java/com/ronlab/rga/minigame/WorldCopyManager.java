@@ -30,7 +30,6 @@ public class WorldCopyManager {
         String netherName    = baseName + "_the_nether";
         String endName       = baseName + "_the_end";
 
-        // ── Overworld ─────────────────────────────────────────────
         WorldCreator overworldCreator = new WorldCreator(overworldName);
         overworldCreator.environment(World.Environment.NORMAL);
         overworldCreator.generateStructures(true);
@@ -41,7 +40,6 @@ public class WorldCopyManager {
         }
         applyMinigameSettings(overworld, minigame);
 
-        // ── Nether ────────────────────────────────────────────────
         WorldCreator netherCreator = new WorldCreator(netherName);
         netherCreator.environment(World.Environment.NETHER);
         netherCreator.generateStructures(true);
@@ -53,7 +51,6 @@ public class WorldCopyManager {
         }
         applyMinigameSettings(nether, minigame);
 
-        // ── End ───────────────────────────────────────────────────
         WorldCreator endCreator = new WorldCreator(endName);
         endCreator.environment(World.Environment.THE_END);
         endCreator.generateStructures(true);
@@ -72,8 +69,7 @@ public class WorldCopyManager {
     }
 
     /**
-     * Copies a top-level template world folder to a new top-level folder.
-     * Datapacks and all world data are preserved since the entire folder is copied.
+     * Copies a template world dimension folder to a new dimension folder.
      * Returns the new world name, or null on failure.
      */
     public String copyTemplateWorld(Minigame minigame) {
@@ -81,20 +77,14 @@ public class WorldCopyManager {
         String newWorldName = "minigame_" + minigame.getId() + "_"
                 + UUID.randomUUID().toString().substring(0, 8);
 
-        // Template must be a top-level folder in the server directory
-        File serverDir = Bukkit.getWorldContainer();
-        File templateFolder = new File(serverDir, templateWorldName);
-
-        if (!templateFolder.exists() || !templateFolder.isDirectory()) {
-            plugin.getLogger().severe("Template world folder not found at server root: "
-                    + templateWorldName
-                    + ". Make sure the template world is a top-level folder, not inside world/dimensions/.");
+        File templateFolder = findWorldFolder(templateWorldName);
+        if (templateFolder == null || !templateFolder.exists()) {
+            plugin.getLogger().severe("Template world folder not found: " + templateWorldName);
             return null;
         }
 
-        File destination = new File(serverDir, newWorldName);
+        File destination = new File(templateFolder.getParentFile(), newWorldName);
 
-        // Copy the entire template folder including datapacks
         try {
             copyFolder(templateFolder.toPath(), destination.toPath());
         } catch (IOException e) {
@@ -105,7 +95,6 @@ public class WorldCopyManager {
         // Delete files that cause Paper to detect this as a duplicate world
         deleteDuplicateFiles(destination);
 
-        // Load the copied world
         WorldCreator creator = new WorldCreator(newWorldName);
         creator.environment(World.Environment.NORMAL);
         World world = Bukkit.createWorld(creator);
@@ -117,7 +106,7 @@ public class WorldCopyManager {
 
         applyMinigameSettings(world, minigame);
         plugin.getLogger().info("Copied template '" + templateWorldName
-                + "' to '" + newWorldName + "' with datapacks.");
+                + "' to '" + newWorldName + "'.");
         return newWorldName;
     }
 
@@ -152,21 +141,16 @@ public class WorldCopyManager {
 
     /**
      * Unloads and deletes minigame world(s).
-     * For VANILLA type, also cleans up nether and end.
-     * For TEMPLATE type, deletes the entire top-level copied folder.
      */
     public void cleanupWorld(String baseName, boolean isVanilla) {
         if (isVanilla) {
-            unloadAndDelete(baseName + "_the_end", false);
-            unloadAndDelete(baseName + "_the_nether", false);
-            unloadAndDelete(baseName, false);
-        } else {
-            // Template worlds are top-level folders — delete the whole folder
-            unloadAndDelete(baseName, true);
+            unloadAndDelete(baseName + "_the_end");
+            unloadAndDelete(baseName + "_the_nether");
         }
+        unloadAndDelete(baseName);
     }
 
-    private void unloadAndDelete(String worldName, boolean topLevel) {
+    private void unloadAndDelete(String worldName) {
         World world = Bukkit.getWorld(worldName);
         if (world != null) {
             World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
@@ -178,18 +162,7 @@ public class WorldCopyManager {
             Bukkit.unloadWorld(world, false);
         }
 
-        // For template copies — delete the entire top-level folder
-        if (topLevel) {
-            File topLevelFolder = new File(Bukkit.getWorldContainer(), worldName);
-            if (topLevelFolder.exists()) {
-                deleteFolder(topLevelFolder);
-                plugin.getLogger().info("Deleted minigame world folder: " + worldName);
-                return;
-            }
-        }
-
-        // For vanilla dimensions — find and delete the dimension subfolder
-        File folder = findDimensionFolder(worldName);
+        File folder = findWorldFolder(worldName);
         if (folder != null && folder.exists()) {
             deleteFolder(folder);
             plugin.getLogger().info("Deleted minigame world: " + worldName);
@@ -198,11 +171,7 @@ public class WorldCopyManager {
 
     // ── Folder utilities ─────────────────────────────────────────
 
-    /**
-     * Finds a world folder inside world/dimensions/minecraft/ subfolders.
-     * Used for vanilla minigame dimension cleanup.
-     */
-    private File findDimensionFolder(String worldName) {
+    public File findWorldFolder(String worldName) {
         File topLevel = new File(Bukkit.getWorldContainer(), worldName);
         if (topLevel.exists()) return topLevel;
 
@@ -223,7 +192,6 @@ public class WorldCopyManager {
 
     /**
      * Recursively deletes files that cause Paper duplicate world detection.
-     * metadata.dat contains the world UUID in Paper 26.1.
      */
     private void deleteDuplicateFiles(File folder) {
         File[] files = folder.listFiles();
@@ -235,8 +203,6 @@ public class WorldCopyManager {
                     || file.getName().equals("session.lock")
                     || file.getName().equals("metadata.dat")) {
                 file.delete();
-                plugin.getLogger().info("Deleted " + file.getName()
-                        + " from copied world to prevent duplicate detection.");
             }
         }
     }
