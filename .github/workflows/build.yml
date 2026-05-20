@@ -1,9 +1,12 @@
 name: Build RonlabGameAssistant
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -25,6 +28,12 @@ jobs:
 
       - name: List jar contents
         run: jar tf target/RonlabGameAssistant-1.0.0.jar
+
+      - name: Upload JAR to Release
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
+        with:
+          files: target/RonlabGameAssistant-1.0.0.jar
 
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4

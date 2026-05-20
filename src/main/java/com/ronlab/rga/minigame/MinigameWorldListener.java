@@ -35,6 +35,17 @@ public class MinigameWorldListener implements Listener {
 
         if (cause == PlayerTeleportEvent.TeleportCause.NETHER_PORTAL) {
             if (currentWorld.equals(baseName)) {
+                // Check if nether is disabled for this minigame
+                com.ronlab.rga.party.Party party = plugin.getPartyManager().getActiveParties()
+                        .values().stream()
+                        .filter(p -> baseName.equals(p.getActiveWorldName()))
+                        .findFirst().orElse(null);
+                if (party != null && party.getMinigame().isDisableNether()) {
+                    event.setCancelled(true);
+                    player.sendMessage("§cThe Nether is disabled in this minigame.");
+                    return;
+                }
+
                 // Overworld → Nether
                 World nether = Bukkit.getWorld(baseName + "_the_nether");
                 if (nether != null) {
@@ -55,6 +66,17 @@ public class MinigameWorldListener implements Listener {
             }
         } else if (cause == PlayerTeleportEvent.TeleportCause.END_PORTAL) {
             if (currentWorld.equals(baseName)) {
+                // Check if end is disabled for this minigame
+                com.ronlab.rga.party.Party party = plugin.getPartyManager().getActiveParties()
+                        .values().stream()
+                        .filter(p -> baseName.equals(p.getActiveWorldName()))
+                        .findFirst().orElse(null);
+                if (party != null && party.getMinigame().isDisableEnd()) {
+                    event.setCancelled(true);
+                    player.sendMessage("§cThe End is disabled in this minigame.");
+                    return;
+                }
+
                 // Overworld → End
                 World end = Bukkit.getWorld(baseName + "_the_end");
                 if (end != null) {

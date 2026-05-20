@@ -75,6 +75,8 @@ public class MinigameManager {
             boolean pvp = true;
             Difficulty difficulty = Difficulty.NORMAL;
             Map<String, String> gamerules = new LinkedHashMap<>();
+            boolean disableNether = false;
+            boolean disableEnd = false;
 
             if (ws != null) {
                 String gmStr = ws.getString("gamemode", "SURVIVAL").toUpperCase();
@@ -93,6 +95,9 @@ public class MinigameManager {
                             + "' in world-settings for " + id + ". Defaulting to NORMAL.");
                 }
 
+                disableNether = ws.getBoolean("disable-nether", false);
+                disableEnd = ws.getBoolean("disable-end", false);
+
                 ConfigurationSection grSection = ws.getConfigurationSection("gamerules");
                 if (grSection != null) {
                     for (String rule : grSection.getKeys(false)) {
@@ -103,7 +108,8 @@ public class MinigameManager {
 
             minigames.put(id, new Minigame(id, name, material, lore,
                     maxPlayers, minPlayers, worldType, templateWorld,
-                    startCommands, concludeCommands, gameMode, pvp, difficulty, gamerules));
+                    startCommands, concludeCommands, gameMode, pvp, difficulty, gamerules,
+                    disableNether, disableEnd));
         }
 
         plugin.getLogger().info("Loaded " + minigames.size() + " minigame(s) from minigames.yml.");

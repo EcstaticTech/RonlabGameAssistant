@@ -27,12 +27,15 @@ public class Minigame {
     private final boolean pvp;
     private final Difficulty difficulty;
     private final Map<String, String> gamerules;
+    private final boolean disableNether;
+    private final boolean disableEnd;
 
     public Minigame(String id, String name, Material displayItem, List<String> displayLore,
                     int maxPlayers, int minPlayers, WorldType worldType, String templateWorld,
                     List<String> startCommands, List<String> concludeCommands,
                     GameMode gameMode, boolean pvp,
-                    Difficulty difficulty, Map<String, String> gamerules) {
+                    Difficulty difficulty, Map<String, String> gamerules,
+                    boolean disableNether, boolean disableEnd) {
         this.id = id;
         this.name = name;
         this.displayItem = displayItem;
@@ -47,6 +50,8 @@ public class Minigame {
         this.pvp = pvp;
         this.difficulty = difficulty;
         this.gamerules = gamerules;
+        this.disableNether = disableNether;
+        this.disableEnd = disableEnd;
     }
 
     public String getId() { return id; }
@@ -63,4 +68,6 @@ public class Minigame {
     public boolean isPvp() { return pvp; }
     public Difficulty getDifficulty() { return difficulty; }
     public Map<String, String> getGamerules() { return gamerules; }
+    public boolean isDisableNether() { return disableNether; }
+    public boolean isDisableEnd() { return disableEnd; }
 }
