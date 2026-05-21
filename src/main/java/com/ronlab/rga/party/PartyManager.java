@@ -237,8 +237,14 @@ public class PartyManager implements Listener {
     private void executeStartCommands(List<String> commands, String worldName,
                                       String leaderName, String allPlayers,
                                       List<String> playerNames, Player leaderPlayer) {
-        // %second% is the first non-leader player in join order
-        String secondName = playerNames.size() >= 2 ? playerNames.get(1) : "";
+        // Named placeholders for each party position in join order
+        String secondName  = playerNames.size() >= 2 ? playerNames.get(1) : "";
+        String thirdName   = playerNames.size() >= 3 ? playerNames.get(2) : "";
+        String fourthName  = playerNames.size() >= 4 ? playerNames.get(3) : "";
+        String fifthName   = playerNames.size() >= 5 ? playerNames.get(4) : "";
+        String sixthName   = playerNames.size() >= 6 ? playerNames.get(5) : "";
+        String seventhName = playerNames.size() >= 7 ? playerNames.get(6) : "";
+        String eighthName  = playerNames.size() >= 8 ? playerNames.get(7) : "";
 
         for (String command : commands) {
             if (command.startsWith("player-each:")) {
@@ -246,14 +252,18 @@ public class PartyManager implements Listener {
                 String cmd = command.substring("player-each:".length()).trim();
                 for (String playerName : playerNames) {
                     String resolved = resolveCommand(cmd, worldName, leaderName,
-                            allPlayers, playerName, secondName);
+                            allPlayers, playerName, secondName,
+                            thirdName, fourthName, fifthName,
+                            sixthName, seventhName, eighthName);
                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);
                 }
             } else if (command.startsWith("leader:")) {
                 // Run as the leader player — opens GUIs and player-only commands
                 String cmd = command.substring("leader:".length()).trim();
                 String resolved = resolveCommand(cmd, worldName, leaderName,
-                        allPlayers, leaderName, secondName);
+                        allPlayers, leaderName, secondName,
+                        thirdName, fourthName, fifthName,
+                        sixthName, seventhName, eighthName);
                 if (leaderPlayer != null) {
                     leaderPlayer.performCommand(resolved);
                 } else {
@@ -265,7 +275,8 @@ public class PartyManager implements Listener {
                 String cmd = command.startsWith("console:")
                         ? command.substring("console:".length()).trim()
                         : command.trim();
-                String resolved = resolveCommand(cmd, worldName, leaderName, allPlayers, "", secondName);
+                String resolved = resolveCommand(cmd, worldName, leaderName, allPlayers, "", secondName,
+                        thirdName, fourthName, fifthName, sixthName, seventhName, eighthName);
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);
             }
         }
@@ -273,13 +284,22 @@ public class PartyManager implements Listener {
 
     private String resolveCommand(String command, String worldName,
                                    String leaderName, String allPlayers,
-                                   String playerName, String secondName) {
+                                   String playerName, String secondName,
+                                   String thirdName, String fourthName,
+                                   String fifthName, String sixthName,
+                                   String seventhName, String eighthName) {
         return command
                 .replace("%world%", worldName)
-                .replace("%leader%", leaderName)
-                .replace("%players%", allPlayers)
-                .replace("%second%", secondName)
-                .replace("%player%", playerName);
+                .replace("%leader%",   leaderName)
+                .replace("%players%",  allPlayers)
+                .replace("%second%",   secondName)
+                .replace("%third%",    thirdName)
+                .replace("%fourth%",   fourthName)
+                .replace("%fifth%",    fifthName)
+                .replace("%sixth%",    sixthName)
+                .replace("%seventh%",  seventhName)
+                .replace("%eighth%",   eighthName)
+                .replace("%player%",   playerName);
     }
 
     // ── Game End ─────────────────────────────────────────────────
