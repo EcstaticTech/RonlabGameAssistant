@@ -75,6 +75,7 @@ public class HubListener implements Listener {
         String hubWorld = plugin.getConfigManager().getHubWorld();
         List<String> smpWorlds = plugin.getConfigManager().getSmpWorlds();
 
+
         // Player whose game was concluded while they were dead
         // Route them to Hub and restore their advancements
         if (plugin.getPartyManager().isConcluded(player.getUniqueId())) {
@@ -94,11 +95,11 @@ public class HubListener implements Listener {
         if (smpWorlds.contains(currentWorld)) return;
 
         // Hub — set respawn to hub spawn point and also teleport on next tick
-        // as a fallback in case Paper overrides setRespawnLocation
         if (currentWorld.equalsIgnoreCase(hubWorld)) {
             World hub = Bukkit.getWorld(hubWorld);
             if (hub != null) {
                 event.setRespawnLocation(hub.getSpawnLocation());
+
                 plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                     if (player.isOnline()) player.teleport(hub.getSpawnLocation());
                 }, 2L);
@@ -106,11 +107,8 @@ public class HubListener implements Listener {
             return;
         }
 
-        // Any other configured world (Creative, Adventure, Parkour etc.)
-        // let them respawn normally in their own world
-        if (plugin.getWorldManager().getSettings(currentWorld) != null) return;
-
-        // Unknown world — redirect to Hub as fallback
+        // Everything else (Creative, Adventure, Parkour, unknown worlds)
+        // redirect to Hub on death
         World hub = Bukkit.getWorld(hubWorld);
         if (hub != null) {
             event.setRespawnLocation(hub.getSpawnLocation());
