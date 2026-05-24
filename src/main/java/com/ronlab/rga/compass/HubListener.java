@@ -93,10 +93,16 @@ public class HubListener implements Listener {
         // SMP worlds — let them respawn normally there
         if (smpWorlds.contains(currentWorld)) return;
 
-        // Hub — set respawn to hub spawn point
+        // Hub — set respawn to hub spawn point and also teleport on next tick
+        // as a fallback in case Paper overrides setRespawnLocation
         if (currentWorld.equalsIgnoreCase(hubWorld)) {
             World hub = Bukkit.getWorld(hubWorld);
-            if (hub != null) event.setRespawnLocation(hub.getSpawnLocation());
+            if (hub != null) {
+                event.setRespawnLocation(hub.getSpawnLocation());
+                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                    if (player.isOnline()) player.teleport(hub.getSpawnLocation());
+                }, 2L);
+            }
             return;
         }
 
@@ -108,6 +114,9 @@ public class HubListener implements Listener {
         World hub = Bukkit.getWorld(hubWorld);
         if (hub != null) {
             event.setRespawnLocation(hub.getSpawnLocation());
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (player.isOnline()) player.teleport(hub.getSpawnLocation());
+            }, 2L);
         }
     }
 
