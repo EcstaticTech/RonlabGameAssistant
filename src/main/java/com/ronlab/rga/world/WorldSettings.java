@@ -4,6 +4,9 @@ import org.bukkit.Difficulty;
 import org.bukkit.GameMode;
 import org.bukkit.World;
 
+import java.util.Collections;
+import java.util.Map;
+
 public class WorldSettings {
 
     private final GameMode gamemode;
@@ -16,11 +19,13 @@ public class WorldSettings {
     private final boolean weatherLock;
     private final boolean disableNether;
     private final boolean disableEnd;
+    private final Map<String, String> gamerules;
 
     public WorldSettings(GameMode gamemode, boolean pvp, World.Environment environment,
                          Difficulty difficulty, String alias, boolean template,
                          long timeLock, boolean weatherLock,
-                         boolean disableNether, boolean disableEnd) {
+                         boolean disableNether, boolean disableEnd,
+                         Map<String, String> gamerules) {
         this.gamemode = gamemode;
         this.pvp = pvp;
         this.environment = environment;
@@ -31,6 +36,7 @@ public class WorldSettings {
         this.weatherLock = weatherLock;
         this.disableNether = disableNether;
         this.disableEnd = disableEnd;
+        this.gamerules = gamerules != null ? gamerules : Collections.emptyMap();
     }
 
     public GameMode getGamemode() { return gamemode; }
@@ -43,4 +49,5 @@ public class WorldSettings {
     public boolean isWeatherLock() { return weatherLock; }
     public boolean isDisableNether() { return disableNether; }
     public boolean isDisableEnd() { return disableEnd; }
+    public Map<String, String> getGamerules() { return gamerules; }
 }

@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -47,8 +48,17 @@ public class WorldManager {
             boolean disableNether = section.getBoolean("disable-nether", false);
             boolean disableEnd = section.getBoolean("disable-end", false);
 
+            // Load gamerules
+            Map<String, String> gamerules = new LinkedHashMap<>();
+            ConfigurationSection grSection = section.getConfigurationSection("gamerules");
+            if (grSection != null) {
+                for (String rule : grSection.getKeys(false)) {
+                    gamerules.put(rule, grSection.getString(rule, ""));
+                }
+            }
+
             WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
-                    difficulty, alias, template, timeLock, weatherLock, disableNether, disableEnd);
+                    difficulty, alias, template, timeLock, weatherLock, disableNether, disableEnd, gamerules);
             worldSettings.put(worldName, settings);
 
             if (loadOnStartup) loadWorld(worldName, environment, settings);
@@ -82,7 +92,7 @@ public class WorldManager {
 
         WorldSettings settings = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, -1, false, false, false));
+                        Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap()));
 
         WorldCreator creator = new WorldCreator(worldName).environment(settings.getEnvironment());
         World world = Bukkit.createWorld(creator);
@@ -108,7 +118,7 @@ public class WorldManager {
 
         // Load with default settings
         WorldSettings settings = new WorldSettings(GameMode.SURVIVAL, true,
-                World.Environment.NORMAL, Difficulty.NORMAL, worldName, false, -1, false, false, false);
+                World.Environment.NORMAL, Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap());
 
         WorldCreator creator = new WorldCreator(worldName);
         World world = Bukkit.createWorld(creator);
@@ -176,7 +186,7 @@ public class WorldManager {
         if (world == null) return false;
 
         WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
-                Difficulty.NORMAL, worldName, false, -1, false, false, false);
+                Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap());
         worldSettings.put(worldName, settings);
         applySettings(world, settings);
         saveWorldToConfig(worldName, environment, gamemode, pvp,
@@ -191,33 +201,33 @@ public class WorldManager {
     public void setWorldGamemode(String worldName, GameMode gamemode) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(gamemode, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, -1, false, false, false));
+                        Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap()));
         worldSettings.put(worldName, new WorldSettings(gamemode, old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
-                old.isDisableNether(), old.isDisableEnd()));
+                old.isDisableNether(), old.isDisableEnd(), old.getGamerules()));
         updateWorldConfig(worldName, "gamemode", gamemode.name());
     }
 
     public void setWorldPvp(String worldName, boolean pvp) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, pvp, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, -1, false, false, false));
+                        Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap()));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), pvp,
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
-                old.isDisableNether(), old.isDisableEnd()));
+                old.isDisableNether(), old.isDisableEnd(), old.getGamerules()));
         updateWorldConfig(worldName, "pvp", String.valueOf(pvp));
     }
 
     public void setWorldDifficulty(String worldName, Difficulty difficulty) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        difficulty, worldName, false, -1, false, false, false));
+                        difficulty, worldName, false, -1, false, false, false, java.util.Collections.emptyMap()));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), difficulty, old.getAlias(),
                 old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
-                old.isDisableNether(), old.isDisableEnd()));
+                old.isDisableNether(), old.isDisableEnd(), old.getGamerules()));
         updateWorldConfig(worldName, "difficulty", difficulty.name());
         World world = Bukkit.getWorld(worldName);
         if (world != null) world.setDifficulty(difficulty);
@@ -226,11 +236,11 @@ public class WorldManager {
     public void setWorldTimeLock(String worldName, long time) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, time, false, false, false));
+                        Difficulty.NORMAL, worldName, false, time, false, false, false, java.util.Collections.emptyMap()));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 old.isTemplate(), time, old.isWeatherLock(),
-                old.isDisableNether(), old.isDisableEnd()));
+                old.isDisableNether(), old.isDisableEnd(), old.getGamerules()));
         updateWorldConfig(worldName, "time-lock", String.valueOf(time));
         // Apply immediately
         World world = Bukkit.getWorld(worldName);
@@ -245,11 +255,11 @@ public class WorldManager {
     public void setWorldWeatherLock(String worldName, boolean locked) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, -1, locked, false, false));
+                        Difficulty.NORMAL, worldName, false, -1, locked, false, false, java.util.Collections.emptyMap()));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 old.isTemplate(), old.getTimeLock(), locked,
-                old.isDisableNether(), old.isDisableEnd()));
+                old.isDisableNether(), old.isDisableEnd(), old.getGamerules()));
         updateWorldConfig(worldName, "weather-lock", String.valueOf(locked));
         World world = Bukkit.getWorld(worldName);
         if (world != null && locked) {
@@ -265,22 +275,22 @@ public class WorldManager {
     public void setWorldAlias(String worldName, String alias) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, alias, false, -1, false, false, false));
+                        Difficulty.NORMAL, alias, false, -1, false, false, false, java.util.Collections.emptyMap()));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), alias,
                 old.isTemplate(), old.getTimeLock(), old.isWeatherLock(),
-                old.isDisableNether(), old.isDisableEnd()));
+                old.isDisableNether(), old.isDisableEnd(), old.getGamerules()));
         updateWorldConfig(worldName, "alias", alias);
     }
 
     public void setWorldTemplate(String worldName, boolean template) {
         WorldSettings old = worldSettings.getOrDefault(worldName,
                 new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, template, -1, false, false, false));
+                        Difficulty.NORMAL, worldName, template, -1, false, false, false, java.util.Collections.emptyMap()));
         worldSettings.put(worldName, new WorldSettings(old.getGamemode(), old.isPvp(),
                 old.getEnvironment(), old.getDifficulty(), old.getAlias(),
                 template, old.getTimeLock(), old.isWeatherLock(),
-                old.isDisableNether(), old.isDisableEnd()));
+                old.isDisableNether(), old.isDisableEnd(), old.getGamerules()));
         updateWorldConfig(worldName, "template", String.valueOf(template));
     }
 
@@ -308,6 +318,7 @@ public class WorldManager {
 
     // ── Settings application ─────────────────────────────────────
 
+    @SuppressWarnings("unchecked")
     private void applySettings(World world, WorldSettings settings) {
         world.setPVP(settings.isPvp());
         world.setDifficulty(settings.getDifficulty());
@@ -324,6 +335,27 @@ public class WorldManager {
             world.setThundering(false);
             world.setWeatherDuration(Integer.MAX_VALUE);
             world.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+        }
+
+        // Gamerules
+        for (Map.Entry<String, String> entry : settings.getGamerules().entrySet()) {
+            GameRule<?> rule = GameRule.getByName(entry.getKey());
+            if (rule == null) {
+                plugin.getLogger().warning("Unknown gamerule '" + entry.getKey()
+                        + "' in worlds.yml for world '" + world.getName() + "'. Skipping.");
+                continue;
+            }
+            String value = entry.getValue();
+            if (rule.getType() == Boolean.class) {
+                world.setGameRule((GameRule<Boolean>) rule, Boolean.parseBoolean(value));
+            } else if (rule.getType() == Integer.class) {
+                try {
+                    world.setGameRule((GameRule<Integer>) rule, Integer.parseInt(value));
+                } catch (NumberFormatException e) {
+                    plugin.getLogger().warning("Invalid value '" + value
+                            + "' for gamerule '" + entry.getKey() + "'. Skipping.");
+                }
+            }
         }
     }
 
