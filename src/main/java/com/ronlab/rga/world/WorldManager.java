@@ -186,7 +186,7 @@ public class WorldManager {
         if (world == null) return false;
 
         WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
-                Difficulty.NORMAL, worldName, false, -1, false, false, false);
+                Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap());
         worldSettings.put(worldName, settings);
         applySettings(world, settings);
         saveWorldToConfig(worldName, environment, gamemode, pvp,
