@@ -93,14 +93,18 @@ public class HubListener implements Listener {
         // SMP worlds — let them respawn normally there
         if (smpWorlds.contains(currentWorld)) return;
 
-        // Already in Hub — nothing to do
-        if (currentWorld.equalsIgnoreCase(hubWorld)) return;
+        // Hub — set respawn to hub spawn point
+        if (currentWorld.equalsIgnoreCase(hubWorld)) {
+            World hub = Bukkit.getWorld(hubWorld);
+            if (hub != null) event.setRespawnLocation(hub.getSpawnLocation());
+            return;
+        }
 
-        // Any configured world (Creative, Adventure, Parkour etc.)
+        // Any other configured world (Creative, Adventure, Parkour etc.)
         // let them respawn normally in their own world
         if (plugin.getWorldManager().getSettings(currentWorld) != null) return;
 
-        // Only redirect truly unknown worlds to Hub
+        // Unknown world — redirect to Hub as fallback
         World hub = Bukkit.getWorld(hubWorld);
         if (hub != null) {
             event.setRespawnLocation(hub.getSpawnLocation());
