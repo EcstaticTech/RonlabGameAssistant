@@ -68,20 +68,12 @@ public class HubListener implements Listener {
      * in an SMP world or an active minigame world (those are handled by
      * their own listeners at higher priority).
      */
-    @EventHandler(priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         String currentWorld = player.getWorld().getName();
         String hubWorld = plugin.getConfigManager().getHubWorld();
         List<String> smpWorlds = plugin.getConfigManager().getSmpWorlds();
-
-        // Debug logging — remove after confirming fix
-        plugin.getLogger().info("[RGA Respawn Debug] player=" + player.getName()
-                + " world=" + currentWorld
-                + " hubWorld=" + hubWorld
-                + " smpWorlds=" + smpWorlds
-                + " isConcluded=" + plugin.getPartyManager().isConcluded(player.getUniqueId())
-                + " worldSettings=" + (plugin.getWorldManager().getSettings(currentWorld) != null));
 
         // Player whose game was concluded while they were dead
         // Route them to Hub and restore their advancements
