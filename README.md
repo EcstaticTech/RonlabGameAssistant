@@ -1,5 +1,9 @@
 ## Changelog
 
+### v0.18.0
+
+- Added social item for easier access to parties.
+
 ### v0.17.5
 
 - Patch for spawn preferences.
