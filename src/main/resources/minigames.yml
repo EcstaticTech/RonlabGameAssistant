@@ -2,7 +2,16 @@
 # Ronlab Game Assistant - Minigame Configuration
 # -----------------------------------------------
 # world-type options:
-#   TEMPLATE - copies a premade template world
+#   TEMPLATE - copies a premade template world.
+#              Template worlds must be placed as top-level folders in the
+#              server directory (same level as the main 'world' folder).
+#              This ensures datapacks, command blocks, and all map assets
+#              are preserved correctly when the world is copied.
+#              Example server layout:
+#                server/
+#                  world/           <- main world
+#                  MyParkourMap/    <- template world folder
+#                  plugins/
 #   VANILLA  - generates fresh interconnected overworld/nether/end
 #
 # start-commands - run automatically after all players are teleported in
