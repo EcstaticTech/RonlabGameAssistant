@@ -69,7 +69,14 @@ public class WorldCopyManager {
     }
 
     /**
-     * Copies a template world dimension folder to a new dimension folder.
+     * Copies a template world top-level folder to a new top-level folder,
+     * then loads it with WorldCreator.
+     *
+     * Template worlds must be stored as top-level world folders in the server
+     * directory (alongside the main 'world' folder), NOT inside dimensions/.
+     * This ensures datapacks, level.dat, and all other level-root assets are
+     * included in the copy.
+     *
      * Returns the new world name, or null on failure.
      */
     public String copyTemplateWorld(Minigame minigame) {
@@ -77,13 +84,16 @@ public class WorldCopyManager {
         String newWorldName = "minigame_" + minigame.getId() + "_"
                 + UUID.randomUUID().toString().substring(0, 8);
 
-        File templateFolder = findWorldFolder(templateWorldName);
-        if (templateFolder == null || !templateFolder.exists()) {
-            plugin.getLogger().severe("Template world folder not found: " + templateWorldName);
+        // Templates must be top-level world folders
+        File templateFolder = new File(Bukkit.getWorldContainer(), templateWorldName);
+        if (!templateFolder.exists() || !templateFolder.isDirectory()) {
+            plugin.getLogger().severe(
+                "Template world folder not found at server root: " + templateWorldName
+                + ". Template worlds must be top-level folders in the server directory.");
             return null;
         }
 
-        File destination = new File(templateFolder.getParentFile(), newWorldName);
+        File destination = new File(Bukkit.getWorldContainer(), newWorldName);
 
         try {
             copyFolder(templateFolder.toPath(), destination.toPath());
@@ -92,7 +102,9 @@ public class WorldCopyManager {
             return null;
         }
 
-        // Delete files that cause Paper to detect this as a duplicate world
+        // Remove identity files so Paper treats this as a fresh world.
+        // We do NOT delete level.dat — it carries the map's spawn point,
+        // world settings, and datapack load list, all of which the map needs.
         deleteDuplicateFiles(destination);
 
         WorldCreator creator = new WorldCreator(newWorldName);
@@ -162,8 +174,9 @@ public class WorldCopyManager {
             Bukkit.unloadWorld(world, false);
         }
 
-        File folder = findWorldFolder(worldName);
-        if (folder != null && folder.exists()) {
+        // Minigame worlds are always top-level folders
+        File folder = new File(Bukkit.getWorldContainer(), worldName);
+        if (folder.exists()) {
             deleteFolder(folder);
             plugin.getLogger().info("Deleted minigame world: " + worldName);
         }
@@ -171,10 +184,17 @@ public class WorldCopyManager {
 
     // ── Folder utilities ─────────────────────────────────────────
 
+    /**
+     * Finds a world folder. Checks the server root (top-level) first,
+     * then falls back to searching inside dimensions/ for legacy worlds.
+     */
     public File findWorldFolder(String worldName) {
+        // Primary: top-level world folder (correct location for all worlds)
         File topLevel = new File(Bukkit.getWorldContainer(), worldName);
         if (topLevel.exists()) return topLevel;
 
+        // Fallback: Paper's dimensions/ structure (for worlds registered by
+        // the main world container, e.g. world_nether lives inside world/)
         File[] topFolders = Bukkit.getWorldContainer().listFiles(File::isDirectory);
         if (topFolders == null) return null;
         for (File worldFolder : topFolders) {
@@ -191,7 +211,9 @@ public class WorldCopyManager {
     }
 
     /**
-     * Recursively deletes files that cause Paper duplicate world detection.
+     * Recursively deletes files that cause Paper duplicate-world detection.
+     * level.dat is intentionally preserved — it holds the map's spawn point,
+     * world type, enabled datapacks, and other settings the map depends on.
      */
     private void deleteDuplicateFiles(File folder) {
         File[] files = folder.listFiles();
@@ -199,10 +221,13 @@ public class WorldCopyManager {
         for (File file : files) {
             if (file.isDirectory()) {
                 deleteDuplicateFiles(file);
-            } else if (file.getName().equals("uid.dat")
-                    || file.getName().equals("session.lock")
-                    || file.getName().equals("metadata.dat")) {
-                file.delete();
+            } else {
+                String name = file.getName();
+                if (name.equals("uid.dat")
+                        || name.equals("session.lock")
+                        || name.equals("metadata.dat")) {
+                    file.delete();
+                }
             }
         }
     }
