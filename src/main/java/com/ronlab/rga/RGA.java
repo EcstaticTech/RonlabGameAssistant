@@ -17,6 +17,9 @@ import com.ronlab.rga.player.LocationTracker;
 import com.ronlab.rga.world.PortalBlockListener;
 import com.ronlab.rga.world.WorldEnforcementListener;
 import com.ronlab.rga.world.WorldManager;
+import com.ronlab.rga.social.BrowsePartiesGui;
+import com.ronlab.rga.social.SocialItem;
+import com.ronlab.rga.social.SocialListener;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -34,6 +37,8 @@ public class RGA extends JavaPlugin {
     private PartyManager partyManager;
     private LobbyGui lobbyGui;
     private HubListener hubListener;
+    private SocialItem socialItem;
+    private BrowsePartiesGui browsePartiesGui;
 
     @Override
     public void onEnable() {
@@ -56,6 +61,9 @@ public class RGA extends JavaPlugin {
 
         worldManager.loadConfiguredWorlds();
 
+        socialItem = new SocialItem(this);
+        browsePartiesGui = new BrowsePartiesGui(this);
+
         hubListener = new HubListener(this);
         getServer().getPluginManager().registerEvents(hubListener, this);
         getServer().getPluginManager().registerEvents(new CompassListener(this, menuManager, hubListener), this);
@@ -63,6 +71,7 @@ public class RGA extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new WorldEnforcementListener(this), this);
         getServer().getPluginManager().registerEvents(new PortalBlockListener(this), this);
         getServer().getPluginManager().registerEvents(new MinigameWorldListener(this), this);
+        getServer().getPluginManager().registerEvents(new SocialListener(this), this);
 
         RGACommand rgaCommand = new RGACommand(this);
         PluginCommand rga = getCommand("rga");
@@ -104,4 +113,6 @@ public class RGA extends JavaPlugin {
     public PartyManager getPartyManager() { return partyManager; }
     public LobbyGui getLobbyGui() { return lobbyGui; }
     public HubListener getHubListener() { return hubListener; }
+    public SocialItem getSocialItem() { return socialItem; }
+    public BrowsePartiesGui getBrowsePartiesGui() { return browsePartiesGui; }
 }
