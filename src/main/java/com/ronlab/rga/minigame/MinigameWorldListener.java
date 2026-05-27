@@ -94,7 +94,7 @@ public class MinigameWorldListener implements Listener {
 
     // ── Respawn routing ──────────────────────────────────────────
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         String currentWorld = player.getWorld().getName();

@@ -23,6 +23,16 @@ compass:
   slot: 8
   remove-on-leave-hub: true
 
+# Social item settings
+# The item is always a player head — material is fixed.
+# slot should differ from compass.slot.
+social-item:
+  name: "&bSocial"
+  lore:
+    - "&7Right-click to browse open parties"
+    - "&7or return to your current party."
+  slot: 7
+
 # -----------------------------------------------
 # Inventory Groups
 # -----------------------------------------------

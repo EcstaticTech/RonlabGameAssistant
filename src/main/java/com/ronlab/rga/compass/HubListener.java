@@ -41,6 +41,7 @@ public class HubListener implements Listener {
             }
             plugin.getInventoryManager().clearPlayer(player);
             giveCompass(player);
+            plugin.getSocialItem().giveSocialItem(player);
         }, 5L);
     }
 
@@ -54,11 +55,13 @@ public class HubListener implements Listener {
         if (newWorld.equalsIgnoreCase(hubWorld)) {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 giveCompass(player);
+                plugin.getSocialItem().giveSocialItem(player);
             }, 1L);
         } else if (oldWorld.equalsIgnoreCase(hubWorld)) {
             boolean removeOnLeave = plugin.getConfig().getBoolean("compass.remove-on-leave-hub", true);
             if (removeOnLeave) {
                 removeCompass(player);
+                plugin.getSocialItem().removeSocialItem(player);
             }
         }
     }
@@ -68,12 +71,13 @@ public class HubListener implements Listener {
      * in an SMP world or an active minigame world (those are handled by
      * their own listeners at higher priority).
      */
-    @EventHandler(priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         String currentWorld = player.getWorld().getName();
         String hubWorld = plugin.getConfigManager().getHubWorld();
         List<String> smpWorlds = plugin.getConfigManager().getSmpWorlds();
+
 
         // Player whose game was concluded while they were dead
         // Route them to Hub and restore their advancements
@@ -93,17 +97,27 @@ public class HubListener implements Listener {
         // SMP worlds — let them respawn normally there
         if (smpWorlds.contains(currentWorld)) return;
 
-        // Already in Hub — nothing to do
-        if (currentWorld.equalsIgnoreCase(hubWorld)) return;
+        // Hub — set respawn to hub spawn point and also teleport on next tick
+        if (currentWorld.equalsIgnoreCase(hubWorld)) {
+            World hub = Bukkit.getWorld(hubWorld);
+            if (hub != null) {
+                event.setRespawnLocation(hub.getSpawnLocation());
 
-        // Any configured world (Creative, Adventure, Parkour etc.)
-        // let them respawn normally in their own world
-        if (plugin.getWorldManager().getSettings(currentWorld) != null) return;
+                plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                    if (player.isOnline()) player.teleport(hub.getSpawnLocation());
+                }, 2L);
+            }
+            return;
+        }
 
-        // Only redirect truly unknown worlds to Hub
+        // Everything else (Creative, Adventure, Parkour, unknown worlds)
+        // redirect to Hub on death
         World hub = Bukkit.getWorld(hubWorld);
         if (hub != null) {
             event.setRespawnLocation(hub.getSpawnLocation());
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (player.isOnline()) player.teleport(hub.getSpawnLocation());
+            }, 2L);
         }
     }
 
