@@ -122,6 +122,8 @@ usercache.json
 # Plugin Development
 plugins/
 *.jar.original
+plan.md
+GITHUB_ISSUE_ROADMAP.md
 
 # Temporary files
 *.tmp
