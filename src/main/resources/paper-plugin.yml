@@ -1,9 +1,9 @@
 name: RonlabGameAssistant
-version: '1.0.0'
+version: '1.0.1'
 main: com.ronlab.rga.RGA
-api-version: '1.21'
-description: All-in-one game assistant for the Ronlab server.
-authors: [ ]
+api-version: '26.1'
+description: All-in-one game assistant plugin for Ronlab server.
+authors: []
 
 commands:
   rga:
