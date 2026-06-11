@@ -147,12 +147,12 @@ Minigames can define custom commands to run at specific lifecycle points:
 ## Technical Requirements
 
 ### Server & Java Requirements
-- **Minecraft Version**: 1.21.4+ (tested on PaperMC)
+- **Minecraft Version**: 26.1.2+ (tested on PaperMC)
 - **Server Software**: PaperMC (Paper or compatible forks)
-- **Java Version**: Java 21 or later
+- **Java Version**: Java 25 or later
 
 ### Dependencies
-- PaperMC API 1.21.4-R0.1-SNAPSHOT
+- PaperMC API 26.1.2-R0.1-SNAPSHOT
 - No external plugin dependencies
 
 ### Hardware Requirements (Recommended)
@@ -342,7 +342,7 @@ inventory-groups:
 
 ## Development Status
 
-### Current Version: 1.0.0
+### Current Version: 1.0.1
 
 **Core Functionality**: ✓ Complete and usable
 - All major systems functional and tested
@@ -402,13 +402,13 @@ inventory-groups:
 
 ## Building from Source
 
-**Requirements**: Java 21, Maven
+**Requirements**: Java 25, Maven
 
 ```bash
 mvn clean package
 ```
 
-Output JAR: `target/RonlabGameAssistant-1.0.0.jar`
+Output JAR: `target/RonlabGameAssistant-1.0.1.jar`
 
 ---
 
