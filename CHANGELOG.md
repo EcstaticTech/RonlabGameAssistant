@@ -1,5 +1,9 @@
 ## Changelog
 
+### v0.19.0
+
+- Moved targets to paper-26.1.2 and java-25
+
 ### v0.18.0
 
 - Added social item for easier access to parties.
