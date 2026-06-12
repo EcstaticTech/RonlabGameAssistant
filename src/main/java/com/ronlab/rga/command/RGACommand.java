@@ -29,7 +29,24 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 0) { sendHelp(sender); return true; }
 
-        switch (args[0].toLowerCase()) {
+        String sub = args[0].toLowerCase();
+        String worldToCheck = null;
+        if (sub.equals("tp")) {
+            if (args.length >= 3) worldToCheck = args[2];
+        } else if (sub.equals("setspawn")) {
+            if (args.length >= 2) worldToCheck = args[1];
+        } else if (java.util.Set.of("createworld", "importworld", "loadworld", "unloadworld", "deleteworld",
+                "setworldgamemode", "setworldpvp", "setworlddifficulty", "setworldtime",
+                "setworldweather", "setworldalias", "setworldtemplate", "gamerule", "conclude").contains(sub)) {
+            if (args.length >= 2) worldToCheck = args[1];
+        }
+
+        if (worldToCheck != null && !com.ronlab.rga.util.WorldNameValidator.isValid(worldToCheck)) {
+            sender.sendMessage("§cInvalid world name. World names may only contain letters, numbers, underscores, and hyphens (max 64 characters).");
+            return true;
+        }
+
+        switch (sub) {
 
             case "help" -> sendHelp(sender);
 
@@ -235,8 +252,26 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "conclude" -> {
                 if (args.length < 2) { sender.sendMessage("§cUsage: /rga conclude <worldname>"); return true; }
-                plugin.getPartyManager().concludeGame(args[1]);
-                sender.sendMessage("§aGame concluded for world: " + args[1]);
+                String worldName = args[1];
+                String baseName = worldName;
+                if (baseName.endsWith("_the_nether")) {
+                    baseName = baseName.substring(0, baseName.length() - "_the_nether".length());
+                } else if (baseName.endsWith("_the_end")) {
+                    baseName = baseName.substring(0, baseName.length() - "_the_end".length());
+                }
+                boolean active = false;
+                for (com.ronlab.rga.party.Party p : plugin.getPartyManager().getActiveParties().values()) {
+                    if (baseName.equals(p.getActiveWorldName())) {
+                        active = true;
+                        break;
+                    }
+                }
+                if (!active) {
+                    sender.sendMessage("§cNo active session for world '" + worldName + "'.");
+                    return true;
+                }
+                plugin.getPartyManager().concludeGame(worldName);
+                sender.sendMessage("§aGame concluded for world: " + worldName);
             }
 
             case "concludeall" -> {

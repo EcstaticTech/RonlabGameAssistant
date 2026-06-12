@@ -3,6 +3,7 @@ package com.ronlab.rga.party;
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.minigame.Minigame;
 import com.ronlab.rga.minigame.WorldCopyManager;
+import com.ronlab.rga.util.PlaceholderSanitizer;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -255,6 +256,10 @@ public class PartyManager implements Listener {
                             allPlayers, playerName, secondName,
                             thirdName, fourthName, fifthName,
                             sixthName, seventhName, eighthName);
+                    if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
+                        plugin.getLogger().warning("Blocked unsafe start/conclude command: " + resolved);
+                        continue;
+                    }
                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);
                 }
             } else if (command.startsWith("leader:")) {
@@ -264,6 +269,10 @@ public class PartyManager implements Listener {
                         allPlayers, leaderName, secondName,
                         thirdName, fourthName, fifthName,
                         sixthName, seventhName, eighthName);
+                if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
+                    plugin.getLogger().warning("Blocked unsafe start/conclude command: " + resolved);
+                    continue;
+                }
                 if (leaderPlayer != null) {
                     leaderPlayer.performCommand(resolved);
                 } else {
@@ -277,6 +286,10 @@ public class PartyManager implements Listener {
                         : command.trim();
                 String resolved = resolveCommand(cmd, worldName, leaderName, allPlayers, "", secondName,
                         thirdName, fourthName, fifthName, sixthName, seventhName, eighthName);
+                if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
+                    plugin.getLogger().warning("Blocked unsafe start/conclude command: " + resolved);
+                    continue;
+                }
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);
             }
         }
@@ -289,17 +302,17 @@ public class PartyManager implements Listener {
                                    String fifthName, String sixthName,
                                    String seventhName, String eighthName) {
         return command
-                .replace("%world%", worldName)
-                .replace("%leader%",   leaderName)
-                .replace("%players%",  allPlayers)
-                .replace("%second%",   secondName)
-                .replace("%third%",    thirdName)
-                .replace("%fourth%",   fourthName)
-                .replace("%fifth%",    fifthName)
-                .replace("%sixth%",    sixthName)
-                .replace("%seventh%",  seventhName)
-                .replace("%eighth%",   eighthName)
-                .replace("%player%",   playerName);
+                .replace("%world%",   PlaceholderSanitizer.sanitize(worldName))
+                .replace("%leader%",  PlaceholderSanitizer.sanitize(leaderName))
+                .replace("%players%", PlaceholderSanitizer.sanitize(allPlayers))
+                .replace("%second%",  PlaceholderSanitizer.sanitize(secondName))
+                .replace("%third%",   PlaceholderSanitizer.sanitize(thirdName))
+                .replace("%fourth%",  PlaceholderSanitizer.sanitize(fourthName))
+                .replace("%fifth%",   PlaceholderSanitizer.sanitize(fifthName))
+                .replace("%sixth%",   PlaceholderSanitizer.sanitize(sixthName))
+                .replace("%seventh%", PlaceholderSanitizer.sanitize(seventhName))
+                .replace("%eighth%",  PlaceholderSanitizer.sanitize(eighthName))
+                .replace("%player%",  PlaceholderSanitizer.sanitize(playerName));
     }
 
     // ── Game End ─────────────────────────────────────────────────

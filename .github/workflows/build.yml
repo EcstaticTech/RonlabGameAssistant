@@ -16,10 +16,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Set up Java 25
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'temurin'
           cache: maven
 
@@ -27,16 +27,16 @@ jobs:
         run: mvn clean package --no-transfer-progress
 
       - name: List jar contents
-        run: jar tf target/RonlabGameAssistant-1.0.0.jar
+        run: jar tf target/RonlabGameAssistant-1.0.2.jar
 
       - name: Upload JAR to Release
         uses: softprops/action-gh-release@v1
         if: github.event_name == 'release'
         with:
-          files: target/RonlabGameAssistant-1.0.0.jar
+          files: target/RonlabGameAssistant-1.0.2.jar
 
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
           name: RonlabGameAssistant
-          path: target/RonlabGameAssistant-1.0.0.jar
+          path: target/RonlabGameAssistant-1.0.2.jar

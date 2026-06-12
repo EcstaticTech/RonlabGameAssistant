@@ -1,6 +1,7 @@
 package com.ronlab.rga.world;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.util.WorldNameValidator;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
@@ -33,6 +34,13 @@ public class WorldManager {
         }
 
         for (String worldName : worlds.getKeys(false)) {
+            if (!WorldNameValidator.isValid(worldName)) {
+                plugin.getLogger().warning("Skipping invalid world entry '"
+                        + worldName + "' in worlds.yml: world names may only "
+                        + "contain letters, numbers, underscores, and hyphens "
+                        + "(max 64 characters).");
+                continue;
+            }
             ConfigurationSection section = worlds.getConfigurationSection(worldName);
             if (section == null) continue;
 

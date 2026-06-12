@@ -5,6 +5,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
+import com.ronlab.rga.util.PlaceholderSanitizer;
 import java.util.List;
 
 public class ActionHandler {
@@ -24,13 +25,25 @@ public class ActionHandler {
             if (action.startsWith("rga:")) {
                 handleRGAAction(player, action.substring(4).trim());
             } else if (action.startsWith("console:")) {
-                String command = action.substring(8).trim().replace("%player%", player.getName());
+                String command = action.substring(8).trim().replace("%player%", PlaceholderSanitizer.sanitize(player.getName()));
+                if (!PlaceholderSanitizer.isSafeToExecute(command)) {
+                    plugin.getLogger().warning("Blocked unsafe console command (action handler): " + command);
+                    continue;
+                }
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
             } else if (action.startsWith("player:")) {
-                String command = action.substring(7).trim().replace("%player%", player.getName());
+                String command = action.substring(7).trim().replace("%player%", PlaceholderSanitizer.sanitize(player.getName()));
+                if (!PlaceholderSanitizer.isSafeToExecute(command)) {
+                    plugin.getLogger().warning("Blocked unsafe player command (action handler): " + command);
+                    continue;
+                }
                 player.performCommand(command);
             } else if (!action.isEmpty()) {
-                String command = action.replace("%player%", player.getName());
+                String command = action.replace("%player%", PlaceholderSanitizer.sanitize(player.getName()));
+                if (!PlaceholderSanitizer.isSafeToExecute(command)) {
+                    plugin.getLogger().warning("Blocked unsafe fallback command (action handler): " + command);
+                    continue;
+                }
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
             }
         }

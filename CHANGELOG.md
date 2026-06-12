@@ -1,9 +1,15 @@
 ## Changelog
 
+### v1.0.2
+
+- Hardened input validation for world names at config load and command execution.
+- Added placeholder sanitization and safety pre-dispatch checks for GUI actions and lifecycle commands.
+
 ### v1.0.1
 
 - Migrated metadata and commands to `paper-plugin.yml` (Paper API 26.1).
 - Implemented a startup version guard checking for Paper API 26.1.2+.
+- Upgraded target compilation to Java 25.
 
 ### v0.19.0
 
