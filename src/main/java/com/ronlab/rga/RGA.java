@@ -22,6 +22,7 @@ import com.ronlab.rga.social.SocialItem;
 import com.ronlab.rga.social.SocialListener;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
+import com.ronlab.rga.util.VersionGuard;
 
 public class RGA extends JavaPlugin {
 
@@ -42,6 +43,10 @@ public class RGA extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        if (!VersionGuard.check(this)) {
+            return;
+        }
+
         instance = this;
 
         saveDefaultConfig();

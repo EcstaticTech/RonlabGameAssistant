@@ -1,5 +1,10 @@
 ## Changelog
 
+### v1.0.1
+
+- Migrated metadata and commands to `paper-plugin.yml` (Paper API 26.1).
+- Implemented a startup version guard checking for Paper API 26.1.2+.
+
 ### v0.19.0
 
 - Moved targets to paper-26.1.2 and java-25
