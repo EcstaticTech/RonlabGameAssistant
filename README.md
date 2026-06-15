@@ -264,9 +264,38 @@ All plugin behavior is customizable through YAML files:
 /rga conclude <world>   - Conclude a minigame session in a world
 /rga createworld <name> - Create a new world
 /rga compass            - Get the navigation compass item
+/rga listworlds         - List all loaded worlds
+/rga importworld <name> - Import an existing world folder
+/rga loadworld <name>   - Load an existing world
+/rga unloadworld <name> - Unload a world
+/rga deleteworld <name> - Delete a world permanently
+/rga setspawn [world]   - Set spawn point
+/rga setworldgamemode <world> <mode>
+/rga setworldpvp <world> <true|false>
+/rga setworlddifficulty <world> <difficulty>
+/rga setworldtime <world> <day|noon|night|midnight|ticks|-1>
+/rga setworldweather <world> <true|false>
+/rga setworldalias <world> <alias>
+/rga setworldtemplate <world> <true|false>
+/rga gamerule <world> <rule> <value>
+/rga concludeall        - Conclude all active minigames
 ```
 
-**Permission**: `rga.admin` (default: operator only)
+### Permission Nodes
+
+| Node | Grants | Default |
+|---|---|---|
+| `rga.admin` | Wildcard — all nodes below | `op` |
+| `rga.reload` | `/rga reload` | `op` |
+| `rga.world.teleport` | `/rga tp`, `/rga compass`, `/rga listworlds` | `op` |
+| `rga.world.manage` | `createworld`, `importworld`, `loadworld`, `unloadworld`, `deleteworld` | `op` |
+| `rga.world.configure` | `setspawn`, `setworldgamemode/pvp/difficulty/time/weather/alias/template`, `gamerule` | `op` |
+| `rga.session.conclude` | `/rga conclude`, `/rga concludeall` | `op` |
+| `rga.session.status` | `/rga status` (reserved — Phase 3) | `op` |
+| `rga.hub` | `/hub` | `true` (all players) |
+
+> [!NOTE]
+> Existing server configs granting `rga.admin` continue to work unchanged — it remains the wildcard parent.
 
 ### Player Commands
 ```
@@ -342,7 +371,7 @@ inventory-groups:
 
 ## Development Status
 
-### Current Version: 1.0.2
+### Current Version: 1.0.3
 
 **Core Functionality**: ✓ Complete and usable
 - All major systems functional and tested
@@ -408,7 +437,7 @@ inventory-groups:
 mvn clean package
 ```
 
-Output JAR: `target/RonlabGameAssistant-1.0.2.jar`
+Output JAR: `target/RonlabGameAssistant-1.0.3.jar`
 
 ---
 

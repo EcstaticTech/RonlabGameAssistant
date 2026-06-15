@@ -1,5 +1,11 @@
 ## Changelog
 
+### v1.0.3
+
+- Expanded `rga.admin` into granular permission nodes (`rga.reload`, `rga.world.teleport`, `rga.world.manage`, `rga.world.configure`, `rga.session.conclude`, `rga.session.status`).
+- Per-subcommand permission enforcement in `RGACommand.java`.
+- Tab completion now filters to only commands the sender has permission to use.
+
 ### v1.0.2
 
 - Hardened input validation for world names at config load and command execution.

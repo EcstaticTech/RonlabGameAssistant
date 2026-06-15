@@ -1,5 +1,5 @@
 name: RonlabGameAssistant
-version: '1.0.2'
+version: '1.0.3'
 main: com.ronlab.rga.RGA
 api-version: '26.1'
 description: All-in-one game assistant plugin for Ronlab server.
@@ -17,7 +17,32 @@ commands:
 
 permissions:
   rga.admin:
-    description: Access to all RGA admin commands.
+    description: Wildcard — grants all RGA admin permissions.
+    default: op
+    children:
+      rga.reload: true
+      rga.world.teleport: true
+      rga.world.manage: true
+      rga.world.configure: true
+      rga.session.conclude: true
+      rga.session.status: true
+  rga.reload:
+    description: Allows reloading RGA configs (/rga reload).
+    default: op
+  rga.world.teleport:
+    description: Allows listing worlds and teleporting players (/rga listworlds, /rga tp, /rga compass).
+    default: op
+  rga.world.manage:
+    description: Allows creating, importing, loading, unloading, and deleting worlds.
+    default: op
+  rga.world.configure:
+    description: Allows configuring world attributes (setspawn, setworldgamemode, etc.).
+    default: op
+  rga.session.conclude:
+    description: Allows concluding active minigame sessions (/rga conclude, /rga concludeall).
+    default: op
+  rga.session.status:
+    description: Allows checking active session status (/rga status — reserved for Phase 3).
     default: op
   rga.hub:
     description: Allows use of the /hub command.

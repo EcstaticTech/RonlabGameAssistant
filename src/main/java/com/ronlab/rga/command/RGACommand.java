@@ -16,13 +16,48 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
     private final RGA plugin;
 
+    private static final Map<String, String> SUBCOMMAND_PERMISSIONS = Map.ofEntries(
+        Map.entry("help",             "rga.world.teleport"),  // anyone with any access can see help
+        Map.entry("reload",           "rga.reload"),
+        Map.entry("listworlds",       "rga.world.teleport"),
+        Map.entry("tp",               "rga.world.teleport"),
+        Map.entry("compass",          "rga.world.teleport"),
+        Map.entry("createworld",      "rga.world.manage"),
+        Map.entry("importworld",      "rga.world.manage"),
+        Map.entry("loadworld",        "rga.world.manage"),
+        Map.entry("unloadworld",      "rga.world.manage"),
+        Map.entry("deleteworld",      "rga.world.manage"),
+        Map.entry("setspawn",         "rga.world.configure"),
+        Map.entry("setworldgamemode", "rga.world.configure"),
+        Map.entry("setworldpvp",      "rga.world.configure"),
+        Map.entry("setworlddifficulty","rga.world.configure"),
+        Map.entry("setworldtime",     "rga.world.configure"),
+        Map.entry("setworldweather",  "rga.world.configure"),
+        Map.entry("setworldalias",    "rga.world.configure"),
+        Map.entry("setworldtemplate", "rga.world.configure"),
+        Map.entry("gamerule",         "rga.world.configure"),
+        Map.entry("conclude",         "rga.session.conclude"),
+        Map.entry("concludeall",      "rga.session.conclude")
+    );
+
     public RGACommand(RGA plugin) {
         this.plugin = plugin;
     }
 
+    /** Returns true if the sender holds at least one RGA permission node. */
+    private boolean hasAnyRGAPermission(CommandSender sender) {
+        return sender.hasPermission("rga.admin")
+                || sender.hasPermission("rga.reload")
+                || sender.hasPermission("rga.world.teleport")
+                || sender.hasPermission("rga.world.manage")
+                || sender.hasPermission("rga.world.configure")
+                || sender.hasPermission("rga.session.conclude")
+                || sender.hasPermission("rga.session.status");
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("rga.admin")) {
+        if (!hasAnyRGAPermission(sender)) {
             sender.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
             return true;
         }
@@ -43,6 +78,13 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
         if (worldToCheck != null && !com.ronlab.rga.util.WorldNameValidator.isValid(worldToCheck)) {
             sender.sendMessage("§cInvalid world name. World names may only contain letters, numbers, underscores, and hyphens (max 64 characters).");
+            return true;
+        }
+
+        // Per-subcommand permission check
+        String requiredPerm = SUBCOMMAND_PERMISSIONS.get(sub);
+        if (requiredPerm != null && !sender.hasPermission(requiredPerm)) {
+            sender.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
             return true;
         }
 
@@ -311,22 +353,26 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
-    // ── Tab Completion ───────────────────────────────────────────
-
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command,
                                       String alias, String[] args) {
-        if (!sender.hasPermission("rga.admin")) return Collections.emptyList();
+        if (!hasAnyRGAPermission(sender)) return Collections.emptyList();
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            completions.addAll(List.of(
+            List<String> allSubs = List.of(
                 "help", "reload", "listworlds", "tp", "compass",
                 "createworld", "importworld", "loadworld", "unloadworld", "deleteworld",
                 "setspawn", "setworldgamemode", "setworldpvp", "setworlddifficulty",
                 "setworldtime", "setworldweather", "setworldalias", "setworldtemplate",
                 "gamerule", "conclude", "concludeall"
-            ));
+            );
+            for (String s : allSubs) {
+                String perm = SUBCOMMAND_PERMISSIONS.get(s);
+                if (perm == null || sender.hasPermission(perm)) {
+                    completions.add(s);
+                }
+            }
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
                 case "unloadworld", "deleteworld", "setspawn",
