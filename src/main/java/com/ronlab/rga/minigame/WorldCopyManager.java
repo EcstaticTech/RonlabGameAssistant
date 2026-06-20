@@ -185,50 +185,37 @@ public class WorldCopyManager {
     // ── Folder utilities ─────────────────────────────────────────
 
     /**
-     * Finds a world folder. Checks the server root (top-level) first,
-     * then falls back to searching inside dimensions/ for legacy worlds.
+     * Finds a world folder. Checks the server root (top-level) first.
      */
     public File findWorldFolder(String worldName) {
-        // Primary: top-level world folder (correct location for all worlds)
-        File topLevel = new File(Bukkit.getWorldContainer(), worldName);
-        if (topLevel.exists()) return topLevel;
-
-        // Fallback: Paper's dimensions/ structure (for worlds registered by
-        // the main world container, e.g. world_nether lives inside world/)
-        File[] topFolders = Bukkit.getWorldContainer().listFiles(File::isDirectory);
-        if (topFolders == null) return null;
-        for (File worldFolder : topFolders) {
-            File dimensionsDir = new File(worldFolder, "dimensions");
-            if (!dimensionsDir.exists()) continue;
-            File[] namespaceDirs = dimensionsDir.listFiles(File::isDirectory);
-            if (namespaceDirs == null) continue;
-            for (File nsDir : namespaceDirs) {
-                File candidate = new File(nsDir, worldName);
-                if (candidate.exists()) return candidate;
-            }
+        Path path = Bukkit.getWorldContainer().toPath().resolve(worldName);
+        if (Files.isDirectory(path)) {
+            return path.toFile();
         }
         return null;
     }
 
     /**
      * Recursively deletes files that cause Paper duplicate-world detection.
-     * level.dat is intentionally preserved — it holds the map's spawn point,
-     * world type, enabled datapacks, and other settings the map depends on.
+     * level.dat is intentionally preserved.
      */
     private void deleteDuplicateFiles(File folder) {
-        File[] files = folder.listFiles();
-        if (files == null) return;
-        for (File file : files) {
-            if (file.isDirectory()) {
-                deleteDuplicateFiles(file);
-            } else {
-                String name = file.getName();
-                if (name.equals("uid.dat")
-                        || name.equals("session.lock")
-                        || name.equals("metadata.dat")) {
-                    file.delete();
+        Path rootPath = folder.toPath();
+        try {
+            Files.walkFileTree(rootPath, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    String name = file.getFileName().toString();
+                    if (name.equals("uid.dat")
+                            || name.equals("session.lock")
+                            || name.equals("metadata.dat")) {
+                        Files.delete(file);
+                    }
+                    return FileVisitResult.CONTINUE;
                 }
-            }
+            });
+        } catch (IOException e) {
+            plugin.getLogger().severe("Failed to delete duplicate files in " + folder + ": " + e.getMessage());
         }
     }
 
@@ -251,13 +238,22 @@ public class WorldCopyManager {
     }
 
     private void deleteFolder(File folder) {
-        File[] files = folder.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) deleteFolder(file);
-                else file.delete();
-            }
+        Path rootPath = folder.toPath();
+        try {
+            Files.walkFileTree(rootPath, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
+                    return FileVisitResult.CONTINUE;
+                }
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    Files.delete(dir);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            plugin.getLogger().severe("Failed to recursively delete " + folder + ": " + e.getMessage());
         }
-        folder.delete();
     }
 }

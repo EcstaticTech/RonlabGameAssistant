@@ -1,5 +1,11 @@
 ## Changelog
 
+### v1.0.4
+
+- Implemented Paper 26.1 Nested World Handling, out-of-place upgrades, verification, and timestamped legacy backups under `_legacy_backups/` (resolves #11).
+- Updated `WorldNameValidator` with a broader, safe regex pattern to accept dots and hyphens, preventing path traversal, and integrated name checks into command entry points (closes WorldManager portion of #26).
+- Excluded the backup directory from tab completions.
+
 ### v1.0.3
 
 - Expanded `rga.admin` into granular permission nodes (`rga.reload`, `rga.world.teleport`, `rga.world.manage`, `rga.world.configure`, `rga.session.conclude`, `rga.session.status`).

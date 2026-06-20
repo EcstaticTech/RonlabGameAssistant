@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 public final class WorldNameValidator {
 
     private static final Pattern SAFE_NAME =
-            Pattern.compile("^[A-Za-z0-9_-]{1,64}$");
+            Pattern.compile("^[a-zA-Z0-9_.-]{1,64}$");
 
     private WorldNameValidator() {
     }
@@ -16,6 +16,9 @@ public final class WorldNameValidator {
      * lookups where relevant (e.g. /rga conclude).
      */
     public static boolean isValid(String worldName) {
-        return worldName != null && SAFE_NAME.matcher(worldName).matches();
+        if (worldName == null || worldName.isEmpty() || worldName.contains("..") || worldName.contains("/") || worldName.contains("\\")) {
+            return false;
+        }
+        return SAFE_NAME.matcher(worldName).matches();
     }
 }

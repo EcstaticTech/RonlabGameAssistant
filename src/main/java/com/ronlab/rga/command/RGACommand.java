@@ -1,6 +1,7 @@
 package com.ronlab.rga.command;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.util.WorldNameValidator;
 import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -122,6 +123,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 if (args.length < 3) { sender.sendMessage("§cUsage: /rga tp <player> <world>"); return true; }
                 Player target = Bukkit.getPlayer(args[1]);
                 if (target == null) { sender.sendMessage("§cPlayer not found."); return true; }
+                if (!WorldNameValidator.isValid(args[2])) {
+                    sender.sendMessage("§cInvalid world name.");
+                    return true;
+                }
                 plugin.getWorldManager().teleportToWorld(target, args[2]);
             }
 
@@ -138,6 +143,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage("§cUsage: /rga createworld <name> <environment> <gamemode> <pvp>");
                     return true;
                 }
+                if (!WorldNameValidator.isValid(args[1])) {
+                    sender.sendMessage("§cInvalid world name. Must be alphanumeric plus underscores, periods, and hyphens (max 64 chars).");
+                    return true;
+                }
                 World.Environment env; GameMode gm;
                 try { env = World.Environment.valueOf(args[2].toUpperCase()); }
                 catch (IllegalArgumentException e) { sender.sendMessage("§cInvalid environment."); return true; }
@@ -152,6 +161,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "importworld" -> {
                 if (args.length < 2) { sender.sendMessage("§cUsage: /rga importworld <foldername>"); return true; }
+                if (!WorldNameValidator.isValid(args[1])) {
+                    sender.sendMessage("§cInvalid world name.");
+                    return true;
+                }
                 sender.sendMessage("§eImporting world '" + args[1] + "'...");
                 boolean ok = plugin.getWorldManager().importWorld(args[1], sender);
                 if (ok) {
@@ -162,6 +175,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "loadworld" -> {
                 if (args.length < 2) { sender.sendMessage("§cUsage: /rga loadworld <name>"); return true; }
+                if (!WorldNameValidator.isValid(args[1])) {
+                    sender.sendMessage("§cInvalid world name.");
+                    return true;
+                }
                 if (Bukkit.getWorld(args[1]) != null) { sender.sendMessage("§cWorld already loaded."); return true; }
                 sender.sendMessage("§eLoading world '" + args[1] + "'...");
                 boolean ok = plugin.getWorldManager().loadExistingWorld(args[1]);
@@ -170,6 +187,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "unloadworld" -> {
                 if (args.length < 2) { sender.sendMessage("§cUsage: /rga unloadworld <name>"); return true; }
+                if (!WorldNameValidator.isValid(args[1])) {
+                    sender.sendMessage("§cInvalid world name.");
+                    return true;
+                }
                 String hub = plugin.getConfigManager().getHubWorld();
                 if (args[1].equalsIgnoreCase(hub) || args[1].equalsIgnoreCase("world")) {
                     sender.sendMessage("§cYou cannot unload the Hub or default world."); return true;
@@ -180,6 +201,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "deleteworld" -> {
                 if (args.length < 2) { sender.sendMessage("§cUsage: /rga deleteworld <name>"); return true; }
+                if (!WorldNameValidator.isValid(args[1])) {
+                    sender.sendMessage("§cInvalid world name.");
+                    return true;
+                }
                 String hub = plugin.getConfigManager().getHubWorld();
                 if (args[1].equalsIgnoreCase(hub) || args[1].equalsIgnoreCase("world")) {
                     sender.sendMessage("§cYou cannot delete the Hub or default world."); return true;
@@ -389,7 +414,16 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                         Set<String> loaded = Bukkit.getWorlds().stream()
                                 .map(World::getName).collect(Collectors.toSet());
                         for (File dir : dirs) {
-                            if (!loaded.contains(dir.getName())) completions.add(dir.getName());
+                            String name = dir.getName();
+                            if (name.equalsIgnoreCase("world") || name.equalsIgnoreCase("world_nether") || name.equalsIgnoreCase("world_the_end")) {
+                                continue;
+                            }
+                            if (name.equalsIgnoreCase(com.ronlab.rga.world.WorldManager.BACKUP_DIR_NAME)) {
+                                continue;
+                            }
+                            if (!loaded.contains(name) && WorldNameValidator.isValid(name)) {
+                                completions.add(name);
+                            }
                         }
                     }
                 }

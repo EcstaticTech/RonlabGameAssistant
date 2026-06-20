@@ -10,6 +10,9 @@ import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -79,6 +82,14 @@ public class WorldManager {
         World existing = Bukkit.getWorld(worldName);
         if (existing != null) { applySettings(existing, settings); return; }
 
+        if (isLegacyLayout(worldName)) {
+            plugin.getLogger().info("Legacy world layout detected for '" + worldName + "'. Attempting upgrade...");
+            if (!upgradeLegacyLayout(worldName)) {
+                plugin.getLogger().severe("Failed to upgrade legacy layout for world '" + worldName + "'. Aborting load to prevent data corruption.");
+                return;
+            }
+        }
+
         if (!worldFolderExists(worldName)) {
             plugin.getLogger().warning("World folder for '" + worldName + "' does not exist. Skipping.");
             return;
@@ -96,6 +107,15 @@ public class WorldManager {
 
     public boolean loadExistingWorld(String worldName) {
         if (Bukkit.getWorld(worldName) != null) return false;
+
+        if (isLegacyLayout(worldName)) {
+            plugin.getLogger().info("Legacy world layout detected for '" + worldName + "'. Attempting upgrade...");
+            if (!upgradeLegacyLayout(worldName)) {
+                plugin.getLogger().severe("Failed to upgrade legacy layout for world '" + worldName + "'. Aborting load.");
+                return false;
+            }
+        }
+
         if (!worldFolderExists(worldName)) return false;
 
         WorldSettings settings = worldSettings.getOrDefault(worldName,
@@ -116,6 +136,14 @@ public class WorldManager {
         if (Bukkit.getWorld(worldName) != null) {
             sender.sendMessage("§cWorld '" + worldName + "' is already loaded.");
             return false;
+        }
+
+        if (isLegacyLayout(worldName)) {
+            sender.sendMessage("§eLegacy layout detected. Upgrading first...");
+            if (!upgradeLegacyLayout(worldName)) {
+                sender.sendMessage("§cFailed to upgrade legacy layout for '" + worldName + "'.");
+                return false;
+            }
         }
 
         // Check if folder exists
@@ -154,24 +182,48 @@ public class WorldManager {
     }
 
     public boolean deleteWorld(String worldName, CommandSender sender) {
+        if (!WorldNameValidator.isValid(worldName)) {
+            sender.sendMessage("§cInvalid world name.");
+            return false;
+        }
         World world = Bukkit.getWorld(worldName);
         if (world != null) {
             kickPlayersToHub(world);
             Bukkit.unloadWorld(world, false);
         }
 
-        File worldFolder = findWorldFolder(worldName);
-        if (worldFolder == null || !worldFolder.exists()) {
+        Path worldPath = Bukkit.getWorldContainer().toPath().resolve(worldName);
+        if (!Files.exists(worldPath)) {
             sender.sendMessage("§cCould not find world folder for '" + worldName + "'.");
             return false;
         }
 
-        boolean deleted = deleteFolder(worldFolder);
-        if (deleted) {
+        try {
+            deletePathRecursively(worldPath);
             worldSettings.remove(worldName);
             removeWorldFromConfig(worldName);
+            return true;
+        } catch (IOException e) {
+            sender.sendMessage("§cFailed to delete world: " + e.getMessage());
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed to delete world " + worldName, e);
+            return false;
         }
-        return deleted;
+    }
+
+    private void deletePathRecursively(Path path) throws IOException {
+        if (!Files.exists(path)) return;
+        Files.walkFileTree(path, new java.nio.file.SimpleFileVisitor<>() {
+            @Override
+            public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes attrs) throws IOException {
+                Files.delete(file);
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+            @Override
+            public java.nio.file.FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                Files.delete(dir);
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+        });
     }
 
     private void kickPlayersToHub(World world) {
@@ -181,6 +233,154 @@ public class WorldManager {
             player.sendMessage("§eThe world you were in is being modified. Sending you to Hub.");
             player.teleport(hub.getSpawnLocation());
         }
+    }
+
+    // ── Layout Upgrade & Discovery ───────────────────────────────────
+
+    public static final String BACKUP_DIR_NAME = "_legacy_backups";
+
+    /**
+     * Checks if a world has a legacy pre-26.1 layout.
+     * Legacy detection criteria: Its dimension folders (e.g. nether, the_end)
+     * exist as sibling directories to the main world folder in the server container.
+     */
+    public boolean isLegacyLayout(String worldName) {
+        if (worldName.equalsIgnoreCase(BACKUP_DIR_NAME)) return false;
+        Path container = Bukkit.getWorldContainer().toPath();
+        Path rootFolder = container.resolve(worldName);
+        if (!Files.isDirectory(rootFolder)) return false;
+        
+        Path netherSibling = container.resolve(worldName + "_nether");
+        Path endSibling = container.resolve(worldName + "_the_end");
+        return Files.isDirectory(netherSibling) || Files.isDirectory(endSibling);
+    }
+
+    /**
+     * Performs an out-of-place upgrade copy.
+     */
+    public boolean upgradeLegacyLayout(String worldName) {
+        Path container = Bukkit.getWorldContainer().toPath();
+        Path rootLegacy = container.resolve(worldName);
+        Path netherLegacy = container.resolve(worldName + "_nether");
+        Path endLegacy = container.resolve(worldName + "_the_end");
+
+        Path tempTarget = container.resolve(worldName + "_upgrade_temp_" + System.currentTimeMillis());
+
+        try {
+            // 1. Copy overworld root
+            if (Files.exists(rootLegacy)) {
+                copyPathRecursively(rootLegacy, tempTarget);
+            }
+
+            // 2. Copy nether into nested structure: tempTarget/dimensions/minecraft/the_nether
+            if (Files.exists(netherLegacy)) {
+                Path nestedNether = tempTarget.resolve("dimensions").resolve("minecraft").resolve("the_nether");
+                copyPathRecursively(netherLegacy, nestedNether);
+            }
+
+            // 3. Copy end into nested structure: tempTarget/dimensions/minecraft/the_end
+            if (Files.exists(endLegacy)) {
+                Path nestedEnd = tempTarget.resolve("dimensions").resolve("minecraft").resolve("the_end");
+                copyPathRecursively(endLegacy, nestedEnd);
+            }
+
+            // 4. Verify new layout
+            if (!verifyNewLayout(tempTarget, Files.exists(netherLegacy), Files.exists(endLegacy))) {
+                throw new IOException("Verification of upgraded layout level.dat failed.");
+            }
+
+            // 5. Success! Move upgraded temp folder to overwrite the original root folder (requires unloading or removing old root)
+            // Rename/backup the original legacy folders first
+            String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
+            Path backupParent = container.resolve(BACKUP_DIR_NAME);
+            Files.createDirectories(backupParent);
+
+            // Move legacy directories to backup
+            if (Files.exists(rootLegacy)) {
+                Files.move(rootLegacy, backupParent.resolve(worldName + "_" + timestamp), StandardCopyOption.REPLACE_EXISTING);
+            }
+            if (Files.exists(netherLegacy)) {
+                Files.move(netherLegacy, backupParent.resolve(worldName + "_nether_" + timestamp), StandardCopyOption.REPLACE_EXISTING);
+            }
+            if (Files.exists(endLegacy)) {
+                Files.move(endLegacy, backupParent.resolve(worldName + "_the_end_" + timestamp), StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            // Move the temp folder to target root location
+            Files.move(tempTarget, rootLegacy, StandardCopyOption.REPLACE_EXISTING);
+            plugin.getLogger().info("Successfully upgraded legacy world layout for: " + worldName);
+            return true;
+        } catch (IOException e) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed layout upgrade for " + worldName + ", cleaning up temp folder.", e);
+            try {
+                deletePathRecursively(tempTarget);
+            } catch (IOException cleanupEx) {
+                // ignore
+            }
+            return false;
+        }
+    }
+
+    private boolean verifyNewLayout(Path rootPath, boolean expectNether, boolean expectEnd) {
+        // level.dat must exist, be readable and parseable (e.g. valid file size/header check or simply exists + readable)
+        Path mainLevelDat = rootPath.resolve("level.dat");
+        if (!Files.isReadable(mainLevelDat) || mainLevelDat.toFile().length() == 0) {
+            return false;
+        }
+        if (expectNether) {
+            Path netherLevelDat = rootPath.resolve("dimensions").resolve("minecraft").resolve("the_nether").resolve("level.dat");
+            // Nether level.dat might not exist if minecraft nether didn't write it, but if it exists, check it.
+            // Under vanilla/paper 26.1, nether and end dimensions typically share the main level.dat or might have their own depending on layout.
+            // Let's verify that the nether/end folders exist and are directories if expected.
+            Path netherDir = rootPath.resolve("dimensions").resolve("minecraft").resolve("the_nether");
+            if (!Files.isDirectory(netherDir)) {
+                return false;
+            }
+        }
+        if (expectEnd) {
+            Path endDir = rootPath.resolve("dimensions").resolve("minecraft").resolve("the_end");
+            if (!Files.isDirectory(endDir)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void copyPathRecursively(Path source, Path target) throws IOException {
+        Files.walkFileTree(source, new java.nio.file.SimpleFileVisitor<>() {
+            @Override
+            public java.nio.file.FileVisitResult preVisitDirectory(Path dir, java.nio.file.attribute.BasicFileAttributes attrs) throws IOException {
+                Path targetDir = target.resolve(source.relativize(dir));
+                Files.createDirectories(targetDir);
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+            @Override
+            public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes attrs) throws IOException {
+                Files.copy(file, target.resolve(source.relativize(file)), StandardCopyOption.REPLACE_EXISTING);
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    // ── Folder utilities ─────────────────────────────────────────
+
+    private boolean worldFolderExists(String worldName) {
+        if (!WorldNameValidator.isValid(worldName) || worldName.equalsIgnoreCase(BACKUP_DIR_NAME)) {
+            return false;
+        }
+        Path path = Bukkit.getWorldContainer().toPath().resolve(worldName);
+        return Files.isDirectory(path);
+    }
+
+    private File findWorldFolder(String worldName) {
+        if (!WorldNameValidator.isValid(worldName) || worldName.equalsIgnoreCase(BACKUP_DIR_NAME)) {
+            return null;
+        }
+        Path path = Bukkit.getWorldContainer().toPath().resolve(worldName);
+        if (Files.isDirectory(path)) {
+            return path.toFile();
+        }
+        return null;
     }
 
     // ── Create ───────────────────────────────────────────────────
@@ -410,53 +610,6 @@ public class WorldManager {
         catch (IOException e) {
             plugin.getLogger().severe("Could not save worlds.yml: " + e.getMessage());
         }
-    }
-
-    // ── Folder utilities ─────────────────────────────────────────
-
-    private boolean worldFolderExists(String worldName) {
-        if (new File(Bukkit.getWorldContainer(), worldName).exists()) return true;
-        File[] topFolders = Bukkit.getWorldContainer().listFiles(File::isDirectory);
-        if (topFolders == null) return false;
-        for (File worldFolder : topFolders) {
-            File dimensionsDir = new File(worldFolder, "dimensions");
-            if (!dimensionsDir.exists()) continue;
-            File[] namespaceDirs = dimensionsDir.listFiles(File::isDirectory);
-            if (namespaceDirs == null) continue;
-            for (File nsDir : namespaceDirs) {
-                if (new File(nsDir, worldName).exists()) return true;
-            }
-        }
-        return false;
-    }
-
-    private File findWorldFolder(String worldName) {
-        File topLevel = new File(Bukkit.getWorldContainer(), worldName);
-        if (topLevel.exists()) return topLevel;
-        File[] topFolders = Bukkit.getWorldContainer().listFiles(File::isDirectory);
-        if (topFolders == null) return null;
-        for (File worldFolder : topFolders) {
-            File dimensionsDir = new File(worldFolder, "dimensions");
-            if (!dimensionsDir.exists()) continue;
-            File[] namespaceDirs = dimensionsDir.listFiles(File::isDirectory);
-            if (namespaceDirs == null) continue;
-            for (File nsDir : namespaceDirs) {
-                File candidate = new File(nsDir, worldName);
-                if (candidate.exists()) return candidate;
-            }
-        }
-        return null;
-    }
-
-    private boolean deleteFolder(File folder) {
-        File[] files = folder.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) deleteFolder(file);
-                else file.delete();
-            }
-        }
-        return folder.delete();
     }
 
     // ── Parsers ──────────────────────────────────────────────────
