@@ -446,6 +446,10 @@ public class PartyManager implements Listener {
                         plugin.getLogger().warning("Blocked unsafe start/conclude command: " + resolved);
                         continue;
                     }
+                    if (!plugin.getConfigManager().isConsoleCommandAllowed(resolved)) {
+                        plugin.getLogger().warning("Blocked disallowed console command (party lifecycle): " + resolved);
+                        continue;
+                    }
                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);
                 }
             } else if (command.startsWith("leader:")) {
@@ -463,6 +467,10 @@ public class PartyManager implements Listener {
                     leaderPlayer.performCommand(resolved);
                 } else {
                     // Fallback to console if leader is offline
+                    if (!plugin.getConfigManager().isConsoleCommandAllowed(resolved)) {
+                        plugin.getLogger().warning("Blocked disallowed console command (party lifecycle): " + resolved);
+                        continue;
+                    }
                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);
                 }
             } else {
@@ -474,6 +482,10 @@ public class PartyManager implements Listener {
                         thirdName, fourthName, fifthName, sixthName, seventhName, eighthName);
                 if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
                     plugin.getLogger().warning("Blocked unsafe start/conclude command: " + resolved);
+                    continue;
+                }
+                if (!plugin.getConfigManager().isConsoleCommandAllowed(resolved)) {
+                    plugin.getLogger().warning("Blocked disallowed console command (party lifecycle): " + resolved);
                     continue;
                 }
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolved);

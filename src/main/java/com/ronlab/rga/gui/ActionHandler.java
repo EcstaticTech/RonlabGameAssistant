@@ -32,6 +32,10 @@ public class ActionHandler {
                     plugin.getLogger().warning("Blocked unsafe console command (action handler): " + command);
                     continue;
                 }
+                if (!plugin.getConfigManager().isConsoleCommandAllowed(command)) {
+                    plugin.getLogger().warning("Blocked disallowed console command (action handler): " + command);
+                    continue;
+                }
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
             } else if (action.startsWith("player:")) {
                 String command = action.substring(7).trim().replace("%player%", PlaceholderSanitizer.sanitize(player.getName()));
@@ -44,6 +48,10 @@ public class ActionHandler {
                 String command = action.replace("%player%", PlaceholderSanitizer.sanitize(player.getName()));
                 if (!PlaceholderSanitizer.isSafeToExecute(command)) {
                     plugin.getLogger().warning("Blocked unsafe fallback command (action handler): " + command);
+                    continue;
+                }
+                if (!plugin.getConfigManager().isConsoleCommandAllowed(command)) {
+                    plugin.getLogger().warning("Blocked disallowed console command (action handler): " + command);
                     continue;
                 }
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);

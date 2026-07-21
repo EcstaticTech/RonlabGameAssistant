@@ -1,5 +1,12 @@
 ## Changelog
 
+### v1.4.0
+
+- Added configurable console command allowlist support for lifecycle hooks and menu actions (resolves #17).
+  - `config.yml` now supports `console-command-allowlist` for restricting `console:` commands.
+  - Commands outside the allowlist are blocked and logged as warnings.
+  - The allowlist is read from config at runtime, so it can be reloaded without restarting the server.
+
 ### v1.3.0
 
 - Added progress feedback and countdown before minigame teleport (resolves #16).

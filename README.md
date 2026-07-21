@@ -183,6 +183,7 @@ Minigames can define custom commands to run at specific lifecycle points:
 - **Social browsing** to find and join party lobbies
 - **Automated game lifecycle** (start, conclude, cleanup)
 - **Command execution system** with role-based and placeholder support
+- **Configurable console command allowlist** for lifecycle hooks and menu actions
 - **World gamerule enforcement** (time-lock, weather-lock, specific rules)
 - **Portal rerouting** for minigame dimension management
 - **Inventory isolation** per minigame session

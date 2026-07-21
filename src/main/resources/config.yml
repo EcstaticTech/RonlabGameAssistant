@@ -20,6 +20,11 @@ smp-worlds:
   - "world_nether"
   - "world_the_end"
 
+# Console command allowlist for lifecycle hooks and menu actions.
+# Leave empty to allow all console commands, or define specific prefixes like
+# "say" or "whitelist add" to restrict them.
+console-command-allowlist: []
+
 # Compass item settings
 compass:
   material: COMPASS

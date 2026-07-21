@@ -2,6 +2,7 @@ package com.ronlab.rga.config;
 
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.util.AdventureUtil;
+import com.ronlab.rga.util.ConsoleCommandAllowlist;
 import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -42,6 +43,14 @@ public class ConfigManager {
 
     public List<String> getSmpWorlds() {
         return plugin.getConfig().getStringList("smp-worlds");
+    }
+
+    public List<String> getConsoleCommandAllowlist() {
+        return plugin.getConfig().getStringList("console-command-allowlist");
+    }
+
+    public boolean isConsoleCommandAllowed(String command) {
+        return ConsoleCommandAllowlist.isAllowed(getConsoleCommandAllowlist(), command);
     }
 
     public Component getMessage(String key) {
