@@ -38,7 +38,9 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         Map.entry("setworldtemplate", "rga.world.configure"),
         Map.entry("gamerule",         "rga.world.configure"),
         Map.entry("conclude",         "rga.session.conclude"),
-        Map.entry("concludeall",      "rga.session.conclude")
+        Map.entry("concludeall",      "rga.session.conclude"),
+        Map.entry("cleanupsession",   "rga.session.cleanup"),
+        Map.entry("sessions",         "rga.session.status")
     );
 
     public RGACommand(RGA plugin) {
@@ -53,7 +55,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 || sender.hasPermission("rga.world.manage")
                 || sender.hasPermission("rga.world.configure")
                 || sender.hasPermission("rga.session.conclude")
-                || sender.hasPermission("rga.session.status");
+                || sender.hasPermission("rga.session.status")
+                || sender.hasPermission("rga.session.cleanup");
     }
 
     @Override
@@ -73,7 +76,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             if (args.length >= 2) worldToCheck = args[1];
         } else if (java.util.Set.of("createworld", "importworld", "loadworld", "unloadworld", "deleteworld",
                 "setworldgamemode", "setworldpvp", "setworlddifficulty", "setworldtime",
-                "setworldweather", "setworldalias", "setworldtemplate", "gamerule", "conclude").contains(sub)) {
+                "setworldweather", "setworldalias", "setworldtemplate", "gamerule", "conclude", "cleanupsession").contains(sub)) {
             if (args.length >= 2) worldToCheck = args[1];
         }
 
@@ -357,6 +360,47 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("§aConcluded " + count + " active game(s).");
             }
 
+            case "cleanupsession" -> {
+                if (args.length < 2) {
+                    sender.sendMessage("§cUsage: /rga cleanupsession <worldname>");
+                    return true;
+                }
+                String targetWorld = args[1];
+
+                // Warn if players still have pending recovery for this session
+                int pendingCount = (int) plugin.getSessionManager().getOrphanedSessionWorlds().stream()
+                        .filter(w -> w.equalsIgnoreCase(targetWorld)).count();
+                if (pendingCount > 0) {
+                    sender.sendMessage("§eWarning: There may be players with pending recovery for this session.");
+                }
+
+                // Clean up world folders first (VANILLA=true is safe — unloadAndDelete skips non-existent folders)
+                plugin.getPartyManager().getWorldCopyManager().cleanupWorld(targetWorld, true);
+                // Then remove the session metadata
+                plugin.getSessionManager().deleteSession(targetWorld);
+                sender.sendMessage("§aSession file and world data cleaned up for '" + targetWorld + "'.");
+            }
+
+            case "sessions" -> {
+                sender.sendMessage("§6§l======= Active & Orphaned Sessions =======");
+                var activeParties = plugin.getPartyManager().getActiveParties();
+                if (activeParties.isEmpty()) {
+                    sender.sendMessage("§7Active minigame sessions: None");
+                } else {
+                    sender.sendMessage("§eActive Sessions:");
+                    activeParties.forEach((mgId, party) -> {
+                        sender.sendMessage(" §7- Game: §f" + mgId + " §7| World: §f" + party.getActiveWorldName() + " §7| Members: §f" + party.getMemberCount());
+                    });
+                }
+                var orphans = plugin.getSessionManager().getOrphanedSessionWorlds();
+                if (orphans.isEmpty()) {
+                    sender.sendMessage("§7Orphaned sessions pending recovery: None");
+                } else {
+                    sender.sendMessage("§cOrphaned Recovery Sessions:");
+                    orphans.forEach(worldName -> sender.sendMessage(" §7- World: §f" + worldName));
+                }
+            }
+
             default -> sendHelp(sender);
         }
 
@@ -390,7 +434,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 "createworld", "importworld", "loadworld", "unloadworld", "deleteworld",
                 "setspawn", "setworldgamemode", "setworldpvp", "setworlddifficulty",
                 "setworldtime", "setworldweather", "setworldalias", "setworldtemplate",
-                "gamerule", "conclude", "concludeall"
+                "gamerule", "conclude", "concludeall", "cleanupsession", "sessions"
             );
             for (String s : allSubs) {
                 String perm = SUBCOMMAND_PERMISSIONS.get(s);
@@ -436,6 +480,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                         }
                     });
                 }
+                case "cleanupsession" -> completions.addAll(plugin.getSessionManager().getOrphanedSessionWorlds());
+                case "sessions" -> completions.add("list");
             }
         } else if (args.length == 3) {
             switch (args[0].toLowerCase()) {
@@ -497,8 +543,11 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§e/rga setworldalias <world> <alias> §7- Set display name");
         sender.sendMessage("§e/rga setworldtemplate <world> <true/false> §7- Mark as template");
         sender.sendMessage("§e/rga gamerule <world> <rule> <value>");
+        sender.sendMessage("§6--- Sessions & Conclude ---");
         sender.sendMessage("§e/rga conclude <worldname> §7- Manually conclude a minigame");
         sender.sendMessage("§e/rga concludeall §7- Conclude all active minigames");
+        sender.sendMessage("§e/rga cleanupsession <worldname> §7- Delete orphaned session and world");
+        sender.sendMessage("§e/rga sessions [list] §7- List active and orphaned sessions");
         sender.sendMessage("§e/hub §7- Return to the Hub world");
         sender.sendMessage("§6§l====================================");
     }

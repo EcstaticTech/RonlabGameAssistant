@@ -242,7 +242,7 @@ All plugin behavior is customizable through YAML files:
 
 - **Configuration Reload**: `/rga reload` requires reload; live config changes not supported
 - **World Deletion**: Old minigame worlds must be manually cleaned if deletion fails
-- **No Database**: All state in-memory; server restart loses active parties/sessions
+- **Session Persistence**: Write-ahead session snapshots survive server restarts; crash-recovered players get inventory, advancements, and location restored. Active parties and in-progress game sessions remain in-memory only.
 - **Synchronous World Operations**: World copying blocks the main thread (I/O intensive)
 - **Single CommandSender**: Commands routed through console; no player-specific command context
 
@@ -279,6 +279,8 @@ All plugin behavior is customizable through YAML files:
 /rga setworldtemplate <world> <true|false>
 /rga gamerule <world> <rule> <value>
 /rga concludeall        - Conclude all active minigames
+/rga cleanupsession <worldname> - Delete orphaned session and world data
+/rga sessions list      - List active and orphaned sessions
 ```
 
 ### Permission Nodes
@@ -291,7 +293,8 @@ All plugin behavior is customizable through YAML files:
 | `rga.world.manage` | `createworld`, `importworld`, `loadworld`, `unloadworld`, `deleteworld` | `op` |
 | `rga.world.configure` | `setspawn`, `setworldgamemode/pvp/difficulty/time/weather/alias/template`, `gamerule` | `op` |
 | `rga.session.conclude` | `/rga conclude`, `/rga concludeall` | `op` |
-| `rga.session.status` | `/rga status` (reserved — Phase 3) | `op` |
+| `rga.session.status` | `/rga sessions list` | `op` |
+| `rga.session.cleanup` | `/rga cleanupsession <worldname>` | `op` |
 | `rga.hub` | `/hub` | `true` (all players) |
 
 > [!NOTE]
@@ -371,7 +374,7 @@ inventory-groups:
 
 ## Development Status
 
-### Current Version: 1.0.3
+### Current Version: 1.1.0
 
 **Core Functionality**: ✓ Complete and usable
 - All major systems functional and tested
@@ -437,7 +440,7 @@ inventory-groups:
 mvn clean package
 ```
 
-Output JAR: `target/RonlabGameAssistant-1.0.3.jar`
+Output JAR: `target/RonlabGameAssistant-1.1.0.jar`
 
 ---
 

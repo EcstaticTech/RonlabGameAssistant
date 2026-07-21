@@ -30,6 +30,14 @@ public class HubListener implements Listener {
     @EventHandler(priority = EventPriority.NORMAL)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+
+        if (plugin.getSessionManager().isPendingRecovery(player.getUniqueId())) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                plugin.getSessionManager().recoverPlayer(player);
+            }, 5L);
+            return;
+        }
+
         String hubWorld = plugin.getConfigManager().getHubWorld();
 
         plugin.getInventoryManager().markIgnoreNextWorldChange(player.getUniqueId());

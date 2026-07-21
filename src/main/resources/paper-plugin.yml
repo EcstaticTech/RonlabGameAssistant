@@ -1,5 +1,5 @@
 name: RonlabGameAssistant
-version: '1.0.4'
+version: '1.1.0'
 main: com.ronlab.rga.RGA
 api-version: '26.1'
 description: All-in-one game assistant plugin for Ronlab server.
@@ -26,6 +26,7 @@ permissions:
       rga.world.configure: true
       rga.session.conclude: true
       rga.session.status: true
+      rga.session.cleanup: true
   rga.reload:
     description: Allows reloading RGA configs (/rga reload).
     default: op
@@ -42,7 +43,10 @@ permissions:
     description: Allows concluding active minigame sessions (/rga conclude, /rga concludeall).
     default: op
   rga.session.status:
-    description: Allows checking active session status (/rga status — reserved for Phase 3).
+    description: Allows checking active session status (/rga sessions list).
+    default: op
+  rga.session.cleanup:
+    description: Allows cleaning up orphaned session files (/rga cleanupsession).
     default: op
   rga.hub:
     description: Allows use of the /hub command.

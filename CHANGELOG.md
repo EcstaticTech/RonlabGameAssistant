@@ -1,5 +1,19 @@
 ## Changelog
 
+### v1.1.0
+
+- Implemented write-ahead session persistence and crash recovery (resolves #12).
+  - New `SessionManager` persists active game state to `plugins/RonlabGameAssistant/sessions/<worldName>.yml`.
+  - Write-ahead snapshot written before world creation; closes durability gap by moving `party.setState(IN_GAME)` inside the creation task.
+  - Orphaned sessions auto-detected on startup with actionable admin logging.
+  - Crash-recovered players bypass Hub reset on login; inventory, advancements, and location restored silently.
+- Added advancement snapshot + revoke-first restore with convergence loop.
+  - Pre-game advancement criteria captured before wipe at game start.
+  - Normal game conclusions now restore pre-game advancements (fixes permanent advancement wipe during regular play).
+- Added `/rga cleanupsession <worldname>` command (`rga.session.cleanup`) for manual orphan cleanup.
+- Added `/rga sessions list` command (`rga.session.status`) to view active and orphaned sessions.
+- Updated `rga.admin` permission tree to include `rga.session.cleanup` as a child node.
+
 ### v1.0.4
 
 - Implemented Paper 26.1 Nested World Handling, out-of-place upgrades, verification, and timestamped legacy backups under `_legacy_backups/` (resolves #11).

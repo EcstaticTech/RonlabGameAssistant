@@ -164,7 +164,6 @@ public class PartyManager implements Listener {
     // ── Game Start ───────────────────────────────────────────────
 
     private void startGame(Party party) {
-        party.setState(Party.State.IN_GAME);
         Minigame minigame = party.getMinigame();
 
         broadcastToParty(party, "§a§lAll players ready! Starting §6§l"
@@ -176,6 +175,18 @@ public class PartyManager implements Listener {
         }
 
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (party.getMembers().isEmpty()) return;
+
+            // Capture pre-game data for all online members before teleport/revoke
+            for (UUID uuid : party.getMembers()) {
+                Player p = Bukkit.getPlayer(uuid);
+                if (p != null) {
+                    String group = plugin.getInventoryManager().getGroup(p.getWorld().getName());
+                    party.setPreGameGroup(uuid, group);
+                    party.setPreGameAdvancements(uuid, plugin.getAdvancementManager().captureCompleted(p));
+                }
+            }
+
             String worldName = null;
 
             if (minigame.getWorldType() == Minigame.WorldType.VANILLA) {
@@ -192,6 +203,10 @@ public class PartyManager implements Listener {
             }
 
             party.setActiveWorldName(worldName);
+            party.setState(Party.State.IN_GAME);
+
+            // Write-ahead session snapshot right after world creation
+            plugin.getSessionManager().saveSession(party, worldName);
 
             if (minigame.getWorldType() == Minigame.WorldType.VANILLA) {
                 // Register all three dimensions as a shared inventory group
@@ -373,6 +388,17 @@ public class PartyManager implements Listener {
             concludedPlayers.add(uuid);
         }
 
+        // Restore pre-game advancements for online members
+        for (UUID uuid : party.getMembers()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                Map<String, List<String>> preAdvs = party.getPreGameAdvancements(uuid);
+                if (preAdvs != null && !preAdvs.isEmpty()) {
+                    plugin.getAdvancementManager().restoreCompleted(p, preAdvs);
+                }
+            }
+        }
+
         // Teleport alive players to Hub immediately
         // Dead players will be routed to Hub via PlayerRespawnEvent
         for (UUID uuid : party.getMembers()) {
@@ -390,6 +416,7 @@ public class PartyManager implements Listener {
             playerParties.remove(uuid);
         }
         activeParties.remove(party.getMinigameId());
+        party.clearPreGameData();
 
         // Capture member list before lambda since party reference is not final
         List<UUID> finalMembers = new ArrayList<>(party.getMembers());
@@ -401,6 +428,7 @@ public class PartyManager implements Listener {
                 concludedPlayers.remove(uuid);
             }
             worldCopyManager.cleanupWorld(finalWorldName, isVanilla);
+            plugin.getSessionManager().deleteSession(finalWorldName);
         }, 300L);
 
         plugin.getLogger().info("Concluded minigame '" + minigame.getName()
@@ -428,4 +456,5 @@ public class PartyManager implements Listener {
     public Party getPartyForMinigame(String minigameId) { return activeParties.get(minigameId); }
     public Map<String, Party> getActiveParties() { return Collections.unmodifiableMap(activeParties); }
     public boolean isConcluded(UUID uuid) { return concludedPlayers.contains(uuid); }
+    public WorldCopyManager getWorldCopyManager() { return worldCopyManager; }
 }

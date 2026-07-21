@@ -24,6 +24,8 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 import com.ronlab.rga.util.VersionGuard;
 
+import com.ronlab.rga.session.SessionManager;
+
 public class RGA extends JavaPlugin {
 
     private static RGA instance;
@@ -34,6 +36,7 @@ public class RGA extends JavaPlugin {
     private LocationTracker locationTracker;
     private InventoryManager inventoryManager;
     private AdvancementManager advancementManager;
+    private SessionManager sessionManager;
     private MinigameManager minigameManager;
     private PartyManager partyManager;
     private LobbyGui lobbyGui;
@@ -58,6 +61,9 @@ public class RGA extends JavaPlugin {
         locationTracker = new LocationTracker(this);
         inventoryManager = new InventoryManager(this);
         advancementManager = new AdvancementManager(this);
+        sessionManager = new SessionManager(this);
+        sessionManager.loadOrphanedSessions();
+
         worldManager = new WorldManager(this);
         menuManager = new MenuManager(this);
         minigameManager = new MinigameManager(this);
@@ -114,6 +120,7 @@ public class RGA extends JavaPlugin {
     public LocationTracker getLocationTracker() { return locationTracker; }
     public InventoryManager getInventoryManager() { return inventoryManager; }
     public AdvancementManager getAdvancementManager() { return advancementManager; }
+    public SessionManager getSessionManager() { return sessionManager; }
     public MinigameManager getMinigameManager() { return minigameManager; }
     public PartyManager getPartyManager() { return partyManager; }
     public LobbyGui getLobbyGui() { return lobbyGui; }

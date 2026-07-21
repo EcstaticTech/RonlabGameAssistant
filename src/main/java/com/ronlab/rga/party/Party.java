@@ -63,6 +63,36 @@ public class Party {
         this.leaderUuid = uuid;
     }
 
+    private final Map<UUID, String> preGameGroups = new HashMap<>();
+    private final Map<UUID, Map<String, List<String>>> preGameAdvancements = new HashMap<>();
+
+    public void setPreGameGroup(UUID uuid, String group) {
+        preGameGroups.put(uuid, group);
+    }
+    public String getPreGameGroup(UUID uuid) {
+        return preGameGroups.get(uuid);
+    }
+
+    public void setPreGameAdvancements(UUID uuid, Map<String, List<String>> advancements) {
+        preGameAdvancements.put(uuid, advancements);
+    }
+    public Map<String, List<String>> getPreGameAdvancements(UUID uuid) {
+        return preGameAdvancements.getOrDefault(uuid, Collections.emptyMap());
+    }
+
+    public Map<UUID, String> getPreGameGroups() {
+        return Collections.unmodifiableMap(preGameGroups);
+    }
+
+    public Map<UUID, Map<String, List<String>>> getPreGameAdvancementsMap() {
+        return Collections.unmodifiableMap(preGameAdvancements);
+    }
+
+    public void clearPreGameData() {
+        preGameGroups.clear();
+        preGameAdvancements.clear();
+    }
+
     public UUID getId() { return id; }
     public String getMinigameId() { return minigameId; }
     public Minigame getMinigame() { return minigame; }
