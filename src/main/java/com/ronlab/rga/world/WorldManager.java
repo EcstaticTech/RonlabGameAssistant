@@ -37,138 +37,161 @@ public class WorldManager {
         }
 
         for (String worldName : worlds.getKeys(false)) {
-            if (!WorldNameValidator.isValid(worldName)) {
-                plugin.getLogger().warning("Skipping invalid world entry '"
-                        + worldName + "' in worlds.yml: world names may only "
-                        + "contain letters, numbers, underscores, and hyphens "
-                        + "(max 64 characters).");
-                continue;
-            }
-            ConfigurationSection section = worlds.getConfigurationSection(worldName);
-            if (section == null) continue;
-
-            boolean loadOnStartup = section.getBoolean("load-on-startup", true);
-            World.Environment environment = parseEnvironment(section.getString("environment", "NORMAL"), worldName);
-            GameMode gamemode = parseGameMode(section.getString("gamemode", "SURVIVAL"), worldName);
-            boolean pvp = section.getBoolean("pvp", true);
-            Difficulty difficulty = parseDifficulty(section.getString("difficulty", "NORMAL"), worldName);
-            String alias = section.getString("alias", worldName);
-            boolean template = section.getBoolean("template", false);
-            long timeLock = section.getLong("time-lock", -1);
-            boolean weatherLock = section.getBoolean("weather-lock", false);
-            boolean disableNether = section.getBoolean("disable-nether", false);
-            boolean disableEnd = section.getBoolean("disable-end", false);
-
-            // Load gamerules
-            Map<String, String> gamerules = new LinkedHashMap<>();
-            ConfigurationSection grSection = section.getConfigurationSection("gamerules");
-            if (grSection != null) {
-                for (String rule : grSection.getKeys(false)) {
-                    gamerules.put(rule, grSection.getString(rule, ""));
+            try {
+                if (!WorldNameValidator.isValid(worldName)) {
+                    plugin.getLogger().warning("Skipping invalid world entry '"
+                            + worldName + "' in worlds.yml: world names may only "
+                            + "contain letters, numbers, underscores, and hyphens "
+                            + "(max 64 characters).");
+                    continue;
                 }
+                ConfigurationSection section = worlds.getConfigurationSection(worldName);
+                if (section == null) continue;
+
+                boolean loadOnStartup = section.getBoolean("load-on-startup", true);
+                World.Environment environment = parseEnvironment(section.getString("environment", "NORMAL"), worldName);
+                GameMode gamemode = parseGameMode(section.getString("gamemode", "SURVIVAL"), worldName);
+                boolean pvp = section.getBoolean("pvp", true);
+                Difficulty difficulty = parseDifficulty(section.getString("difficulty", "NORMAL"), worldName);
+                String alias = section.getString("alias", worldName);
+                boolean template = section.getBoolean("template", false);
+                long timeLock = section.getLong("time-lock", -1);
+                boolean weatherLock = section.getBoolean("weather-lock", false);
+                boolean disableNether = section.getBoolean("disable-nether", false);
+                boolean disableEnd = section.getBoolean("disable-end", false);
+
+                // Load gamerules
+                Map<String, String> gamerules = new LinkedHashMap<>();
+                ConfigurationSection grSection = section.getConfigurationSection("gamerules");
+                if (grSection != null) {
+                    for (String rule : grSection.getKeys(false)) {
+                        gamerules.put(rule, grSection.getString(rule, ""));
+                    }
+                }
+
+                WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
+                        difficulty, alias, template, timeLock, weatherLock, disableNether, disableEnd, gamerules);
+                worldSettings.put(worldName, settings);
+
+                if (loadOnStartup) loadWorld(worldName, environment, settings);
+            } catch (Exception e) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "Unexpected error processing configured world '" + worldName + "'", e);
             }
-
-            WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
-                    difficulty, alias, template, timeLock, weatherLock, disableNether, disableEnd, gamerules);
-            worldSettings.put(worldName, settings);
-
-            if (loadOnStartup) loadWorld(worldName, environment, settings);
         }
     }
 
     // ── Load / Unload / Delete ───────────────────────────────────
 
     private void loadWorld(String worldName, World.Environment environment, WorldSettings settings) {
-        World existing = Bukkit.getWorld(worldName);
-        if (existing != null) { applySettings(existing, settings); return; }
+        try {
+            World existing = Bukkit.getWorld(worldName);
+            if (existing != null) { applySettings(existing, settings); return; }
 
-        if (isLegacyLayout(worldName)) {
-            plugin.getLogger().info("Legacy world layout detected for '" + worldName + "'. Attempting upgrade...");
-            if (!upgradeLegacyLayout(worldName)) {
-                plugin.getLogger().severe("Failed to upgrade legacy layout for world '" + worldName + "'. Aborting load to prevent data corruption.");
+            if (isLegacyLayout(worldName)) {
+                plugin.getLogger().info("Legacy world layout detected for '" + worldName + "'. Attempting upgrade...");
+                if (!upgradeLegacyLayout(worldName)) {
+                    plugin.getLogger().severe("Failed to upgrade legacy layout for world '" + worldName + "'. Aborting load to prevent data corruption.");
+                    return;
+                }
+            }
+
+            if (!worldFolderExists(worldName)) {
+                plugin.getLogger().warning("World folder for '" + worldName + "' does not exist. Skipping.");
                 return;
             }
-        }
 
-        if (!worldFolderExists(worldName)) {
-            plugin.getLogger().warning("World folder for '" + worldName + "' does not exist. Skipping.");
-            return;
+            WorldCreator creator = new WorldCreator(worldName).environment(environment);
+            World world = Bukkit.createWorld(creator);
+            if (world == null) {
+                plugin.getLogger().warning("Failed to load world: " + worldName);
+                return;
+            }
+            applySettings(world, settings);
+            plugin.getLogger().info("Loaded world: " + worldName);
+        } catch (Exception e) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "Failed to load world '" + worldName + "' (" + e.getClass().getName() + ": " + e.getMessage() + ")", e);
         }
-
-        WorldCreator creator = new WorldCreator(worldName).environment(environment);
-        World world = Bukkit.createWorld(creator);
-        if (world == null) {
-            plugin.getLogger().warning("Failed to load world: " + worldName);
-            return;
-        }
-        applySettings(world, settings);
-        plugin.getLogger().info("Loaded world: " + worldName);
     }
 
     public boolean loadExistingWorld(String worldName) {
-        if (Bukkit.getWorld(worldName) != null) return false;
+        try {
+            if (Bukkit.getWorld(worldName) != null) return false;
 
-        if (isLegacyLayout(worldName)) {
-            plugin.getLogger().info("Legacy world layout detected for '" + worldName + "'. Attempting upgrade...");
-            if (!upgradeLegacyLayout(worldName)) {
-                plugin.getLogger().severe("Failed to upgrade legacy layout for world '" + worldName + "'. Aborting load.");
-                return false;
+            if (isLegacyLayout(worldName)) {
+                plugin.getLogger().info("Legacy world layout detected for '" + worldName + "'. Attempting upgrade...");
+                if (!upgradeLegacyLayout(worldName)) {
+                    plugin.getLogger().severe("Failed to upgrade legacy layout for world '" + worldName + "'. Aborting load.");
+                    return false;
+                }
             }
+
+            if (!worldFolderExists(worldName)) return false;
+
+            WorldSettings settings = worldSettings.getOrDefault(worldName,
+                    new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
+                            Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap()));
+
+            WorldCreator creator = new WorldCreator(worldName).environment(settings.getEnvironment());
+            World world = Bukkit.createWorld(creator);
+            if (world == null) return false;
+
+            applySettings(world, settings);
+            worldSettings.put(worldName, settings);
+            return true;
+        } catch (Exception e) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "Failed to load existing world '" + worldName + "' (" + e.getClass().getName() + ": " + e.getMessage() + ")", e);
+            return false;
         }
-
-        if (!worldFolderExists(worldName)) return false;
-
-        WorldSettings settings = worldSettings.getOrDefault(worldName,
-                new WorldSettings(GameMode.SURVIVAL, true, World.Environment.NORMAL,
-                        Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap()));
-
-        WorldCreator creator = new WorldCreator(worldName).environment(settings.getEnvironment());
-        World world = Bukkit.createWorld(creator);
-        if (world == null) return false;
-
-        applySettings(world, settings);
-        worldSettings.put(worldName, settings);
-        return true;
     }
 
     public boolean importWorld(String worldName, CommandSender sender) {
-        // Check if already loaded
-        if (Bukkit.getWorld(worldName) != null) {
-            sender.sendMessage("§cWorld '" + worldName + "' is already loaded.");
-            return false;
-        }
-
-        if (isLegacyLayout(worldName)) {
-            sender.sendMessage("§eLegacy layout detected. Upgrading first...");
-            if (!upgradeLegacyLayout(worldName)) {
-                sender.sendMessage("§cFailed to upgrade legacy layout for '" + worldName + "'.");
+        try {
+            // Check if already loaded
+            if (Bukkit.getWorld(worldName) != null) {
+                sender.sendMessage("§cWorld '" + worldName + "' is already loaded.");
                 return false;
             }
-        }
 
-        // Check if folder exists
-        if (!worldFolderExists(worldName)) {
-            sender.sendMessage("§cNo world folder found for '" + worldName + "'.");
+            if (isLegacyLayout(worldName)) {
+                sender.sendMessage("§eLegacy layout detected. Upgrading first...");
+                if (!upgradeLegacyLayout(worldName)) {
+                    sender.sendMessage("§cFailed to upgrade legacy layout for '" + worldName + "'.");
+                    return false;
+                }
+            }
+
+            // Check if folder exists
+            if (!worldFolderExists(worldName)) {
+                sender.sendMessage("§cNo world folder found for '" + worldName + "'.");
+                return false;
+            }
+
+            // Load with default settings
+            WorldSettings settings = new WorldSettings(GameMode.SURVIVAL, true,
+                    World.Environment.NORMAL, Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap());
+
+            WorldCreator creator = new WorldCreator(worldName);
+            World world = Bukkit.createWorld(creator);
+            if (world == null) return false;
+
+            applySettings(world, settings);
+            worldSettings.put(worldName, settings);
+
+            // Save to worlds.yml
+            saveWorldToConfig(worldName, World.Environment.NORMAL, GameMode.SURVIVAL,
+                    true, Difficulty.NORMAL, worldName, false, -1, false);
+
+            plugin.getLogger().info("Imported world: " + worldName);
+            return true;
+        } catch (Exception e) {
+            sender.sendMessage("§cFailed to import world '" + worldName + "': " + e.getMessage());
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "Failed to import world '" + worldName + "' (" + e.getClass().getName() + ": " + e.getMessage() + ")", e);
             return false;
         }
-
-        // Load with default settings
-        WorldSettings settings = new WorldSettings(GameMode.SURVIVAL, true,
-                World.Environment.NORMAL, Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap());
-
-        WorldCreator creator = new WorldCreator(worldName);
-        World world = Bukkit.createWorld(creator);
-        if (world == null) return false;
-
-        applySettings(world, settings);
-        worldSettings.put(worldName, settings);
-
-        // Save to worlds.yml
-        saveWorldToConfig(worldName, World.Environment.NORMAL, GameMode.SURVIVAL,
-                true, Difficulty.NORMAL, worldName, false, -1, false);
-
-        plugin.getLogger().info("Imported world: " + worldName);
-        return true;
     }
 
     public boolean unloadWorld(String worldName, CommandSender sender) {
@@ -310,7 +333,7 @@ public class WorldManager {
             Files.move(tempTarget, rootLegacy, StandardCopyOption.REPLACE_EXISTING);
             plugin.getLogger().info("Successfully upgraded legacy world layout for: " + worldName);
             return true;
-        } catch (IOException e) {
+        } catch (Exception e) {
             plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed layout upgrade for " + worldName + ", cleaning up temp folder.", e);
             try {
                 deletePathRecursively(tempTarget);
@@ -387,21 +410,27 @@ public class WorldManager {
 
     public boolean createWorld(String worldName, World.Environment environment,
                                GameMode gamemode, boolean pvp) {
-        if (Bukkit.getWorld(worldName) != null) return false;
+        try {
+            if (Bukkit.getWorld(worldName) != null) return false;
 
-        WorldCreator creator = new WorldCreator(worldName).environment(environment);
-        World world = Bukkit.createWorld(creator);
-        if (world == null) return false;
+            WorldCreator creator = new WorldCreator(worldName).environment(environment);
+            World world = Bukkit.createWorld(creator);
+            if (world == null) return false;
 
-        WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
-                Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap());
-        worldSettings.put(worldName, settings);
-        applySettings(world, settings);
-        saveWorldToConfig(worldName, environment, gamemode, pvp,
-                Difficulty.NORMAL, worldName, false, -1, false);
+            WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
+                    Difficulty.NORMAL, worldName, false, -1, false, false, false, java.util.Collections.emptyMap());
+            worldSettings.put(worldName, settings);
+            applySettings(world, settings);
+            saveWorldToConfig(worldName, environment, gamemode, pvp,
+                    Difficulty.NORMAL, worldName, false, -1, false);
 
-        plugin.getLogger().info("Created and loaded world: " + worldName);
-        return true;
+            plugin.getLogger().info("Created and loaded world: " + worldName);
+            return true;
+        } catch (Exception e) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "Failed to create world '" + worldName + "' (" + e.getClass().getName() + ": " + e.getMessage() + ")", e);
+            return false;
+        }
     }
 
     // ── Modify ───────────────────────────────────────────────────

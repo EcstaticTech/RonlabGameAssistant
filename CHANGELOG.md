@@ -1,5 +1,13 @@
 ## Changelog
 
+### v1.1.1
+
+- Added graceful world load failure handling (resolves #13).
+  - `loadConfiguredWorlds()` now wraps each world in a per-world try-catch, so one bad world doesn't block all others.
+  - `loadWorld()`, `loadExistingWorld()`, `importWorld()`, `createWorld()` each have method-level exception protection with actionable SEVERE-level logging (exception type, message, stack trace).
+  - `upgradeLegacyLayout()` broadened from `IOException` to `Exception` catch to also handle `RuntimeException` during file operations.
+  - Failed worlds are cleanly skipped; all successfully loaded worlds continue to function normally.
+
 ### v1.1.0
 
 - Implemented write-ahead session persistence and crash recovery (resolves #12).
