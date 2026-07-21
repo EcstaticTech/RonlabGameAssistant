@@ -2,6 +2,7 @@ package com.ronlab.rga.command;
 
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.util.AdventureUtil;
+import com.ronlab.rga.util.StatusReportFormatter;
 import com.ronlab.rga.util.WorldNameValidator;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -44,7 +45,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         Map.entry("conclude",         "rga.session.conclude"),
         Map.entry("concludeall",      "rga.session.conclude"),
         Map.entry("cleanupsession",   "rga.session.cleanup"),
-        Map.entry("sessions",         "rga.session.status")
+        Map.entry("sessions",         "rga.session.status"),
+        Map.entry("status",           "rga.session.status")
     );
 
     public RGACommand(RGA plugin) {
@@ -396,6 +398,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(Component.text("Session file and world data cleaned up for '" + targetWorld + "'.", NamedTextColor.GREEN));
             }
 
+            case "status" -> sendStatus(sender);
+
             case "sessions" -> {
                 sender.sendMessage(Component.text("======= Active & Orphaned Sessions =======", NamedTextColor.GOLD, TextDecoration.BOLD));
                 var activeParties = plugin.getPartyManager().getActiveParties();
@@ -459,7 +463,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 "createworld", "importworld", "loadworld", "unloadworld", "deleteworld",
                 "setspawn", "setworldgamemode", "setworldpvp", "setworlddifficulty",
                 "setworldtime", "setworldweather", "setworldalias", "setworldtemplate",
-                "gamerule", "conclude", "concludeall", "cleanupsession", "sessions"
+                "gamerule", "conclude", "concludeall", "cleanupsession", "sessions", "status"
             );
             for (String s : allSubs) {
                 String perm = SUBCOMMAND_PERMISSIONS.get(s);
@@ -541,6 +545,45 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         return completions.stream()
                 .filter(c -> c.toLowerCase().startsWith(current))
                 .collect(Collectors.toList());
+    }
+
+    // ── Status ───────────────────────────────────────────────────
+
+    private void sendStatus(CommandSender sender) {
+        List<StatusReportFormatter.SessionEntry> sessions = new ArrayList<>();
+        for (var entry : plugin.getPartyManager().getActiveParties().entrySet()) {
+            var party = entry.getValue();
+            sessions.add(new StatusReportFormatter.SessionEntry(
+                    entry.getKey(),
+                    party.getActiveWorldName() != null ? party.getActiveWorldName() : "n/a",
+                    party.getMemberCount()
+            ));
+        }
+
+        List<StatusReportFormatter.WorldEntry> worlds = new ArrayList<>();
+        for (String worldName : plugin.getWorldManager().getConfiguredWorldNames()) {
+            World world = Bukkit.getWorld(worldName);
+            if (world == null) continue;
+
+            var settings = plugin.getWorldManager().getSettings(worldName);
+            worlds.add(new StatusReportFormatter.WorldEntry(
+                    world.getName(),
+                    "LOADED",
+                    world.getPlayers().size(),
+                    settings != null ? settings.getGamemode().name() : "UNKNOWN",
+                    settings != null && settings.isPvp()
+            ));
+        }
+
+        for (String line : StatusReportFormatter.buildLines(
+                sessions,
+                worlds,
+                plugin.getSessionManager().hasPendingRecoveries(),
+                plugin.getSessionManager().getPendingRecoveryCount(),
+                plugin.getSessionManager().getOrphanedSessionWorlds()
+        )) {
+            sender.sendMessage(Component.text(line, NamedTextColor.GRAY));
+        }
     }
 
     // ── Help ─────────────────────────────────────────────────────
@@ -636,6 +679,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text()
                 .append(Component.text("/rga sessions [list]", NamedTextColor.YELLOW))
                 .append(Component.text(" - List active and orphaned sessions", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga status", NamedTextColor.YELLOW))
+                .append(Component.text(" - Show runtime status", NamedTextColor.GRAY))
                 .build());
         sender.sendMessage(Component.text()
                 .append(Component.text("/hub", NamedTextColor.YELLOW))

@@ -183,4 +183,12 @@ public class SessionManager {
     public Set<String> getOrphanedSessionWorlds() {
         return Collections.unmodifiableSet(orphanedSessionWorlds);
     }
+
+    public boolean hasPendingRecoveries() {
+        return !pendingRecoveries.isEmpty();
+    }
+
+    public int getPendingRecoveryCount() {
+        return pendingRecoveries.size();
+    }
 }

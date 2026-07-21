@@ -1,5 +1,11 @@
 ## Changelog
 
+### v1.4.1
+
+- Added `/rga status` for runtime visibility into active sessions, loaded managed worlds, and pending recovery state (resolves #18).
+  - The new command reports session world names and player counts, loaded world state/gamemode/PvP details, and whether orphaned recovery data is pending.
+  - It uses the existing session and world managers so status reflects the live runtime state of the plugin.
+
 ### v1.4.0
 
 - Added configurable console command allowlist support for lifecycle hooks and menu actions (resolves #17).
