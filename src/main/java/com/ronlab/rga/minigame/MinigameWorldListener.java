@@ -2,6 +2,9 @@ package com.ronlab.rga.minigame;
 
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.party.Party;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -42,7 +45,7 @@ public class MinigameWorldListener implements Listener {
                         .findFirst().orElse(null);
                 if (party != null && party.getMinigame().isDisableNether()) {
                     event.setCancelled(true);
-                    player.sendMessage("§cThe Nether is disabled in this minigame.");
+                    player.sendMessage(Component.text("The Nether is disabled in this minigame.", NamedTextColor.RED));
                     return;
                 }
 
@@ -73,7 +76,7 @@ public class MinigameWorldListener implements Listener {
                         .findFirst().orElse(null);
                 if (party != null && party.getMinigame().isDisableEnd()) {
                     event.setCancelled(true);
-                    player.sendMessage("§cThe End is disabled in this minigame.");
+                    player.sendMessage(Component.text("The End is disabled in this minigame.", NamedTextColor.RED));
                     return;
                 }
 

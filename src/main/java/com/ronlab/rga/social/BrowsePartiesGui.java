@@ -3,6 +3,10 @@ package com.ronlab.rga.social;
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.minigame.Minigame;
 import com.ronlab.rga.party.Party;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -75,8 +79,11 @@ public class BrowsePartiesGui implements Listener {
         if (idx == 0) {
             ItemStack empty = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
             ItemMeta m = empty.getItemMeta();
-            m.setDisplayName("§7No open parties right now.");
-            m.setLore(List.of("§8Join a minigame from the", "§8navigator to create one!"));
+            m.displayName(Component.text("No open parties right now.", NamedTextColor.GRAY));
+            m.lore(List.of(
+                    Component.text("Join a minigame from the", NamedTextColor.DARK_GRAY),
+                    Component.text("navigator to create one!", NamedTextColor.DARK_GRAY)
+            ));
             empty.setItemMeta(m);
             inv.setItem(partySlots[0], empty);
         }
@@ -144,25 +151,33 @@ public class BrowsePartiesGui implements Listener {
         if (leader != null) meta.setOwningPlayer(leader);
 
         String leaderName = leader != null ? leader.getName() : "Unknown";
-        meta.setDisplayName("§6§l" + minigame.getName());
+        meta.displayName(Component.text(minigame.getName(), NamedTextColor.GOLD, TextDecoration.BOLD));
 
-        List<String> lore = new ArrayList<>();
-        lore.add("§7Party leader: §f" + leaderName);
-        lore.add("§7Players: §f" + party.getMemberCount() + "§7/§f" + minigame.getMaxPlayers());
-        lore.add("");
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text()
+                .append(Component.text("Party leader: ", NamedTextColor.GRAY))
+                .append(Component.text(leaderName, NamedTextColor.WHITE))
+                .build());
+        lore.add(Component.text()
+                .append(Component.text("Players: ", NamedTextColor.GRAY))
+                .append(Component.text(party.getMemberCount() + "/" + minigame.getMaxPlayers(), NamedTextColor.WHITE))
+                .build());
+        lore.add(Component.empty());
 
-        // Ready count
         int readyCount = party.getReadyPlayers().size();
-        lore.add("§7Ready: §f" + readyCount + "§7/§f" + party.getMemberCount());
-        lore.add("");
+        lore.add(Component.text()
+                .append(Component.text("Ready: ", NamedTextColor.GRAY))
+                .append(Component.text(readyCount + "/" + party.getMemberCount(), NamedTextColor.WHITE))
+                .build());
+        lore.add(Component.empty());
 
         if (party.isFull()) {
-            lore.add("§c§lParty Full");
+            lore.add(Component.text("Party Full", NamedTextColor.RED, TextDecoration.BOLD));
         } else {
-            lore.add("§a§lClick to Join");
+            lore.add(Component.text("Click to Join", NamedTextColor.GREEN, TextDecoration.BOLD));
         }
 
-        meta.setLore(lore);
+        meta.lore(lore);
         head.setItemMeta(meta);
         return head;
     }
@@ -170,7 +185,7 @@ public class BrowsePartiesGui implements Listener {
     private ItemStack makeBorder() {
         ItemStack pane = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = pane.getItemMeta();
-        meta.setDisplayName(" ");
+        meta.displayName(Component.text(" "));
         pane.setItemMeta(meta);
         return pane;
     }

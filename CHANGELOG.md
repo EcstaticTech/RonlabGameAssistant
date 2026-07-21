@@ -1,5 +1,15 @@
 ## Changelog
 
+### v1.1.2
+
+- Replaced legacy ChatColor and material parsing (resolves #14).
+  - All `ChatColor.translateAlternateColorCodes()` and `ChatColor.RED`/`YELLOW`/`GRAY` usages replaced with Adventure API `Component` objects.
+  - All hardcoded `§` section color codes in command feedback, party messages, and GUI items migrated to Adventure Component builder pattern.
+  - All `Material.matchMaterial()` calls replaced with registry-safe `Registry.MATERIAL.get(NamespacedKey)` via new `AdventureUtil.safeMaterial()` utility.
+  - New `util/AdventureUtil.java` provides `color(String)` → `Component` and `safeMaterial(String, Material)` → `Material` helpers.
+  - Config YAML files continue to work with existing `&` color codes unchanged (backward-compatible via `LegacyComponentSerializer.legacyAmpersand()`).
+  - `ConfigManager.getMessage()` return type changed from `String` to `Component`; all callers updated.
+
 ### v1.1.1
 
 - Added graceful world load failure handling (resolves #13).

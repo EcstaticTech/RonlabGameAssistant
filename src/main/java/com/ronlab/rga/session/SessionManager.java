@@ -2,6 +2,9 @@ package com.ronlab.rga.session;
 
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.party.Party;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -166,7 +169,7 @@ public class SessionManager {
             }
         }
 
-        player.sendMessage("§a[RGA] Your pre-game state has been restored after server recovery.");
+        player.sendMessage(Component.text("[RGA] Your pre-game state has been restored after server recovery.", NamedTextColor.GREEN));
 
         // Check if all members of this orphaned session are recovered
         boolean remaining = pendingRecoveries.values().stream()

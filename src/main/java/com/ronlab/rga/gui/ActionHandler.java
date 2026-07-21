@@ -1,8 +1,10 @@
 package com.ronlab.rga.gui;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
 import com.ronlab.rga.util.PlaceholderSanitizer;
@@ -82,7 +84,7 @@ public class ActionHandler {
 
         } else {
             plugin.getLogger().warning("Unknown RGA action: rga:" + action);
-            player.sendMessage(ChatColor.RED + "Unknown action: " + action);
+            player.sendMessage(Component.text("Unknown action: " + action, NamedTextColor.RED));
         }
     }
 }

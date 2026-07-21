@@ -1,7 +1,7 @@
 package com.ronlab.rga.minigame;
 
 import com.ronlab.rga.RGA;
-import org.bukkit.ChatColor;
+import com.ronlab.rga.util.AdventureUtil;
 import org.bukkit.Difficulty;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -42,13 +42,12 @@ public class MinigameManager {
             String name = mg.getString("name", id);
 
             String materialName = mg.getString("display-item", "STONE").toUpperCase();
-            Material material = Material.matchMaterial(materialName);
-            if (material == null) material = Material.STONE;
+            Material material = AdventureUtil.safeMaterial(materialName, Material.STONE);
 
             List<String> rawLore = mg.getStringList("display-lore");
             List<String> lore = new ArrayList<>();
             for (String line : rawLore) {
-                lore.add(ChatColor.translateAlternateColorCodes('&', line));
+                lore.add(line);
             }
 
             int maxPlayers = mg.getInt("max-players", 8);

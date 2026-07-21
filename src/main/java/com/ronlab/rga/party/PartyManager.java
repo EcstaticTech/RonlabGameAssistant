@@ -3,7 +3,11 @@ package com.ronlab.rga.party;
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.minigame.Minigame;
 import com.ronlab.rga.minigame.WorldCopyManager;
+import com.ronlab.rga.util.AdventureUtil;
 import com.ronlab.rga.util.PlaceholderSanitizer;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -60,8 +64,11 @@ public class PartyManager implements Listener {
             return;
         }
 
-        broadcastToParty(party, "§e" + player.getName() + " §cdisconnected from the party. §7("
-                + party.getMemberCount() + "/" + party.getMinigame().getMaxPlayers() + ")", null);
+        broadcastToParty(party, Component.text()
+                .append(Component.text(player.getName(), NamedTextColor.YELLOW))
+                .append(Component.text(" disconnected from the party. ", NamedTextColor.RED))
+                .append(Component.text("(" + party.getMemberCount() + "/" + party.getMinigame().getMaxPlayers() + ")", NamedTextColor.GRAY))
+                .build(), null);
         refreshLobbyForAll(party);
     }
 
@@ -70,7 +77,7 @@ public class PartyManager implements Listener {
     public void joinMinigame(Player player, String minigameId) {
         Minigame minigame = plugin.getMinigameManager().getMinigame(minigameId);
         if (minigame == null) {
-            player.sendMessage("§cUnknown minigame: " + minigameId);
+            player.sendMessage(Component.text("Unknown minigame: " + minigameId, NamedTextColor.RED));
             return;
         }
 
@@ -90,17 +97,31 @@ public class PartyManager implements Listener {
             party = new Party(player.getUniqueId(), minigame);
             activeParties.put(minigameId, party);
             playerParties.put(player.getUniqueId(), party);
-            player.sendMessage("§aCreated a new party for §6" + minigame.getName() + "§a!");
+            player.sendMessage(Component.text()
+                    .append(Component.text("Created a new party for ", NamedTextColor.GREEN))
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .append(Component.text("!", NamedTextColor.GREEN))
+                    .build());
         } else if (party.isFull()) {
-            player.sendMessage("§cThe party for §6" + minigame.getName() + "§c is full!");
+            player.sendMessage(Component.text()
+                    .append(Component.text("The party for ", NamedTextColor.RED))
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .append(Component.text(" is full!", NamedTextColor.RED))
+                    .build());
             return;
         } else {
             party.addMember(player.getUniqueId());
             playerParties.put(player.getUniqueId(), party);
-            player.sendMessage("§aJoined the party for §6" + minigame.getName() + "§a!");
-            broadcastToParty(party, "§e" + player.getName() + " §ajoined the party! §7("
-                    + party.getMemberCount() + "/" + minigame.getMaxPlayers() + ")",
-                    player.getUniqueId());
+            player.sendMessage(Component.text()
+                    .append(Component.text("Joined the party for ", NamedTextColor.GREEN))
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .append(Component.text("!", NamedTextColor.GREEN))
+                    .build());
+            broadcastToParty(party, Component.text()
+                    .append(Component.text(player.getName(), NamedTextColor.YELLOW))
+                    .append(Component.text(" joined the party! ", NamedTextColor.GREEN))
+                    .append(Component.text("(" + party.getMemberCount() + "/" + minigame.getMaxPlayers() + ")", NamedTextColor.GRAY))
+                    .build(), player.getUniqueId());
         }
 
         refreshLobbyForAll(party);
@@ -116,7 +137,7 @@ public class PartyManager implements Listener {
         }
 
         party.removeMember(player.getUniqueId());
-        player.sendMessage("§eYou left the party.");
+        player.sendMessage(Component.text("You left the party.", NamedTextColor.YELLOW));
         player.closeInventory();
 
         if (party.getMemberCount() == 0) {
@@ -124,8 +145,11 @@ public class PartyManager implements Listener {
             return;
         }
 
-        broadcastToParty(party, "§e" + player.getName() + " §cleft the party. §7("
-                + party.getMemberCount() + "/" + party.getMinigame().getMaxPlayers() + ")", null);
+        broadcastToParty(party, Component.text()
+                .append(Component.text(player.getName(), NamedTextColor.YELLOW))
+                .append(Component.text(" left the party. ", NamedTextColor.RED))
+                .append(Component.text("(" + party.getMemberCount() + "/" + party.getMinigame().getMaxPlayers() + ")", NamedTextColor.GRAY))
+                .build(), null);
         refreshLobbyForAll(party);
     }
 
@@ -137,9 +161,15 @@ public class PartyManager implements Listener {
         boolean nowReady = !party.isReady(player.getUniqueId());
         party.setReady(player.getUniqueId(), nowReady);
 
-        player.sendMessage(nowReady ? "§aYou are now ready!" : "§eYou are no longer ready.");
-        broadcastToParty(party, "§e" + player.getName()
-                + (nowReady ? " §ais ready!" : " §eis no longer ready."), null);
+        player.sendMessage(nowReady
+                ? Component.text("You are now ready!", NamedTextColor.GREEN)
+                : Component.text("You are no longer ready.", NamedTextColor.YELLOW));
+        broadcastToParty(party, Component.text()
+                .append(Component.text(player.getName(), NamedTextColor.YELLOW))
+                .append(nowReady
+                        ? Component.text(" is ready!", NamedTextColor.GREEN)
+                        : Component.text(" is no longer ready.", NamedTextColor.YELLOW))
+                .build(), null);
 
         refreshLobbyForAll(party);
 
@@ -154,8 +184,10 @@ public class PartyManager implements Listener {
                 party.setLeader(uuid);
                 Player newLeader = Bukkit.getPlayer(uuid);
                 String newLeaderName = newLeader != null ? newLeader.getName() : "Unknown";
-                broadcastToParty(party,
-                        "§6" + newLeaderName + " §eis now the party leader.", null);
+                broadcastToParty(party, Component.text()
+                        .append(Component.text(newLeaderName, NamedTextColor.GOLD))
+                        .append(Component.text(" is now the party leader.", NamedTextColor.YELLOW))
+                        .build(), null);
                 return;
             }
         }
@@ -166,8 +198,11 @@ public class PartyManager implements Listener {
     private void startGame(Party party) {
         Minigame minigame = party.getMinigame();
 
-        broadcastToParty(party, "§a§lAll players ready! Starting §6§l"
-                + minigame.getName() + "§a§l...", null);
+        broadcastToParty(party, Component.text()
+                .append(Component.text("All players ready! Starting ", NamedTextColor.GREEN, TextDecoration.BOLD))
+                .append(Component.text(minigame.getName(), NamedTextColor.GOLD, TextDecoration.BOLD))
+                .append(Component.text("...", NamedTextColor.GREEN, TextDecoration.BOLD))
+                .build(), null);
 
         for (UUID uuid : party.getMembers()) {
             Player p = Bukkit.getPlayer(uuid);
@@ -196,7 +231,7 @@ public class PartyManager implements Listener {
             }
 
             if (worldName == null) {
-                broadcastToParty(party, "§cFailed to create game world. Please try again.", null);
+                broadcastToParty(party, Component.text("Failed to create game world. Please try again.", NamedTextColor.RED), null);
                 party.setState(Party.State.LOBBY);
                 refreshLobbyForAll(party);
                 return;
@@ -216,7 +251,7 @@ public class PartyManager implements Listener {
 
             World world = Bukkit.getWorld(worldName);
             if (world == null) {
-                broadcastToParty(party, "§cGame world failed to load. Please try again.", null);
+                broadcastToParty(party, Component.text("Game world failed to load. Please try again.", NamedTextColor.RED), null);
                 party.setState(Party.State.LOBBY);
                 return;
             }
@@ -231,7 +266,7 @@ public class PartyManager implements Listener {
                 if (p != null) {
                     p.teleport(world.getSpawnLocation());
                     p.setGameMode(org.bukkit.GameMode.SURVIVAL);
-                    p.sendMessage("§aThe game has started! Good luck!");
+                    p.sendMessage(Component.text("The game has started! Good luck!", NamedTextColor.GREEN));
                     playerNames.add(p.getName());
                     // Revoke all advancements for clean minigame state
                     plugin.getAdvancementManager().revokeAll(p);
@@ -405,9 +440,9 @@ public class PartyManager implements Listener {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null && !p.isDead()) {
                 if (hub != null) p.teleport(hub.getSpawnLocation());
-                p.sendMessage("§6The game has ended! You have been returned to Hub.");
+                p.sendMessage(Component.text("The game has ended! You have been returned to Hub.", NamedTextColor.GOLD));
             } else if (p != null) {
-                p.sendMessage("§6The game has ended! You will be returned to Hub on respawn.");
+                p.sendMessage(Component.text("The game has ended! You will be returned to Hub on respawn.", NamedTextColor.GOLD));
             } else {
             }
         }
@@ -444,7 +479,7 @@ public class PartyManager implements Listener {
         }
     }
 
-    private void broadcastToParty(Party party, String message, UUID exclude) {
+    private void broadcastToParty(Party party, Component message, UUID exclude) {
         for (UUID uuid : party.getMembers()) {
             if (uuid.equals(exclude)) continue;
             Player p = Bukkit.getPlayer(uuid);

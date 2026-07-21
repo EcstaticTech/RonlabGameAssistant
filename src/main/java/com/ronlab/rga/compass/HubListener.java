@@ -1,6 +1,9 @@
 package com.ronlab.rga.compass;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -93,7 +96,7 @@ public class HubListener implements Listener {
             World hub = Bukkit.getWorld(hubWorld);
             if (hub != null) {
                 event.setRespawnLocation(hub.getSpawnLocation());
-                player.sendMessage("§6The game has ended! You have been returned to Hub.");
+                player.sendMessage(Component.text("The game has ended! You have been returned to Hub.", NamedTextColor.GOLD));
 
             }
             return;
@@ -180,22 +183,17 @@ public class HubListener implements Listener {
     private ItemStack buildCompass() {
         FileConfiguration config = plugin.getConfig();
         String materialName = config.getString("compass.material", "COMPASS").toUpperCase();
-        Material material = Material.matchMaterial(materialName);
-        if (material == null) material = Material.COMPASS;
+        Material material = AdventureUtil.safeMaterial(materialName, Material.COMPASS);
 
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
 
         String name = config.getString("compass.name", "&6World Navigator");
-        meta.setDisplayName(org.bukkit.ChatColor.translateAlternateColorCodes('&', name));
+        meta.displayName(AdventureUtil.color(name));
 
         List<String> rawLore = config.getStringList("compass.lore");
         if (!rawLore.isEmpty()) {
-            List<String> lore = new ArrayList<>();
-            for (String line : rawLore) {
-                lore.add(org.bukkit.ChatColor.translateAlternateColorCodes('&', line));
-            }
-            meta.setLore(lore);
+            meta.lore(AdventureUtil.color(rawLore));
         }
 
         meta.getPersistentDataContainer().set(COMPASS_KEY, PersistentDataType.BYTE, (byte) 1);

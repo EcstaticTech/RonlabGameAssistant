@@ -2,6 +2,9 @@ package com.ronlab.rga.compass;
 
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.gui.MenuManager;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -42,7 +45,7 @@ public class CompassListener implements Listener {
             if (player.getWorld().getName().equalsIgnoreCase(hubWorld)) {
                 player.getInventory().setItem(player.getInventory().getHeldItemSlot(), null);
                 hubListener.giveCompass(player);
-                player.sendMessage("§6Your navigator compass has been updated.");
+                player.sendMessage(Component.text("Your navigator compass has been updated.", NamedTextColor.GOLD));
             }
             return;
         }

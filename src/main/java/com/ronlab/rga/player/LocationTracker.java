@@ -1,6 +1,9 @@
 package com.ronlab.rga.player;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -98,7 +101,7 @@ public class LocationTracker implements Listener {
             return;
         }
 
-        player.sendMessage("§7No saved SMP location found. Sending you to the SMP world spawn.");
+        player.sendMessage(Component.text("No saved SMP location found. Sending you to the SMP world spawn.", NamedTextColor.GRAY));
         player.sendMessage(plugin.getConfigManager().getMessage("teleporting"));
         player.teleport(fallback.getSpawnLocation());
 

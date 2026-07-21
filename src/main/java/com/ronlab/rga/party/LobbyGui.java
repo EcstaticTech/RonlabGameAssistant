@@ -2,6 +2,10 @@ package com.ronlab.rga.party;
 
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.minigame.Minigame;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -19,7 +23,6 @@ import java.util.*;
 public class LobbyGui implements Listener {
 
     private final RGA plugin;
-    private static final String LOBBY_TITLE_PREFIX = "§8§l";
     private static final int GUI_SIZE = 54;
 
     // Players currently in the lobby GUI
@@ -38,7 +41,7 @@ public class LobbyGui implements Listener {
         refreshing.add(player.getUniqueId());
 
         Minigame minigame = party.getMinigame();
-        String title = LOBBY_TITLE_PREFIX + minigame.getName() + " Lobby";
+        String title = "§8§l" + minigame.getName() + " Lobby";
         Inventory inv = Bukkit.createInventory(null, GUI_SIZE, title);
 
         // ── Border ───────────────────────────────────────────────
@@ -53,12 +56,18 @@ public class LobbyGui implements Listener {
         // ── Game info item (top center) ──────────────────────────
         ItemStack info = new ItemStack(minigame.getDisplayItem());
         ItemMeta infoMeta = info.getItemMeta();
-        infoMeta.setDisplayName("§6§l" + minigame.getName());
-        List<String> infoLore = new ArrayList<>(minigame.getDisplayLore());
-        infoLore.add("");
-        infoLore.add("§7Players: §f" + party.getMemberCount() + "§7/§f" + minigame.getMaxPlayers());
-        infoLore.add("§7Min to start: §f" + minigame.getMinPlayers());
-        infoMeta.setLore(infoLore);
+        infoMeta.displayName(Component.text(minigame.getName(), NamedTextColor.GOLD, TextDecoration.BOLD));
+        List<Component> infoLore = new ArrayList<>(AdventureUtil.color(minigame.getDisplayLore()));
+        infoLore.add(Component.empty());
+        infoLore.add(Component.text()
+                .append(Component.text("Players: ", NamedTextColor.GRAY))
+                .append(Component.text(party.getMemberCount() + "/" + minigame.getMaxPlayers(), NamedTextColor.WHITE))
+                .build());
+        infoLore.add(Component.text()
+                .append(Component.text("Min to start: ", NamedTextColor.GRAY))
+                .append(Component.text(minigame.getMinPlayers(), NamedTextColor.WHITE))
+                .build());
+        infoMeta.lore(infoLore);
         info.setItemMeta(infoMeta);
         inv.setItem(4, info);
 
@@ -78,25 +87,29 @@ public class LobbyGui implements Listener {
                 SkullMeta skullMeta = (SkullMeta) head.getItemMeta();
                 if (member != null) skullMeta.setOwningPlayer(member);
 
-                String readyColor = isReady ? "§a" : "§c";
-                String name = member != null ? member.getName() : "Unknown";
+                NamedTextColor nameColor = isReady ? NamedTextColor.GREEN : NamedTextColor.RED;
+                String nameStr = member != null ? member.getName() : "Unknown";
+                Component displayName = Component.text().append(Component.text(nameStr, nameColor))
+                        .append(isLeader ? Component.text(" ★", NamedTextColor.GOLD) : Component.empty())
+                        .build();
+                skullMeta.displayName(displayName);
 
-                skullMeta.setDisplayName(readyColor + name + (isLeader ? " §6★" : ""));
-
-                List<String> lore = new ArrayList<>();
-                lore.add(readyColor + (isReady ? "✔ Ready" : "✘ Not Ready"));
+                List<Component> lore = new ArrayList<>();
+                lore.add(Component.text(isReady ? "✔ Ready" : "✘ Not Ready", nameColor));
                 if (isSelf) {
-                    lore.add("");
-                    lore.add(isReady ? "§eClick to unready" : "§eClick to ready up");
+                    lore.add(Component.empty());
+                    lore.add(isReady
+                            ? Component.text("Click to unready", NamedTextColor.YELLOW)
+                            : Component.text("Click to ready up", NamedTextColor.YELLOW));
                 }
-                skullMeta.setLore(lore);
+                skullMeta.lore(lore);
                 head.setItemMeta(skullMeta);
                 inv.setItem(slots[i], head);
 
             } else {
                 ItemStack empty = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
                 ItemMeta emptyMeta = empty.getItemMeta();
-                emptyMeta.setDisplayName("§7Empty Slot");
+                emptyMeta.displayName(Component.text("Empty Slot", NamedTextColor.GRAY));
                 empty.setItemMeta(emptyMeta);
                 inv.setItem(slots[i], empty);
             }
@@ -105,8 +118,8 @@ public class LobbyGui implements Listener {
         // ── Leave party button ────────────────────────────────────
         ItemStack leave = new ItemStack(Material.RED_BED);
         ItemMeta leaveMeta = leave.getItemMeta();
-        leaveMeta.setDisplayName("§c§lLeave Party");
-        leaveMeta.setLore(List.of("§7Click to leave this party."));
+        leaveMeta.displayName(Component.text("Leave Party", NamedTextColor.RED, TextDecoration.BOLD));
+        leaveMeta.lore(List.of(Component.text("Click to leave this party.", NamedTextColor.GRAY)));
         leave.setItemMeta(leaveMeta);
         inv.setItem(49, leave);
 
@@ -117,19 +130,25 @@ public class LobbyGui implements Listener {
         if (party.getMemberCount() < minigame.getMinPlayers()) {
             status = new ItemStack(Material.RED_STAINED_GLASS_PANE);
             statusMeta = status.getItemMeta();
-            statusMeta.setDisplayName("§cWaiting for more players...");
-            statusMeta.setLore(List.of("§7Need at least §f" + minigame.getMinPlayers() + " §7to start."));
+            statusMeta.displayName(Component.text("Waiting for more players...", NamedTextColor.RED));
+            statusMeta.lore(List.of(
+                    Component.text("Need at least ", NamedTextColor.GRAY)
+                            .append(Component.text(minigame.getMinPlayers(), NamedTextColor.WHITE))
+                            .append(Component.text(" to start.", NamedTextColor.GRAY))
+            ));
         } else if (party.allReady()) {
             status = new ItemStack(Material.LIME_STAINED_GLASS_PANE);
             statusMeta = status.getItemMeta();
-            statusMeta.setDisplayName("§a§lStarting game...");
-            statusMeta.setLore(List.of());
+            statusMeta.displayName(Component.text("Starting game...", NamedTextColor.GREEN, TextDecoration.BOLD));
+            statusMeta.lore(List.of());
         } else {
             int notReady = party.getMemberCount() - party.getReadyPlayers().size();
             status = new ItemStack(Material.YELLOW_STAINED_GLASS_PANE);
             statusMeta = status.getItemMeta();
-            statusMeta.setDisplayName("§eWaiting for players to ready up...");
-            statusMeta.setLore(List.of("§f" + notReady + " §7player(s) not ready."));
+            statusMeta.displayName(Component.text("Waiting for players to ready up...", NamedTextColor.YELLOW));
+            statusMeta.lore(List.of(
+                    Component.text(notReady + " player(s) not ready.", NamedTextColor.GRAY)
+            ));
         }
         status.setItemMeta(statusMeta);
         inv.setItem(45, status);
@@ -196,7 +215,7 @@ public class LobbyGui implements Listener {
     private ItemStack makeBorder() {
         ItemStack pane = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta meta = pane.getItemMeta();
-        meta.setDisplayName(" ");
+        meta.displayName(Component.text(" "));
         pane.setItemMeta(meta);
         return pane;
     }

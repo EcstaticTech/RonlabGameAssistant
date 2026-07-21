@@ -2,8 +2,10 @@ package com.ronlab.rga.gui;
 
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.party.Party;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -40,7 +42,7 @@ public class MenuManager {
             ConfigurationSection menuSection = menusSection.getConfigurationSection(menuName);
             if (menuSection == null) continue;
 
-            String title = color(menuSection.getString("title", "&8Menu"));
+            String title = menuSection.getString("title", "&8Menu");
             int size = menuSection.getInt("size", 27);
             List<MenuItemDefinition> items = new ArrayList<>();
 
@@ -51,17 +53,14 @@ public class MenuManager {
                     if (itemSection == null) continue;
 
                     String materialName = itemSection.getString("material", "STONE").toUpperCase();
-                    Material material = Material.matchMaterial(materialName);
-                    if (material == null) {
+                    Material material = AdventureUtil.safeMaterial(materialName, Material.STONE);
+                    if (material == Material.STONE && !materialName.equals("STONE")) {
                         plugin.getLogger().warning("Invalid material '" + materialName
                                 + "' for item '" + itemKey + "' in menu '" + menuName + "'.");
-                        material = Material.STONE;
                     }
 
-                    String name = color(itemSection.getString("name", "&fItem"));
+                    String name = itemSection.getString("name", "&fItem");
                     List<String> rawLore = itemSection.getStringList("lore");
-                    List<String> lore = new ArrayList<>();
-                    for (String line : rawLore) lore.add(color(line));
 
                     int slot = itemSection.getInt("slot", 0);
                     List<String> leftClick = itemSection.getStringList("left_click");
@@ -70,7 +69,7 @@ public class MenuManager {
                     String playerCountWorld = itemSection.getString("player-count-world", "");
                     String minigameId = itemSection.getString("minigame-id", "");
 
-                    items.add(new MenuItemDefinition(material, name, lore, slot,
+                    items.add(new MenuItemDefinition(material, name, rawLore, slot,
                             leftClick, rightClick, showPlayerCount, playerCountWorld, minigameId));
                 }
             }
@@ -87,7 +86,7 @@ public class MenuManager {
         MenuDefinition def = menus.get(menuName);
         if (def == null) {
             plugin.getLogger().warning("Tried to open unknown menu: " + menuName);
-            player.sendMessage(ChatColor.RED + "Menu not found: " + menuName);
+            player.sendMessage(Component.text("Menu not found: " + menuName, NamedTextColor.RED));
             return;
         }
 
@@ -96,16 +95,19 @@ public class MenuManager {
         for (MenuItemDefinition item : def.getItems()) {
             ItemStack stack = new ItemStack(item.getMaterial());
             ItemMeta meta = stack.getItemMeta();
-            meta.setDisplayName(item.getName());
 
-            List<String> lore = new ArrayList<>(item.getLore());
+            // Display name
+            meta.displayName(AdventureUtil.color(item.getName()));
+
+            // Build lore components
+            List<Component> lore = new ArrayList<>(AdventureUtil.color(item.getLore()));
 
             // Inject live player count for world-based items
             if (item.isShowPlayerCount() && !item.getPlayerCountWorld().isEmpty()) {
                 int count = getPlayerCount(item.getPlayerCountWorld());
                 String playerWord = count == 1 ? "player" : "players";
-                lore.add("");
-                lore.add(ChatColor.YELLOW + "" + count + " " + playerWord + " online");
+                lore.add(Component.empty());
+                lore.add(Component.text(count + " " + playerWord + " online", NamedTextColor.YELLOW));
             }
 
             // Inject party size for minigame items
@@ -113,17 +115,20 @@ public class MenuManager {
                 Party party = plugin.getPartyManager().getPartyForMinigame(item.getMinigameId());
                 var minigame = plugin.getMinigameManager().getMinigame(item.getMinigameId());
                 if (party != null && party.getState() == Party.State.LOBBY) {
-                    lore.add("");
-                    lore.add(ChatColor.YELLOW + "" + party.getMemberCount() + "§7/§f"
-                            + (minigame != null ? minigame.getMaxPlayers() : "?")
-                            + " §eplayers in lobby");
+                    lore.add(Component.empty());
+                    lore.add(
+                            Component.text(party.getMemberCount() + "/", NamedTextColor.YELLOW)
+                                    .append(Component.text(minigame != null ? String.valueOf(minigame.getMaxPlayers()) : "?",
+                                            NamedTextColor.GRAY))
+                                    .append(Component.text(" players in lobby", NamedTextColor.YELLOW))
+                    );
                 } else {
-                    lore.add("");
-                    lore.add(ChatColor.GRAY + "No open party");
+                    lore.add(Component.empty());
+                    lore.add(Component.text("No open party", NamedTextColor.GRAY));
                 }
             }
 
-            if (!lore.isEmpty()) meta.setLore(lore);
+            if (!lore.isEmpty()) meta.lore(lore);
             stack.setItemMeta(meta);
 
             if (item.getSlot() >= 0 && item.getSlot() < def.getSize()) {
@@ -152,9 +157,5 @@ public class MenuManager {
 
     public boolean isRGAMenu(String title) {
         return titleToMenuName.containsKey(title);
-    }
-
-    private String color(String s) {
-        return ChatColor.translateAlternateColorCodes('&', s);
     }
 }

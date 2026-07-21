@@ -1,6 +1,7 @@
 package com.ronlab.rga.social;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.util.AdventureUtil;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -77,17 +78,12 @@ public class SocialItem {
 
         meta.setOwningPlayer(player);
 
-        String name = org.bukkit.ChatColor.translateAlternateColorCodes('&',
-                plugin.getConfig().getString("social-item.name", "&bSocial"));
-        meta.setDisplayName(name);
+        String name = plugin.getConfig().getString("social-item.name", "&bSocial");
+        meta.displayName(AdventureUtil.color(name));
 
         List<String> rawLore = plugin.getConfig().getStringList("social-item.lore");
         if (!rawLore.isEmpty()) {
-            List<String> lore = new ArrayList<>();
-            for (String line : rawLore) {
-                lore.add(org.bukkit.ChatColor.translateAlternateColorCodes('&', line));
-            }
-            meta.setLore(lore);
+            meta.lore(AdventureUtil.color(rawLore));
         }
 
         meta.getPersistentDataContainer().set(SOCIAL_KEY, PersistentDataType.BYTE, (byte) 1);

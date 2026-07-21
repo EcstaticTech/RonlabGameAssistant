@@ -1,7 +1,8 @@
 package com.ronlab.rga.config;
 
 import com.ronlab.rga.RGA;
-import org.bukkit.ChatColor;
+import com.ronlab.rga.util.AdventureUtil;
+import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -43,14 +44,16 @@ public class ConfigManager {
         return plugin.getConfig().getStringList("smp-worlds");
     }
 
-    public String getMessage(String key) {
+    public Component getMessage(String key) {
         String raw = plugin.getConfig().getString("messages." + key, "&cMessage not found: " + key);
-        return ChatColor.translateAlternateColorCodes('&', raw).replace("{world}", "");
+        String resolved = raw.replace("{world}", "");
+        return AdventureUtil.color(resolved);
     }
 
-    public String getMessage(String key, String worldName) {
+    public Component getMessage(String key, String worldName) {
         String raw = plugin.getConfig().getString("messages." + key, "&cMessage not found: " + key);
-        return ChatColor.translateAlternateColorCodes('&', raw).replace("{world}", worldName);
+        String resolved = raw.replace("{world}", worldName);
+        return AdventureUtil.color(resolved);
     }
 
     public FileConfiguration getWorldsConfig() { return worldsConfig; }
