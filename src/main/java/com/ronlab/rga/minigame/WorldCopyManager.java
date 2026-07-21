@@ -9,6 +9,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class WorldCopyManager {
 
@@ -79,7 +80,7 @@ public class WorldCopyManager {
      *
      * Returns the new world name, or null on failure.
      */
-    public String copyTemplateWorld(Minigame minigame) {
+    public CompletableFuture<String> copyTemplateWorld(Minigame minigame) {
         String templateWorldName = minigame.getTemplateWorld();
         String newWorldName = "minigame_" + minigame.getId() + "_"
                 + UUID.randomUUID().toString().substring(0, 8);
@@ -90,36 +91,49 @@ public class WorldCopyManager {
             plugin.getLogger().severe(
                 "Template world folder not found at server root: " + templateWorldName
                 + ". Template worlds must be top-level folders in the server directory.");
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
 
         File destination = new File(Bukkit.getWorldContainer(), newWorldName);
 
-        try {
-            copyFolder(templateFolder.toPath(), destination.toPath());
-        } catch (IOException e) {
-            plugin.getLogger().severe("Failed to copy template world: " + e.getMessage());
-            return null;
-        }
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                copyFolder(templateFolder.toPath(), destination.toPath());
+            } catch (IOException e) {
+                plugin.getLogger().severe("Failed to copy template world: " + e.getMessage());
+                deleteFolder(destination);
+                return null;
+            }
 
-        // Remove identity files so Paper treats this as a fresh world.
-        // We do NOT delete level.dat — it carries the map's spawn point,
-        // world settings, and datapack load list, all of which the map needs.
-        deleteDuplicateFiles(destination);
+            // Remove identity files so Paper treats this as a fresh world.
+            // We do NOT delete level.dat — it carries the map's spawn point,
+            // world settings, and datapack load list, all of which the map needs.
+            deleteDuplicateFiles(destination);
+            return newWorldName;
+        }).thenCompose(worldName -> {
+            if (worldName == null) {
+                return CompletableFuture.completedFuture(null);
+            }
 
-        WorldCreator creator = new WorldCreator(newWorldName);
-        creator.environment(World.Environment.NORMAL);
-        World world = Bukkit.createWorld(creator);
-        if (world == null) {
-            plugin.getLogger().severe("Failed to load copied world: " + newWorldName);
-            deleteFolder(destination);
-            return null;
-        }
+            CompletableFuture<String> loadFuture = new CompletableFuture<>();
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                WorldCreator creator = new WorldCreator(worldName);
+                creator.environment(World.Environment.NORMAL);
+                World world = Bukkit.createWorld(creator);
+                if (world == null) {
+                    plugin.getLogger().severe("Failed to load copied world: " + worldName);
+                    deleteFolder(destination);
+                    loadFuture.complete(null);
+                    return;
+                }
 
-        applyMinigameSettings(world, minigame);
-        plugin.getLogger().info("Copied template '" + templateWorldName
-                + "' to '" + newWorldName + "'.");
-        return newWorldName;
+                applyMinigameSettings(world, minigame);
+                plugin.getLogger().info("Copied template '" + templateWorldName
+                        + "' to '" + worldName + "'.");
+                loadFuture.complete(worldName);
+            });
+            return loadFuture;
+        });
     }
 
     /**

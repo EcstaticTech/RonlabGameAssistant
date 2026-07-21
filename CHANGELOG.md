@@ -1,5 +1,12 @@
 ## Changelog
 
+### v1.2.0
+
+- Converted template world copy I/O to async operations (resolves #15).
+  - `WorldCopyManager.copyTemplateWorld()` now offloads folder copying to `CompletableFuture.supplyAsync()` to prevent main-thread I/O lag.
+  - Bukkit world registration still occurs on the main thread via `runTask()` to preserve thread safety.
+  - `PartyManager.startGame()` properly chains async copy with `thenAccept()` for template-based minigames.
+
 ### v1.1.2
 
 - Replaced legacy ChatColor and material parsing (resolves #14).

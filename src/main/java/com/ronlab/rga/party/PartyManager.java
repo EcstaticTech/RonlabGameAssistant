@@ -222,66 +222,105 @@ public class PartyManager implements Listener {
                 }
             }
 
-            String worldName = null;
-
             if (minigame.getWorldType() == Minigame.WorldType.VANILLA) {
-                worldName = worldCopyManager.createVanillaWorld(minigame);
-            } else {
-                worldName = worldCopyManager.copyTemplateWorld(minigame);
-            }
+                String worldName = worldCopyManager.createVanillaWorld(minigame);
+                if (worldName == null) {
+                    broadcastToParty(party, Component.text("Failed to create game world. Please try again.", NamedTextColor.RED), null);
+                    party.setState(Party.State.LOBBY);
+                    refreshLobbyForAll(party);
+                    return;
+                }
 
-            if (worldName == null) {
-                broadcastToParty(party, Component.text("Failed to create game world. Please try again.", NamedTextColor.RED), null);
-                party.setState(Party.State.LOBBY);
-                refreshLobbyForAll(party);
-                return;
-            }
+                party.setActiveWorldName(worldName);
+                party.setState(Party.State.IN_GAME);
 
-            party.setActiveWorldName(worldName);
-            party.setState(Party.State.IN_GAME);
+                // Write-ahead session snapshot right after world creation
+                plugin.getSessionManager().saveSession(party, worldName);
 
-            // Write-ahead session snapshot right after world creation
-            plugin.getSessionManager().saveSession(party, worldName);
-
-            if (minigame.getWorldType() == Minigame.WorldType.VANILLA) {
                 // Register all three dimensions as a shared inventory group
                 plugin.getInventoryManager().addTemporaryGroup(worldName,
                         List.of(worldName, worldName + "_the_nether", worldName + "_the_end"));
-            }
 
-            World world = Bukkit.getWorld(worldName);
-            if (world == null) {
-                broadcastToParty(party, Component.text("Game world failed to load. Please try again.", NamedTextColor.RED), null);
-                party.setState(Party.State.LOBBY);
-                return;
-            }
-
-            // Teleport all players
-            List<String> playerNames = new ArrayList<>();
-            Player leaderPlayer = Bukkit.getPlayer(party.getLeaderUuid());
-            String leaderName = leaderPlayer != null ? leaderPlayer.getName() : "";
-
-            for (UUID uuid : party.getMembers()) {
-                Player p = Bukkit.getPlayer(uuid);
-                if (p != null) {
-                    p.teleport(world.getSpawnLocation());
-                    p.setGameMode(org.bukkit.GameMode.SURVIVAL);
-                    p.sendMessage(Component.text("The game has started! Good luck!", NamedTextColor.GREEN));
-                    playerNames.add(p.getName());
-                    // Revoke all advancements for clean minigame state
-                    plugin.getAdvancementManager().revokeAll(p);
+                World world = Bukkit.getWorld(worldName);
+                if (world == null) {
+                    broadcastToParty(party, Component.text("Game world failed to load. Please try again.", NamedTextColor.RED), null);
+                    party.setState(Party.State.LOBBY);
+                    return;
                 }
+
+                // Teleport all players
+                List<String> playerNames = new ArrayList<>();
+                Player leaderPlayer = Bukkit.getPlayer(party.getLeaderUuid());
+                String leaderName = leaderPlayer != null ? leaderPlayer.getName() : "";
+
+                for (UUID uuid : party.getMembers()) {
+                    Player p = Bukkit.getPlayer(uuid);
+                    if (p != null) {
+                        p.teleport(world.getSpawnLocation());
+                        p.setGameMode(org.bukkit.GameMode.SURVIVAL);
+                        p.sendMessage(Component.text("The game has started! Good luck!", NamedTextColor.GREEN));
+                        playerNames.add(p.getName());
+                        // Revoke all advancements for clean minigame state
+                        plugin.getAdvancementManager().revokeAll(p);
+                    }
+                }
+
+                // Build %players% placeholder value
+                String allPlayers = String.join(",", playerNames);
+
+                // Execute start commands
+                if (!minigame.getStartCommands().isEmpty()) {
+                    // command execution continues below
+                }
+            } else {
+                worldCopyManager.copyTemplateWorld(minigame).thenAccept(worldName -> {
+                    if (worldName == null) {
+                        broadcastToParty(party, Component.text("Failed to create game world. Please try again.", NamedTextColor.RED), null);
+                        party.setState(Party.State.LOBBY);
+                        refreshLobbyForAll(party);
+                        return;
+                    }
+
+                    party.setActiveWorldName(worldName);
+                    party.setState(Party.State.IN_GAME);
+
+                    // Write-ahead session snapshot right after world creation
+                    plugin.getSessionManager().saveSession(party, worldName);
+
+                    World world = Bukkit.getWorld(worldName);
+                    if (world == null) {
+                        broadcastToParty(party, Component.text("Game world failed to load. Please try again.", NamedTextColor.RED), null);
+                        party.setState(Party.State.LOBBY);
+                        return;
+                    }
+
+                    // Teleport all players
+                    List<String> playerNames = new ArrayList<>();
+                    Player leaderPlayer = Bukkit.getPlayer(party.getLeaderUuid());
+                    String leaderName = leaderPlayer != null ? leaderPlayer.getName() : "";
+
+                    for (UUID uuid : party.getMembers()) {
+                        Player p = Bukkit.getPlayer(uuid);
+                        if (p != null) {
+                            p.teleport(world.getSpawnLocation());
+                            p.setGameMode(org.bukkit.GameMode.SURVIVAL);
+                            p.sendMessage(Component.text("The game has started! Good luck!", NamedTextColor.GREEN));
+                            playerNames.add(p.getName());
+                            // Revoke all advancements for clean minigame state
+                            plugin.getAdvancementManager().revokeAll(p);
+                        }
+                    }
+
+                    // Build %players% placeholder value
+                    String allPlayers = String.join(",", playerNames);
+
+                    // Execute start commands
+                    if (!minigame.getStartCommands().isEmpty()) {
+                        executeStartCommands(minigame.getStartCommands(), worldName,
+                                leaderName, allPlayers, playerNames, leaderPlayer);
+                    }
+                });
             }
-
-            // Build %players% placeholder value
-            String allPlayers = String.join(",", playerNames);
-
-            // Execute start commands
-            if (!minigame.getStartCommands().isEmpty()) {
-                executeStartCommands(minigame.getStartCommands(), worldName,
-                        leaderName, allPlayers, playerNames, leaderPlayer);
-            }
-
         }, 5L);
     }
 
