@@ -1,5 +1,12 @@
 ## Changelog
 
+### v1.3.0
+
+- Added progress feedback and countdown before minigame teleport (resolves #16).
+  - Party members now receive an in-progress action-bar message when template-world copy begins.
+  - A configurable 3-second countdown displays Adventure titles and optional sound cues before the party is teleported into the arena.
+  - Countdown logic validates party membership and online presence each tick, aborting safely if the party becomes unavailable or all players disconnect.
+
 ### v1.2.0
 
 - Converted template world copy I/O to async operations (resolves #15).

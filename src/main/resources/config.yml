@@ -6,6 +6,13 @@
 # navigator compass when entering this world.
 hub-world: "Hub"
 
+minigames:
+  countdown:
+    enabled: true
+    duration-seconds: 3
+    title-color: "<gold>"
+    sound-enabled: true
+
 # The SMP worlds. Last locations are tracked and
 # restored for any world listed here.
 smp-worlds:

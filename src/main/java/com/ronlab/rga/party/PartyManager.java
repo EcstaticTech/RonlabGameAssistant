@@ -5,9 +5,12 @@ import com.ronlab.rga.minigame.Minigame;
 import com.ronlab.rga.minigame.WorldCopyManager;
 import com.ronlab.rga.util.AdventureUtil;
 import com.ronlab.rga.util.PlaceholderSanitizer;
+import net.kyori.adventure.key.Key;
+import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -15,6 +18,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -209,6 +213,8 @@ public class PartyManager implements Listener {
             if (p != null) p.closeInventory();
         }
 
+        broadcastActionBarToParty(party, Component.text("Preparing arena world, please wait...", NamedTextColor.YELLOW));
+
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (party.getMembers().isEmpty()) return;
 
@@ -248,30 +254,7 @@ public class PartyManager implements Listener {
                     return;
                 }
 
-                // Teleport all players
-                List<String> playerNames = new ArrayList<>();
-                Player leaderPlayer = Bukkit.getPlayer(party.getLeaderUuid());
-                String leaderName = leaderPlayer != null ? leaderPlayer.getName() : "";
-
-                for (UUID uuid : party.getMembers()) {
-                    Player p = Bukkit.getPlayer(uuid);
-                    if (p != null) {
-                        p.teleport(world.getSpawnLocation());
-                        p.setGameMode(org.bukkit.GameMode.SURVIVAL);
-                        p.sendMessage(Component.text("The game has started! Good luck!", NamedTextColor.GREEN));
-                        playerNames.add(p.getName());
-                        // Revoke all advancements for clean minigame state
-                        plugin.getAdvancementManager().revokeAll(p);
-                    }
-                }
-
-                // Build %players% placeholder value
-                String allPlayers = String.join(",", playerNames);
-
-                // Execute start commands
-                if (!minigame.getStartCommands().isEmpty()) {
-                    // command execution continues below
-                }
+                startCountdownAndLaunch(party, worldName, world, minigame, true);
             } else {
                 worldCopyManager.copyTemplateWorld(minigame).thenAccept(worldName -> {
                     if (worldName == null) {
@@ -294,34 +277,148 @@ public class PartyManager implements Listener {
                         return;
                     }
 
-                    // Teleport all players
-                    List<String> playerNames = new ArrayList<>();
-                    Player leaderPlayer = Bukkit.getPlayer(party.getLeaderUuid());
-                    String leaderName = leaderPlayer != null ? leaderPlayer.getName() : "";
-
-                    for (UUID uuid : party.getMembers()) {
-                        Player p = Bukkit.getPlayer(uuid);
-                        if (p != null) {
-                            p.teleport(world.getSpawnLocation());
-                            p.setGameMode(org.bukkit.GameMode.SURVIVAL);
-                            p.sendMessage(Component.text("The game has started! Good luck!", NamedTextColor.GREEN));
-                            playerNames.add(p.getName());
-                            // Revoke all advancements for clean minigame state
-                            plugin.getAdvancementManager().revokeAll(p);
-                        }
-                    }
-
-                    // Build %players% placeholder value
-                    String allPlayers = String.join(",", playerNames);
-
-                    // Execute start commands
-                    if (!minigame.getStartCommands().isEmpty()) {
-                        executeStartCommands(minigame.getStartCommands(), worldName,
-                                leaderName, allPlayers, playerNames, leaderPlayer);
-                    }
+                    startCountdownAndLaunch(party, worldName, world, minigame, false);
                 });
             }
         }, 5L);
+    }
+
+    private void startCountdownAndLaunch(Party party, String worldName, World world, Minigame minigame, boolean isVanilla) {
+        if (!plugin.getConfig().getBoolean("minigames.countdown.enabled", true)) {
+            finalizeGameLaunch(party, worldName, world, minigame, isVanilla);
+            return;
+        }
+
+        int duration = Math.max(1, plugin.getConfig().getInt("minigames.countdown.duration-seconds", 3));
+        int[] remainingSeconds = {duration};
+
+        plugin.getServer().getScheduler().runTaskTimer(plugin, task -> {
+            if (!isCountdownPartyValid(party)) {
+                task.cancel();
+                return;
+            }
+
+            List<Player> onlinePlayers = getOnlinePartyMembers(party);
+            if (onlinePlayers.isEmpty()) {
+                task.cancel();
+                abortGameStart(party, worldName, isVanilla);
+                return;
+            }
+
+            if (remainingSeconds[0] <= 0) {
+                task.cancel();
+                finalizeGameLaunch(party, worldName, world, minigame, isVanilla);
+                return;
+            }
+
+            int displayValue = remainingSeconds[0];
+            Component titleText = Component.text(String.valueOf(displayValue), getCountdownTitleColor());
+            Title countdownTitle = Title.title(
+                    titleText,
+                    Component.empty(),
+                    Title.Times.times(Duration.ZERO, Duration.ofMillis(800), Duration.ofMillis(200))
+            );
+
+            for (Player player : onlinePlayers) {
+                player.showTitle(countdownTitle);
+                if (plugin.getConfig().getBoolean("minigames.countdown.sound-enabled", true)) {
+                    player.playSound(Sound.sound(
+                            Key.key("minecraft:ui.button.click"),
+                            Sound.Source.MASTER,
+                            1.0f,
+                            1.0f));
+                }
+            }
+
+            remainingSeconds[0]--;
+        }, 0L, 20L);
+    }
+
+    private void finalizeGameLaunch(Party party, String worldName, World world, Minigame minigame, boolean isVanilla) {
+        List<String> playerNames = new ArrayList<>();
+        Player leaderPlayer = Bukkit.getPlayer(party.getLeaderUuid());
+        String leaderName = leaderPlayer != null ? leaderPlayer.getName() : "";
+
+        for (UUID uuid : party.getMembers()) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player == null) continue;
+
+            player.teleport(world.getSpawnLocation());
+            player.setGameMode(org.bukkit.GameMode.SURVIVAL);
+            player.sendMessage(Component.text("The game has started! Good luck!", NamedTextColor.GREEN));
+            if (plugin.getConfig().getBoolean("minigames.countdown.sound-enabled", true)) {
+                player.playSound(Sound.sound(
+                        Key.key("minecraft:entity.player.levelup"),
+                        Sound.Source.MASTER,
+                        1.0f,
+                        1.5f));
+            }
+            playerNames.add(player.getName());
+            plugin.getAdvancementManager().revokeAll(player);
+        }
+
+        if (playerNames.isEmpty()) {
+            abortGameStart(party, worldName, isVanilla);
+            return;
+        }
+
+        String allPlayers = String.join(",", playerNames);
+        if (!minigame.getStartCommands().isEmpty()) {
+            executeStartCommands(minigame.getStartCommands(), worldName,
+                    leaderName, allPlayers, playerNames, leaderPlayer);
+        }
+    }
+
+    private boolean isCountdownPartyValid(Party party) {
+        return party != null
+                && party.getState() == Party.State.IN_GAME
+                && activeParties.get(party.getMinigameId()) == party;
+    }
+
+    private List<Player> getOnlinePartyMembers(Party party) {
+        return party.getMembers().stream()
+                .map(Bukkit::getPlayer)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    private void abortGameStart(Party party, String worldName, boolean isVanilla) {
+        if (party == null) return;
+
+        broadcastToParty(party, Component.text("The game start was cancelled because the party became unavailable.", NamedTextColor.YELLOW), null);
+        party.setState(Party.State.LOBBY);
+
+        for (UUID uuid : party.getMembers()) {
+            playerParties.remove(uuid);
+        }
+        activeParties.remove(party.getMinigameId());
+
+        worldCopyManager.cleanupWorld(worldName, isVanilla);
+        plugin.getSessionManager().deleteSession(worldName);
+    }
+
+    private NamedTextColor getCountdownTitleColor() {
+        String rawColor = plugin.getConfig().getString("minigames.countdown.title-color", "<gold>").trim();
+        String normalized = rawColor.startsWith("<") && rawColor.endsWith(">")
+                ? rawColor.substring(1, rawColor.length() - 1)
+                : rawColor;
+
+        return switch (normalized.toLowerCase(Locale.ROOT)) {
+            case "green" -> NamedTextColor.GREEN;
+            case "yellow" -> NamedTextColor.YELLOW;
+            case "red" -> NamedTextColor.RED;
+            case "gold", "golden" -> NamedTextColor.GOLD;
+            case "white" -> NamedTextColor.WHITE;
+            case "gray", "grey" -> NamedTextColor.GRAY;
+            default -> NamedTextColor.GOLD;
+        };
+    }
+
+    private void broadcastActionBarToParty(Party party, Component message) {
+        for (UUID uuid : party.getMembers()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) p.sendActionBar(message);
+        }
     }
 
     private void executeStartCommands(List<String> commands, String worldName,
