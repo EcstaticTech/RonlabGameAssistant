@@ -513,6 +513,68 @@ public class PartyManager implements Listener {
                 .replace("%player%",  PlaceholderSanitizer.sanitize(playerName));
     }
 
+    // ── Shutdown Cleanup ────────────────────────────────────────────
+
+    /**
+     * Cleans up all active parties during plugin shutdown.
+     * Called from onDisable() to ensure graceful state transition.
+     * Preserves session files for player recovery on next startup.
+     * Note: Sessions are preserved so players can recover on next join.
+     */
+    public void cleanupAllActiveParties() {
+        // Create a snapshot to avoid concurrent modification
+        List<Party> partiesToClean = new ArrayList<>();
+        for (Party party : activeParties.values()) {
+            if (party.getState() == Party.State.IN_GAME) {
+                partiesToClean.add(party);
+            }
+        }
+
+        for (Party party : partiesToClean) {
+            plugin.getLogger().info("Cleaning up active session for '" + party.getMinigame().getName() + "'.");
+            cleanupPartyForShutdown(party);
+        }
+    }
+
+    private void cleanupPartyForShutdown(Party party) {
+        String worldName = party.getActiveWorldName();
+        if (worldName == null) return;
+
+        Minigame minigame = party.getMinigame();
+        World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
+        boolean isVanilla = minigame.getWorldType() == Minigame.WorldType.VANILLA;
+
+        // Remove temporary inventory groups immediately (in memory only, not persisted)
+        if (isVanilla) {
+            plugin.getInventoryManager().removeTemporaryGroup(worldName);
+            plugin.getInventoryManager().removeTemporaryGroup(worldName + "_the_nether");
+            plugin.getInventoryManager().removeTemporaryGroup(worldName + "_the_end");
+        }
+
+        // Teleport online players to hub if possible - this ensures they're not in a minigame world on shutdown
+        for (UUID uuid : party.getMembers()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && hub != null && p.getWorld().getName().startsWith("minigame_")) {
+                p.teleport(hub.getSpawnLocation());
+            }
+        }
+
+        // Clear party associations - session files are preserved for recovery
+        for (UUID uuid : party.getMembers()) {
+            playerParties.remove(uuid);
+        }
+        activeParties.remove(party.getMinigameId());
+        party.clearPreGameData();
+
+        // NOTE: We intentionally do NOT clean up world files during shutdown because:
+        // 1. Session files already contain all recovery data (pre-game inventory, advancements, world)
+        // 2. File operations during shutdown can cause concurrency issues
+        // 3. World folders will be cleaned up on next startup if recovery is needed
+        // The session file will be loaded and used by SessionManager.loadOrphanedSessions() on next startup
+
+        plugin.getLogger().warning("Session '" + worldName + "' preserved for recovery. Players will be restored on next join.");
+    }
+
     // ── Game End ─────────────────────────────────────────────────
 
     public void concludeGame(String worldName) {

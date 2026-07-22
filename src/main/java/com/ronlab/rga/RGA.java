@@ -10,6 +10,7 @@ import com.ronlab.rga.gui.MenuManager;
 import com.ronlab.rga.minigame.MinigameManager;
 import com.ronlab.rga.minigame.MinigameWorldListener;
 import com.ronlab.rga.party.LobbyGui;
+import com.ronlab.rga.party.Party;
 import com.ronlab.rga.party.PartyManager;
 import com.ronlab.rga.player.AdvancementManager;
 import com.ronlab.rga.player.InventoryManager;
@@ -100,6 +101,32 @@ public class RGA extends JavaPlugin {
     @Override
     public void onDisable() {
         if (locationTracker != null) locationTracker.saveAll();
+
+        // Clean up active game sessions - preserve session files for player recovery
+        if (partyManager != null) {
+            partyManager.cleanupAllActiveParties();
+        }
+
+        // Report recovery data status
+        if (sessionManager != null && sessionManager.hasPendingRecoveries()) {
+            getLogger().warning("Plugin shutdown with " + sessionManager.getPendingRecoveryCount()
+                    + " player(s) pending recovery in " + sessionManager.getOrphanedSessionWorlds().size()
+                    + " session(s). Recovery data will be available on next startup.");
+        } else if (partyManager != null) {
+            // Check if there are active parties with sessions that were preserved
+            int activeSessions = (int) partyManager.getActiveParties().values().stream()
+                    .filter(p -> p.getState() == Party.State.IN_GAME)
+                    .count();
+            int preservedCount = (int) partyManager.getActiveParties().values().stream()
+                    .filter(p -> p.getState() == Party.State.IN_GAME)
+                    .mapToInt(p -> p.getMemberCount())
+                    .sum();
+            if (activeSessions > 0) {
+                getLogger().warning("Plugin shutdown with " + preservedCount + " player(s) in " + activeSessions
+                        + " active session(s). Recovery data preserved for next startup.");
+            }
+        }
+
         getLogger().info("Ronlab Game Assistant disabled.");
     }
 
