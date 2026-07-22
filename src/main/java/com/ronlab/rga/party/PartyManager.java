@@ -30,6 +30,12 @@ public class PartyManager implements Listener {
     private final Map<String, Party> activeParties = new HashMap<>();
     private final Map<UUID, Party> playerParties = new HashMap<>();
 
+    // ── Queueing structures ───────────────────────────────────────
+    // Per-minigame FIFO queue of waiting parties
+    private final Map<String, Queue<Party>> minigameQueues = new HashMap<>();
+    // Tracks which players are in a queued party (distinct from active lobby players)
+    private final Map<UUID, Party> queuedPlayers = new HashMap<>();
+
     // Players whose game has concluded but may still need to respawn
     private final Set<UUID> concludedPlayers = new HashSet<>();
 
@@ -39,29 +45,278 @@ public class PartyManager implements Listener {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    //  QUEUE MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Enqueues a party for a minigame whose game is currently in progress.
+     * The party enters the QUEUED state and members are notified of their position.
+     */
+    public void enqueueParty(Party party) {
+        String minigameId = party.getMinigameId();
+        Minigame minigame = party.getMinigame();
+
+        if (!minigame.isQueueEnabled()) {
+            // Queueing not supported for this minigame — just reject
+            broadcastToParty(party, Component.text()
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .append(Component.text(" does not support queueing.", NamedTextColor.RED))
+                    .build(), null);
+            cleanupEmptyQueuedParty(party);
+            return;
+        }
+
+        party.setState(Party.State.QUEUED);
+        minigameQueues.computeIfAbsent(minigameId, k -> new LinkedList<>()).add(party);
+
+        // Track all members as queued
+        for (UUID uuid : party.getMembers()) {
+            queuedPlayers.put(uuid, party);
+        }
+
+        int position = getQueuePosition(minigameId, party.getId());
+        int queueSize = getQueueLength(minigameId);
+
+        broadcastToParty(party, Component.text()
+                .append(Component.text("You have been added to the queue for ", NamedTextColor.YELLOW))
+                .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                .append(Component.text(".", NamedTextColor.YELLOW))
+                .build(), null);
+
+        broadcastToParty(party, Component.text()
+                .append(Component.text("Position in queue: ", NamedTextColor.GRAY))
+                .append(Component.text("#" + position, NamedTextColor.WHITE))
+                .append(Component.text(" of ", NamedTextColor.GRAY))
+                .append(Component.text(queueSize, NamedTextColor.WHITE))
+                .build(), null);
+
+        // Send queue info to all online members
+        for (UUID uuid : party.getMembers()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                p.sendMessage(Component.text("You'll be promoted to the lobby when the current game finishes.", NamedTextColor.GRAY));
+            }
+        }
+
+        plugin.getLogger().info("Party for '" + minigame.getName() + "' queued at position #" + position + " (" + party.getMemberCount() + " players).");
+    }
+
+    /**
+     * Promotes the next waiting party from QUEUED → LOBBY for the given minigame.
+     * Returns the promoted party, or null if the queue is empty.
+     */
+    public Party dequeueNextParty(String minigameId) {
+        Queue<Party> queue = minigameQueues.get(minigameId);
+        if (queue == null || queue.isEmpty()) return null;
+
+        Party nextParty = queue.poll();
+        if (nextParty == null) return null;
+
+        // If the party has no members, skip it and try the next one
+        if (nextParty.getMemberCount() == 0) {
+            for (UUID uuid : nextParty.getMembers()) {
+                queuedPlayers.remove(uuid);
+            }
+            return dequeueNextParty(minigameId);
+        }
+
+        // Clear ready states so players must re-ready in the lobby
+        nextParty.getMembers().forEach(uuid -> nextParty.setReady(uuid, false));
+
+        // Promote to LOBBY and register as an active party
+        nextParty.setState(Party.State.LOBBY);
+        activeParties.put(minigameId, nextParty);
+
+        // Move from queuedPlayers to playerParties
+        for (UUID uuid : nextParty.getMembers()) {
+            queuedPlayers.remove(uuid);
+            playerParties.put(uuid, nextParty);
+        }
+
+        // Teleport online members to hub and open the lobby GUI
+        World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
+        for (UUID uuid : nextParty.getMembers()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                if (hub != null) p.teleport(hub.getSpawnLocation());
+                p.sendMessage(Component.text()
+                        .append(Component.text("Your turn! The lobby for ", NamedTextColor.GREEN, TextDecoration.BOLD))
+                        .append(Component.text(nextParty.getMinigame().getName(), NamedTextColor.GOLD, TextDecoration.BOLD))
+                        .append(Component.text(" is now open!", NamedTextColor.GREEN, TextDecoration.BOLD))
+                        .build());
+                // Play a notification sound
+                p.playSound(Sound.sound(
+                        Key.key("minecraft:block.note_block.pling"),
+                        Sound.Source.MASTER,
+                        1.0f, 2.0f));
+                plugin.getLobbyGui().openLobby(p, nextParty);
+            }
+        }
+
+        plugin.getLogger().info("Promoted queued party for '" + nextParty.getMinigame().getName()
+                + "' to lobby (" + nextParty.getMemberCount() + " players).");
+        return nextParty;
+    }
+
+    /**
+     * Removes a party from its minigame queue. Called when all members leave or the party disbands.
+     */
+    public void removeFromQueue(Party party) {
+        if (party.getState() != Party.State.QUEUED) return;
+
+        String minigameId = party.getMinigameId();
+        Queue<Party> queue = minigameQueues.get(minigameId);
+        if (queue == null) return;
+
+        // Remove this specific party from the queue
+        queue.remove(party);
+
+        // If queue is empty, clean up the map entry
+        if (queue.isEmpty()) {
+            minigameQueues.remove(minigameId);
+        }
+
+        // Remove member tracking
+        for (UUID uuid : party.getMembers()) {
+            queuedPlayers.remove(uuid);
+        }
+
+        // Notify remaining queued parties of their new position
+        updateAllQueuePositions(minigameId);
+
+        plugin.getLogger().info("Removed party from queue for '" + party.getMinigame().getName() + "'.");
+    }
+
+    /**
+     * Returns the 1-based position of a party in the queue, or -1 if not queued.
+     */
+    public int getQueuePosition(String minigameId, UUID partyId) {
+        Queue<Party> queue = minigameQueues.get(minigameId);
+        if (queue == null) return -1;
+
+        int idx = 0;
+        for (Party p : queue) {
+            idx++;
+            if (p.getId().equals(partyId)) return idx;
+        }
+        return -1;
+    }
+
+    /**
+     * Returns the number of parties waiting in the queue for a minigame.
+     */
+    public int getQueueLength(String minigameId) {
+        Queue<Party> queue = minigameQueues.get(minigameId);
+        return queue == null ? 0 : queue.size();
+    }
+
+    /**
+     * Returns an unmodifiable view of all queues, keyed by minigame ID.
+     */
+    public Map<String, Queue<Party>> getMinigameQueues() {
+        return Collections.unmodifiableMap(minigameQueues);
+    }
+
+    /**
+     * Gets the queue for a specific minigame, or null.
+     */
+    public Queue<Party> getQueueForMinigame(String minigameId) {
+        return minigameQueues.get(minigameId);
+    }
+
+    /**
+     * Gets the party a player is currently queued in, or null.
+     */
+    public Party getQueuedParty(UUID playerUuid) {
+        return queuedPlayers.get(playerUuid);
+    }
+
+    private void updateAllQueuePositions(String minigameId) {
+        Queue<Party> queue = minigameQueues.get(minigameId);
+        if (queue == null) return;
+
+        int pos = 1;
+        for (Party p : queue) {
+            int newPosition = pos++;
+            for (UUID uuid : p.getMembers()) {
+                Player member = Bukkit.getPlayer(uuid);
+                if (member != null) {
+                    member.sendMessage(Component.text()
+                            .append(Component.text("Queue position updated: ", NamedTextColor.GRAY))
+                            .append(Component.text("#" + newPosition, NamedTextColor.WHITE))
+                            .build());
+                }
+            }
+        }
+    }
+
+    /**
+     * Cleans up a queued party that has become empty or invalid.
+     */
+    private void cleanupEmptyQueuedParty(Party party) {
+        if (party.getState() == Party.State.QUEUED) {
+            removeFromQueue(party);
+        }
+    }
+
     // ── Disconnect handling ──────────────────────────────────────
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        Party party = playerParties.get(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+
+        // Check if the player is in a queued party
+        Party queuedParty = queuedPlayers.get(uuid);
+        if (queuedParty != null) {
+            handleQueuedPlayerDisconnect(uuid, queuedParty);
+            return;
+        }
+
+        // Otherwise check active party
+        Party party = playerParties.get(uuid);
         if (party == null) return;
 
         if (party.getState() == Party.State.IN_GAME) {
-            playerParties.remove(player.getUniqueId());
-            party.removeMember(player.getUniqueId());
+            playerParties.remove(uuid);
+            party.removeMember(uuid);
             if (party.getMemberCount() == 0 && party.getActiveWorldName() != null) {
                 concludeGame(party.getActiveWorldName());
             }
             return;
         }
 
-        if (player.getUniqueId().equals(party.getLeaderUuid())) {
-            transferLeader(party, player.getUniqueId());
+        handleLobbyPlayerDisconnect(player, uuid, party);
+    }
+
+    private void handleQueuedPlayerDisconnect(UUID uuid, Party party) {
+        boolean wasLeader = uuid.equals(party.getLeaderUuid());
+
+        party.removeMember(uuid);
+        queuedPlayers.remove(uuid);
+
+        if (party.getMemberCount() == 0) {
+            // All members left — remove party from queue entirely
+            removeFromQueue(party);
+            plugin.getLogger().info("Disbanded empty queued party for '" + party.getMinigame().getName() + "'.");
+            return;
         }
 
-        party.removeMember(player.getUniqueId());
-        playerParties.remove(player.getUniqueId());
+        if (wasLeader) {
+            transferLeader(party, uuid);
+        }
+
+        notifyQueuedPartyMemberChange(party);
+    }
+
+    private void handleLobbyPlayerDisconnect(Player player, UUID uuid, Party party) {
+        if (player.getUniqueId().equals(party.getLeaderUuid())) {
+            transferLeader(party, uuid);
+        }
+
+        party.removeMember(uuid);
+        playerParties.remove(uuid);
 
         if (party.getMemberCount() == 0) {
             activeParties.remove(party.getMinigameId());
@@ -76,12 +331,42 @@ public class PartyManager implements Listener {
         refreshLobbyForAll(party);
     }
 
+    private void notifyQueuedPartyMemberChange(Party party) {
+        int count = party.getMemberCount();
+        int position = getQueuePosition(party.getMinigameId(), party.getId());
+
+        for (UUID uuid : party.getMembers()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                p.sendMessage(Component.text()
+                        .append(Component.text("Party member count updated: ", NamedTextColor.GRAY))
+                        .append(Component.text(count, NamedTextColor.WHITE))
+                        .append(Component.text(" | Queue position: ", NamedTextColor.GRAY))
+                        .append(Component.text("#" + position, NamedTextColor.WHITE))
+                        .build());
+            }
+        }
+    }
+
     // ── Join / Leave ─────────────────────────────────────────────
 
     public void joinMinigame(Player player, String minigameId) {
         Minigame minigame = plugin.getMinigameManager().getMinigame(minigameId);
         if (minigame == null) {
             player.sendMessage(Component.text("Unknown minigame: " + minigameId, NamedTextColor.RED));
+            return;
+        }
+
+        // If player is already in a queued party, show queue status
+        Party queuedParty = queuedPlayers.get(player.getUniqueId());
+        if (queuedParty != null && queuedParty.getMinigameId().equals(minigameId)) {
+            int position = getQueuePosition(minigameId, queuedParty.getId());
+            int queueSize = getQueueLength(minigameId);
+            player.sendMessage(Component.text()
+                    .append(Component.text("You are already in the queue for ", NamedTextColor.YELLOW))
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .append(Component.text(". Position: #" + position + "/" + queueSize, NamedTextColor.WHITE))
+                    .build());
             return;
         }
 
@@ -92,12 +377,14 @@ public class PartyManager implements Listener {
             return;
         }
 
-        // In a different party — leave first
+        // In a different party (or queued in a different one) — leave first
         if (existingParty != null) leaveParty(player);
+        if (queuedParty != null) leaveQueuedParty(player, queuedParty);
 
         Party party = activeParties.get(minigameId);
 
-        if (party == null || party.getState() == Party.State.IN_GAME) {
+        if (party == null) {
+            // No active party — create a new lobby
             party = new Party(player.getUniqueId(), minigame);
             activeParties.put(minigameId, party);
             playerParties.put(player.getUniqueId(), party);
@@ -106,14 +393,36 @@ public class PartyManager implements Listener {
                     .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
                     .append(Component.text("!", NamedTextColor.GREEN))
                     .build());
-        } else if (party.isFull()) {
+        } else if (party.getState() == Party.State.IN_GAME) {
+            // Game is in progress — attempt to queue
+            if (!minigame.isQueueEnabled()) {
+                player.sendMessage(Component.text()
+                        .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                        .append(Component.text(" is currently in progress and does not support queueing.", NamedTextColor.RED))
+                        .build());
+                return;
+            }
+
+            // Create a new party and enqueue it
+            Party queueParty = new Party(player.getUniqueId(), minigame);
+            queueParty.addMember(player.getUniqueId());
+            playerParties.put(player.getUniqueId(), queueParty);
             player.sendMessage(Component.text()
-                    .append(Component.text("The party for ", NamedTextColor.RED))
+                    .append(Component.text("Game in progress for ", NamedTextColor.YELLOW))
                     .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
-                    .append(Component.text(" is full!", NamedTextColor.RED))
+                    .append(Component.text(". Adding you to the queue.", NamedTextColor.YELLOW))
                     .build());
+            enqueueParty(queueParty);
             return;
-        } else {
+        } else if (party.getState() == Party.State.LOBBY) {
+            if (party.isFull()) {
+                player.sendMessage(Component.text()
+                        .append(Component.text("The party for ", NamedTextColor.RED))
+                        .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                        .append(Component.text(" is full!", NamedTextColor.RED))
+                        .build());
+                return;
+            }
             party.addMember(player.getUniqueId());
             playerParties.put(player.getUniqueId(), party);
             player.sendMessage(Component.text()
@@ -131,7 +440,38 @@ public class PartyManager implements Listener {
         refreshLobbyForAll(party);
     }
 
+    private void leaveQueuedParty(Player player, Party party) {
+        if (party == null) return;
+        UUID uuid = player.getUniqueId();
+
+        boolean wasLeader = uuid.equals(party.getLeaderUuid());
+        boolean wasMember = party.getMembers().contains(uuid);
+
+        party.removeMember(uuid);
+        queuedPlayers.remove(uuid);
+
+        if (party.getMemberCount() == 0) {
+            removeFromQueue(party);
+            return;
+        }
+
+        if (wasLeader && wasMember) {
+            transferLeader(party, uuid);
+        }
+
+        notifyQueuedPartyMemberChange(party);
+    }
+
     public void leaveParty(Player player) {
+        // Check if player is in a queued party
+        Party queued = queuedPlayers.get(player.getUniqueId());
+        if (queued != null) {
+            leaveQueuedParty(player, queued);
+            player.sendMessage(Component.text("You left the queue.", NamedTextColor.YELLOW));
+            player.closeInventory();
+            return;
+        }
+
         Party party = playerParties.remove(player.getUniqueId());
         if (party == null) return;
 
@@ -160,7 +500,7 @@ public class PartyManager implements Listener {
     public void toggleReady(Player player) {
         Party party = playerParties.get(player.getUniqueId());
         if (party == null) return;
-        if (party.getState() == Party.State.IN_GAME) return;
+        if (party.getState() == Party.State.IN_GAME || party.getState() == Party.State.QUEUED) return;
 
         boolean nowReady = !party.isReady(player.getUniqueId());
         party.setReady(player.getUniqueId(), nowReady);
@@ -663,10 +1003,13 @@ public class PartyManager implements Listener {
         activeParties.remove(party.getMinigameId());
         party.clearPreGameData();
 
-        // Capture member list before lambda since party reference is not final
+        // Capture values for the deferred cleanup lambda
         List<UUID> finalMembers = new ArrayList<>(party.getMembers());
         String finalWorldName = worldName;
         boolean isVanilla = minigame.getWorldType() == Minigame.WorldType.VANILLA;
+        String finalMinigameId = party.getMinigameId();
+        Minigame finalMinigame = minigame;
+
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             // Clear concluded player flags
             for (UUID uuid : finalMembers) {
@@ -674,6 +1017,15 @@ public class PartyManager implements Listener {
             }
             worldCopyManager.cleanupWorld(finalWorldName, isVanilla);
             plugin.getSessionManager().deleteSession(finalWorldName);
+
+            // ── Auto-start: promote next queued party ───────────────
+            if (finalMinigame.isAutoStart()) {
+                Party nextParty = dequeueNextParty(finalMinigameId);
+                if (nextParty != null) {
+                    plugin.getLogger().info("Auto-started next queued party for '" + finalMinigame.getName() + "'.");
+                }
+            }
+
         }, 300L);
 
         plugin.getLogger().info("Concluded minigame '" + minigame.getName()

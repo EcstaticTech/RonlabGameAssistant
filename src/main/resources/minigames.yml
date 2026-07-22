@@ -49,6 +49,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
     world-settings:
@@ -70,6 +72,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -81,6 +85,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -92,6 +98,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -103,6 +111,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -114,6 +124,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -125,6 +137,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -136,6 +150,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -147,6 +163,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -158,6 +176,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -169,6 +189,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -180,6 +202,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -191,6 +215,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -202,6 +228,8 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []
     conclude-commands: []
 
@@ -213,4 +241,6 @@ minigames:
     max-players: 8
     min-players: 2
     world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
     start-commands: []

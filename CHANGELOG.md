@@ -1,5 +1,15 @@
 ## Changelog
 
+### v1.6.0
+
+- Added minigame queueing and auto-start behavior (resolves the queueing issue in Phase 4 roadmap).
+  - When a minigame is `IN_GAME`, new players are placed in a FIFO queue instead of being rejected.
+  - Queued players see a queue status GUI showing their position and party size.
+  - When a game concludes, the next queued party is auto-promoted to the lobby (standard ready-up flow) if `auto-start: true` in `minigames.yml`.
+  - `/rga queue` command shows all active queues with position and member details.
+  - Full disconnect/leave handling for queued parties: leader transfer, queue position updates, disband notification.
+  - Per-minigame config toggles: `queue-enabled` and `auto-start` in `minigames.yml`.
+
 ### v1.5.0
 
 - Implemented graceful shutdown cleanup and recovery (resolves #19).

@@ -188,6 +188,7 @@ Minigames can define custom commands to run at specific lifecycle points:
 - **Portal rerouting** for minigame dimension management
 - **Inventory isolation** per minigame session
 - **Per-world difficulty, gamemode, and PvP settings**
+- **Minigame queueing** with auto-start next party on game conclude
 - **Responsive lobby updates** with real-time player count
 
 ### Configuration Resources
@@ -281,6 +282,7 @@ All plugin behavior is customizable through YAML files:
 /rga gamerule <world> <rule> <value>
 /rga concludeall        - Conclude all active minigames
 /rga cleanupsession <worldname> - Delete orphaned session and world data
+/rga queue              - Show minigame queue status
 /rga sessions list      - List active and orphaned sessions
 ```
 
@@ -294,7 +296,7 @@ All plugin behavior is customizable through YAML files:
 | `rga.world.manage` | `createworld`, `importworld`, `loadworld`, `unloadworld`, `deleteworld` | `op` |
 | `rga.world.configure` | `setspawn`, `setworldgamemode/pvp/difficulty/time/weather/alias/template`, `gamerule` | `op` |
 | `rga.session.conclude` | `/rga conclude`, `/rga concludeall` | `op` |
-| `rga.session.status` | `/rga sessions list` | `op` |
+| `rga.session.status` | `/rga sessions list`, `/rga queue` | `op` |
 | `rga.session.cleanup` | `/rga cleanupsession <worldname>` | `op` |
 | `rga.hub` | `/hub` | `true` (all players) |
 
@@ -375,7 +377,7 @@ inventory-groups:
 
 ## Development Status
 
-### Current Version: 1.5.0
+### Current Version: 1.6.0
 
 **Core Functionality**: ✓ Complete and usable
 - All major systems functional and tested
@@ -441,7 +443,7 @@ inventory-groups:
 mvn clean package
 ```
 
-Output JAR: `target/RonlabGameAssistant-1.5.0.jar`
+Output JAR: `target/RonlabGameAssistant-1.6.0.jar`
 
 ---
 

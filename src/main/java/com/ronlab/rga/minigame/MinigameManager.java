@@ -105,10 +105,13 @@ public class MinigameManager {
                 }
             }
 
+            boolean queueEnabled = mg.getBoolean("queue-enabled", true);
+            boolean autoStart = mg.getBoolean("auto-start", true);
+
             minigames.put(id, new Minigame(id, name, material, lore,
                     maxPlayers, minPlayers, worldType, templateWorld,
                     startCommands, concludeCommands, gameMode, pvp, difficulty, gamerules,
-                    disableNether, disableEnd));
+                    disableNether, disableEnd, queueEnabled, autoStart));
         }
 
         plugin.getLogger().info("Loaded " + minigames.size() + " minigame(s) from minigames.yml.");

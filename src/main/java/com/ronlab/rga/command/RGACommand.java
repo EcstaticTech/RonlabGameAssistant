@@ -1,6 +1,8 @@
 package com.ronlab.rga.command;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.minigame.Minigame;
+import com.ronlab.rga.party.Party;
 import com.ronlab.rga.util.AdventureUtil;
 import com.ronlab.rga.util.StatusReportFormatter;
 import com.ronlab.rga.util.WorldNameValidator;
@@ -45,6 +47,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         Map.entry("conclude",         "rga.session.conclude"),
         Map.entry("concludeall",      "rga.session.conclude"),
         Map.entry("cleanupsession",   "rga.session.cleanup"),
+        Map.entry("queue",            "rga.session.status"),
         Map.entry("sessions",         "rga.session.status"),
         Map.entry("status",           "rga.session.status")
     );
@@ -400,6 +403,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "status" -> sendStatus(sender);
 
+            case "queue" -> sendQueueStatus(sender);
+
             case "sessions" -> {
                 sender.sendMessage(Component.text("======= Active & Orphaned Sessions =======", NamedTextColor.GOLD, TextDecoration.BOLD));
                 var activeParties = plugin.getPartyManager().getActiveParties();
@@ -463,7 +468,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 "createworld", "importworld", "loadworld", "unloadworld", "deleteworld",
                 "setspawn", "setworldgamemode", "setworldpvp", "setworlddifficulty",
                 "setworldtime", "setworldweather", "setworldalias", "setworldtemplate",
-                "gamerule", "conclude", "concludeall", "cleanupsession", "sessions", "status"
+                "gamerule", "conclude", "concludeall", "cleanupsession",
+                "queue", "sessions", "status"
             );
             for (String s : allSubs) {
                 String perm = SUBCOMMAND_PERMISSIONS.get(s);
@@ -586,6 +592,52 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    // ── Queue Status ──────────────────────────────────────────────
+
+    private void sendQueueStatus(CommandSender sender) {
+        var queues = plugin.getPartyManager().getMinigameQueues();
+        if (queues.isEmpty()) {
+            sender.sendMessage(Component.text("No minigame queues active.", NamedTextColor.YELLOW));
+            return;
+        }
+
+        sender.sendMessage(Component.text("======= Minigame Queues =======", NamedTextColor.GOLD, TextDecoration.BOLD));
+        for (Map.Entry<String, Queue<Party>> entry : queues.entrySet()) {
+            String minigameId = entry.getKey();
+            Queue<Party> queue = entry.getValue();
+            Minigame minigame = plugin.getMinigameManager().getMinigame(minigameId);
+
+            String displayName = minigame != null ? minigame.getName() : minigameId;
+            int queueSize = queue.size();
+
+            sender.sendMessage(Component.text()
+                    .append(Component.text(displayName, NamedTextColor.GOLD))
+                    .append(Component.text(": ", NamedTextColor.GRAY))
+                    .append(Component.text(queueSize + " party/ies waiting", NamedTextColor.WHITE))
+                    .build());
+
+            // Show each queued party
+            int pos = 1;
+            for (Party p : queue) {
+                StringBuilder memberList = new StringBuilder();
+                for (UUID uuid : p.getMembers()) {
+                    Player member = Bukkit.getPlayer(uuid);
+                    if (member != null) {
+                        if (memberList.length() > 0) memberList.append(", ");
+                        memberList.append(member.getName());
+                    }
+                }
+                sender.sendMessage(Component.text()
+                        .append(Component.text("  #" + pos + " ", NamedTextColor.GRAY))
+                        .append(Component.text("(" + p.getMemberCount() + " players)", NamedTextColor.DARK_GRAY))
+                        .append(Component.text(" — " + memberList, NamedTextColor.WHITE))
+                        .build());
+                pos++;
+            }
+        }
+        sender.sendMessage(Component.text("=======" + "=".repeat(24), NamedTextColor.GOLD, TextDecoration.BOLD));
+    }
+
     // ── Help ─────────────────────────────────────────────────────
 
     private void sendHelp(CommandSender sender) {
@@ -679,6 +731,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text()
                 .append(Component.text("/rga sessions [list]", NamedTextColor.YELLOW))
                 .append(Component.text(" - List active and orphaned sessions", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga queue", NamedTextColor.YELLOW))
+                .append(Component.text(" - Show minigame queue status", NamedTextColor.GRAY))
                 .build());
         sender.sendMessage(Component.text()
                 .append(Component.text("/rga status", NamedTextColor.YELLOW))

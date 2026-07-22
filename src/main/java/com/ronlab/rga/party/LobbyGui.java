@@ -41,6 +41,98 @@ public class LobbyGui implements Listener {
         refreshing.add(player.getUniqueId());
 
         Minigame minigame = party.getMinigame();
+
+        // ── QUEUED state: show a queue status screen ──────────────
+        if (party.getState() == Party.State.QUEUED) {
+            int position = plugin.getPartyManager().getQueuePosition(party.getMinigameId(), party.getId());
+            int queueSize = plugin.getPartyManager().getQueueLength(party.getMinigameId());
+
+            String title = "§8§l" + minigame.getName() + " Queue";
+            Inventory inv = Bukkit.createInventory(null, GUI_SIZE, title);
+
+            // ── Border ───────────────────────────────────────────
+            ItemStack border = makeBorder();
+            for (int i = 0; i < 9; i++) inv.setItem(i, border);
+            for (int i = 45; i < 54; i++) inv.setItem(i, border);
+            inv.setItem(9, border);  inv.setItem(17, border);
+            inv.setItem(18, border); inv.setItem(26, border);
+            inv.setItem(27, border); inv.setItem(35, border);
+            inv.setItem(36, border); inv.setItem(44, border);
+
+            // ── Queue info item (center) ─────────────────────────
+            ItemStack info = new ItemStack(Material.CLOCK);
+            ItemMeta infoMeta = info.getItemMeta();
+            infoMeta.displayName(Component.text("In Queue", NamedTextColor.YELLOW, TextDecoration.BOLD));
+            List<Component> infoLore = new ArrayList<>();
+            infoLore.add(Component.text()
+                    .append(Component.text("Minigame: ", NamedTextColor.GRAY))
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .build());
+            infoLore.add(Component.text()
+                    .append(Component.text("Position: ", NamedTextColor.GRAY))
+                    .append(Component.text("#" + position, NamedTextColor.WHITE))
+                    .append(Component.text(" of ", NamedTextColor.GRAY))
+                    .append(Component.text(queueSize, NamedTextColor.WHITE))
+                    .build());
+            infoLore.add(Component.text()
+                    .append(Component.text("Party size: ", NamedTextColor.GRAY))
+                    .append(Component.text(party.getMemberCount() + "/" + minigame.getMaxPlayers(), NamedTextColor.WHITE))
+                    .build());
+            infoLore.add(Component.empty());
+            infoLore.add(Component.text("You'll be promoted to the lobby", NamedTextColor.GRAY));
+            infoLore.add(Component.text("when the current game finishes.", NamedTextColor.GRAY));
+            infoMeta.lore(infoLore);
+            info.setItemMeta(infoMeta);
+            inv.setItem(22, info);
+
+            // ── Player heads (showing who's in your queued party) ─
+            int[] slots = {10, 11, 12, 13, 14, 15, 16, 19};
+            List<UUID> members = party.getMembers();
+            for (int i = 0; i < slots.length; i++) {
+                if (i < members.size()) {
+                    UUID memberUuid = members.get(i);
+                    Player member = Bukkit.getPlayer(memberUuid);
+                    boolean isLeader = memberUuid.equals(party.getLeaderUuid());
+
+                    ItemStack head = new ItemStack(Material.PLAYER_HEAD);
+                    SkullMeta skullMeta = (SkullMeta) head.getItemMeta();
+                    if (member != null) skullMeta.setOwningPlayer(member);
+
+                    String nameStr = member != null ? member.getName() : "Unknown";
+                    Component displayName = Component.text()
+                            .append(Component.text(nameStr, NamedTextColor.WHITE))
+                            .append(isLeader ? Component.text(" ★", NamedTextColor.GOLD) : Component.empty())
+                            .build();
+                    skullMeta.displayName(displayName);
+                    skullMeta.lore(List.of(Component.text("In Queue", NamedTextColor.YELLOW)));
+                    head.setItemMeta(skullMeta);
+                    inv.setItem(slots[i], head);
+                } else {
+                    ItemStack empty = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+                    ItemMeta emptyMeta = empty.getItemMeta();
+                    emptyMeta.displayName(Component.text("Empty Slot", NamedTextColor.GRAY));
+                    empty.setItemMeta(emptyMeta);
+                    inv.setItem(slots[i], empty);
+                }
+            }
+
+            // ── Leave queue button ───────────────────────────────
+            ItemStack leave = new ItemStack(Material.RED_BED);
+            ItemMeta leaveMeta = leave.getItemMeta();
+            leaveMeta.displayName(Component.text("Leave Queue", NamedTextColor.RED, TextDecoration.BOLD));
+            leaveMeta.lore(List.of(Component.text("Click to leave the queue.", NamedTextColor.GRAY)));
+            leave.setItemMeta(leaveMeta);
+            inv.setItem(49, leave);
+
+            openLobbyPlayers.add(player.getUniqueId());
+            player.openInventory(inv);
+
+            plugin.getServer().getScheduler().runTaskLater(plugin,
+                    () -> refreshing.remove(player.getUniqueId()), 1L);
+            return;
+        }
+
+        // ── LOBBY state: standard lobby GUI ──────────────────────
         String title = "§8§l" + minigame.getName() + " Lobby";
         Inventory inv = Bukkit.createInventory(null, GUI_SIZE, title);
 

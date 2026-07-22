@@ -22,6 +22,10 @@ public class Minigame {
     private final List<String> startCommands;
     private final List<String> concludeCommands;
 
+    // Queueing and auto-start
+    private final boolean queueEnabled;
+    private final boolean autoStart;
+
     // World settings applied when the game world is created
     private final GameMode gameMode;
     private final boolean pvp;
@@ -35,7 +39,8 @@ public class Minigame {
                     List<String> startCommands, List<String> concludeCommands,
                     GameMode gameMode, boolean pvp,
                     Difficulty difficulty, Map<String, String> gamerules,
-                    boolean disableNether, boolean disableEnd) {
+                    boolean disableNether, boolean disableEnd,
+                    boolean queueEnabled, boolean autoStart) {
         this.id = id;
         this.name = name;
         this.displayItem = displayItem;
@@ -46,6 +51,8 @@ public class Minigame {
         this.templateWorld = templateWorld;
         this.startCommands = startCommands;
         this.concludeCommands = concludeCommands;
+        this.queueEnabled = queueEnabled;
+        this.autoStart = autoStart;
         this.gameMode = gameMode;
         this.pvp = pvp;
         this.difficulty = difficulty;
@@ -64,6 +71,8 @@ public class Minigame {
     public String getTemplateWorld() { return templateWorld; }
     public List<String> getStartCommands() { return startCommands; }
     public List<String> getConcludeCommands() { return concludeCommands; }
+    public boolean isQueueEnabled() { return queueEnabled; }
+    public boolean isAutoStart() { return autoStart; }
     public GameMode getGameMode() { return gameMode; }
     public boolean isPvp() { return pvp; }
     public Difficulty getDifficulty() { return difficulty; }
