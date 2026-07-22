@@ -47,6 +47,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         Map.entry("conclude",         "rga.session.conclude"),
         Map.entry("concludeall",      "rga.session.conclude"),
         Map.entry("cleanupsession",   "rga.session.cleanup"),
+        Map.entry("spectate",         "rga.world.teleport"),
         Map.entry("queue",            "rga.session.status"),
         Map.entry("sessions",         "rga.session.status"),
         Map.entry("status",           "rga.session.status")
@@ -405,6 +406,52 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "queue" -> sendQueueStatus(sender);
 
+            case "spectate" -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("Players only.", NamedTextColor.RED));
+                    return true;
+                }
+
+                // /rga spectate leave — leave spectator mode
+                if (args.length >= 2 && args[1].equalsIgnoreCase("leave")) {
+                    plugin.getPartyManager().leaveSpectatorMode(player);
+                    return true;
+                }
+
+                // /rga spectate <minigame> or /rga spectate
+                if (args.length < 2) {
+                    // Show list of spectatable games
+                    sender.sendMessage(Component.text("======= Spectatable Games =======", NamedTextColor.GOLD, TextDecoration.BOLD));
+                    var activeParties = plugin.getPartyManager().getActiveParties();
+                    boolean found = false;
+                    for (var entry : activeParties.entrySet()) {
+                        var party = entry.getValue();
+                        if (party.getState() == Party.State.IN_GAME) {
+                            found = true;
+                            Minigame mg = plugin.getMinigameManager().getMinigame(entry.getKey());
+                            String displayName = mg != null ? mg.getName() : entry.getKey();
+                            sender.sendMessage(Component.text()
+                                    .append(Component.text(" - ", NamedTextColor.GRAY))
+                                    .append(Component.text(displayName, NamedTextColor.GOLD))
+                                    .append(Component.text(" (" + entry.getKey() + ")", NamedTextColor.DARK_GRAY))
+                                    .append(Component.text(" — " + party.getMemberCount() + " player(s)", NamedTextColor.GRAY))
+                                    .build());
+                        }
+                    }
+                    if (!found) {
+                        sender.sendMessage(Component.text("No games currently in progress.", NamedTextColor.YELLOW));
+                    }
+                    sender.sendMessage(Component.text()
+                            .append(Component.text("Usage: ", NamedTextColor.GRAY))
+                            .append(Component.text("/rga spectate <minigame>", NamedTextColor.YELLOW))
+                            .build());
+                    return true;
+                }
+
+                String minigameId = args[1].toLowerCase();
+                plugin.getPartyManager().joinAsSpectator(player, minigameId);
+            }
+
             case "sessions" -> {
                 sender.sendMessage(Component.text("======= Active & Orphaned Sessions =======", NamedTextColor.GOLD, TextDecoration.BOLD));
                 var activeParties = plugin.getPartyManager().getActiveParties();
@@ -469,7 +516,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 "setspawn", "setworldgamemode", "setworldpvp", "setworlddifficulty",
                 "setworldtime", "setworldweather", "setworldalias", "setworldtemplate",
                 "gamerule", "conclude", "concludeall", "cleanupsession",
-                "queue", "sessions", "status"
+                "spectate", "queue", "sessions", "status"
             );
             for (String s : allSubs) {
                 String perm = SUBCOMMAND_PERMISSIONS.get(s);
@@ -514,6 +561,15 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                             completions.add(party.getActiveWorldName());
                         }
                     });
+                }
+                case "spectate" -> {
+                    // Suggest active minigame IDs that are IN_GAME
+                    plugin.getPartyManager().getActiveParties().forEach((mgId, party) -> {
+                        if (party.getState() == Party.State.IN_GAME) {
+                            completions.add(mgId);
+                        }
+                    });
+                    completions.add("leave");
                 }
                 case "cleanupsession" -> completions.addAll(plugin.getSessionManager().getOrphanedSessionWorlds());
                 case "sessions" -> completions.add("list");
@@ -739,6 +795,15 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text()
                 .append(Component.text("/rga status", NamedTextColor.YELLOW))
                 .append(Component.text(" - Show runtime status", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text("--- Spectate ---", NamedTextColor.GOLD));
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga spectate [minigame]", NamedTextColor.YELLOW))
+                .append(Component.text(" - Spectate an active minigame", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga spectate leave", NamedTextColor.YELLOW))
+                .append(Component.text(" - Leave spectator mode", NamedTextColor.GRAY))
                 .build());
         sender.sendMessage(Component.text()
                 .append(Component.text("/hub", NamedTextColor.YELLOW))

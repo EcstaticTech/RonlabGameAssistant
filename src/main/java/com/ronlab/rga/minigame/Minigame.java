@@ -26,6 +26,10 @@ public class Minigame {
     private final boolean queueEnabled;
     private final boolean autoStart;
 
+    // Spectators
+    private final boolean allowSpectators;
+    private final int maxSpectators;
+
     // World settings applied when the game world is created
     private final GameMode gameMode;
     private final boolean pvp;
@@ -40,7 +44,8 @@ public class Minigame {
                     GameMode gameMode, boolean pvp,
                     Difficulty difficulty, Map<String, String> gamerules,
                     boolean disableNether, boolean disableEnd,
-                    boolean queueEnabled, boolean autoStart) {
+                    boolean queueEnabled, boolean autoStart,
+                    boolean allowSpectators, int maxSpectators) {
         this.id = id;
         this.name = name;
         this.displayItem = displayItem;
@@ -53,6 +58,8 @@ public class Minigame {
         this.concludeCommands = concludeCommands;
         this.queueEnabled = queueEnabled;
         this.autoStart = autoStart;
+        this.allowSpectators = allowSpectators;
+        this.maxSpectators = maxSpectators;
         this.gameMode = gameMode;
         this.pvp = pvp;
         this.difficulty = difficulty;
@@ -73,6 +80,8 @@ public class Minigame {
     public List<String> getConcludeCommands() { return concludeCommands; }
     public boolean isQueueEnabled() { return queueEnabled; }
     public boolean isAutoStart() { return autoStart; }
+    public boolean isAllowSpectators() { return allowSpectators; }
+    public int getMaxSpectators() { return maxSpectators; }
     public GameMode getGameMode() { return gameMode; }
     public boolean isPvp() { return pvp; }
     public Difficulty getDifficulty() { return difficulty; }

@@ -14,6 +14,8 @@ import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
+import java.util.UUID;
+
 public class MinigameWorldListener implements Listener {
 
     private final RGA plugin;
@@ -33,6 +35,16 @@ public class MinigameWorldListener implements Listener {
 
         String baseName = getBaseName(currentWorld);
         if (baseName == null) return;
+
+        // ── Spectators cannot use portals ──────────────────────────
+        UUID uuid = player.getUniqueId();
+        for (com.ronlab.rga.party.Party p : plugin.getPartyManager().getActiveParties().values()) {
+            if (p.isSpectator(uuid) && baseName.equals(p.getActiveWorldName())) {
+                event.setCancelled(true);
+                player.sendMessage(Component.text("Spectators cannot use portals.", NamedTextColor.RED));
+                return;
+            }
+        }
 
         PlayerTeleportEvent.TeleportCause cause = event.getCause();
 

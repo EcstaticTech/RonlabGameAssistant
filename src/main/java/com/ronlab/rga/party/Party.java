@@ -17,6 +17,11 @@ public class Party {
     private State state;
     private String activeWorldName;
 
+    // ── Spectator support ──────────────────────────────────────────
+    private final Set<UUID> spectators = new HashSet<>();
+    private final Map<UUID, String> spectatorPreGameGroups = new HashMap<>();
+    private final Map<UUID, Map<String, List<String>>> spectatorPreGameAdvancements = new HashMap<>();
+
     public Party(UUID leaderUuid, Minigame minigame) {
         this.id = UUID.randomUUID();
         this.minigameId = minigame.getId();
@@ -91,6 +96,53 @@ public class Party {
     public void clearPreGameData() {
         preGameGroups.clear();
         preGameAdvancements.clear();
+    }
+
+    // ── Spectator methods ─────────────────────────────────────────
+
+    public boolean addSpectator(UUID uuid) {
+        if (spectators.contains(uuid)) return false;
+        spectators.add(uuid);
+        return true;
+    }
+
+    public void removeSpectator(UUID uuid) {
+        spectators.remove(uuid);
+        spectatorPreGameGroups.remove(uuid);
+        spectatorPreGameAdvancements.remove(uuid);
+    }
+
+    public Set<UUID> getSpectators() {
+        return Collections.unmodifiableSet(spectators);
+    }
+
+    public boolean isSpectator(UUID uuid) {
+        return spectators.contains(uuid);
+    }
+
+    public int getSpectatorCount() {
+        return spectators.size();
+    }
+
+    public void setSpectatorPreGameGroup(UUID uuid, String group) {
+        spectatorPreGameGroups.put(uuid, group);
+    }
+
+    public String getSpectatorPreGameGroup(UUID uuid) {
+        return spectatorPreGameGroups.get(uuid);
+    }
+
+    public void setSpectatorPreGameAdvancements(UUID uuid, Map<String, List<String>> advancements) {
+        spectatorPreGameAdvancements.put(uuid, advancements);
+    }
+
+    public Map<String, List<String>> getSpectatorPreGameAdvancements(UUID uuid) {
+        return spectatorPreGameAdvancements.getOrDefault(uuid, Collections.emptyMap());
+    }
+
+    public void clearSpectatorPreGameData() {
+        spectatorPreGameGroups.clear();
+        spectatorPreGameAdvancements.clear();
     }
 
     public UUID getId() { return id; }

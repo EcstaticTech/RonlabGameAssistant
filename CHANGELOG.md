@@ -1,5 +1,12 @@
 ## Changelog
 
+### v1.7.0
+
+- Finalized minigame spectator support implementation (resolves spectator task in Phase 4 roadmap).
+  - Added per-minigame spectator configuration options `allow-spectators` (default `true`) and `max-spectators` (default `4`) under `minigames.yml`.
+  - Updated `PartyManager.joinAsSpectator()` to enforce `allow-spectators` toggles and max spectator limits before allowing entry.
+  - Added `%spectators%` command placeholder replacement support in command execution logic for start and conclude lifecycle hooks.
+
 ### v1.6.0
 
 - Added minigame queueing and auto-start behavior (resolves the queueing issue in Phase 4 roadmap).

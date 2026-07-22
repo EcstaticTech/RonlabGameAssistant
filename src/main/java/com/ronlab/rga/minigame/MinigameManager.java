@@ -107,11 +107,14 @@ public class MinigameManager {
 
             boolean queueEnabled = mg.getBoolean("queue-enabled", true);
             boolean autoStart = mg.getBoolean("auto-start", true);
+            boolean allowSpectators = mg.getBoolean("allow-spectators", true);
+            int maxSpectators = mg.getInt("max-spectators", 4);
 
             minigames.put(id, new Minigame(id, name, material, lore,
                     maxPlayers, minPlayers, worldType, templateWorld,
                     startCommands, concludeCommands, gameMode, pvp, difficulty, gamerules,
-                    disableNether, disableEnd, queueEnabled, autoStart));
+                    disableNether, disableEnd, queueEnabled, autoStart,
+                    allowSpectators, maxSpectators));
         }
 
         plugin.getLogger().info("Loaded " + minigames.size() + " minigame(s) from minigames.yml.");

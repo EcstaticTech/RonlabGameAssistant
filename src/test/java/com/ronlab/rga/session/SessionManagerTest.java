@@ -74,7 +74,11 @@ class SessionManagerTest {
                 Difficulty.NORMAL,
                 Map.of(),
                 false,
-                false
+                false,
+                true,
+                true,
+                true,
+                4
         );
 
         Party party = new Party(UUID.fromString("11111111-1111-1111-1111-111111111111"), minigame);

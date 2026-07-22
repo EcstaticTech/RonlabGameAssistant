@@ -38,6 +38,13 @@ public class HubCommand implements CommandExecutor {
             return true;
         }
 
+        // If the player is a spectator, restore their advancements and remove them from spectator mode
+        if (plugin.getPartyManager().isSpectator(player.getUniqueId())) {
+            plugin.getPartyManager().leaveSpectatorMode(player);
+            // leaveSpectatorMode already teleports to hub, so we're done
+            return true;
+        }
+
         // If leaving an SMP world, save the player's current location first
         if (plugin.getConfigManager().getSmpWorlds().contains(currentWorld)) {
             plugin.getLocationTracker().saveLocation(player, player.getLocation());

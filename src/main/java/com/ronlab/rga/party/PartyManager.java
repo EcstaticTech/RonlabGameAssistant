@@ -12,6 +12,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -43,6 +44,156 @@ public class PartyManager implements Listener {
         this.plugin = plugin;
         this.worldCopyManager = new WorldCopyManager(plugin);
         Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SPECTATOR MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Allows a player to join an active minigame as a spectator.
+     * The player is teleported into the game world in SPECTATOR mode.
+     * Their pre-game inventory group and advancements are saved for restoration on exit.
+     */
+    public void joinAsSpectator(Player player, String minigameId) {
+        Minigame minigame = plugin.getMinigameManager().getMinigame(minigameId);
+        if (minigame == null) {
+            player.sendMessage(Component.text("Unknown minigame: " + minigameId, NamedTextColor.RED));
+            return;
+        }
+
+        Party party = activeParties.get(minigameId);
+        if (party == null || party.getState() != Party.State.IN_GAME) {
+            player.sendMessage(Component.text()
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .append(Component.text(" is not currently in progress.", NamedTextColor.RED))
+                    .build());
+            return;
+        }
+
+        if (!minigame.isAllowSpectators()) {
+            player.sendMessage(Component.text()
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .append(Component.text(" does not allow spectators.", NamedTextColor.RED))
+                    .build());
+            return;
+        }
+
+        UUID uuid = player.getUniqueId();
+
+        // If the player is already a spectator, just teleport them to the world
+        if (party.isSpectator(uuid)) {
+            World world = Bukkit.getWorld(party.getActiveWorldName());
+            if (world != null) {
+                player.teleport(world.getSpawnLocation());
+                player.setGameMode(GameMode.SPECTATOR);
+            }
+            player.sendMessage(Component.text("You are already spectating this game.", NamedTextColor.YELLOW));
+            return;
+        }
+
+        // If the player is a member, they cannot spectate their own game
+        if (party.getMembers().contains(uuid)) {
+            player.sendMessage(Component.text("You cannot spectate your own game. Use /rga leave first.", NamedTextColor.RED));
+            return;
+        }
+
+        if (party.getSpectatorCount() >= minigame.getMaxSpectators()) {
+            player.sendMessage(Component.text()
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .append(Component.text(" has reached its spectator limit (", NamedTextColor.RED))
+                    .append(Component.text(minigame.getMaxSpectators(), NamedTextColor.WHITE))
+                    .append(Component.text(").", NamedTextColor.RED))
+                    .build());
+            return;
+        }
+
+        // Leave any existing party or queue the player is in
+        Party existingParty = playerParties.get(uuid);
+        if (existingParty != null) {
+            leaveParty(player);
+        }
+        Party queuedParty = queuedPlayers.get(uuid);
+        if (queuedParty != null) {
+            leaveQueuedParty(player, queuedParty);
+        }
+
+        // Save pre-game state for restoration on exit
+        String preGroup = plugin.getInventoryManager().getGroup(player.getWorld().getName());
+        party.setSpectatorPreGameGroup(uuid, preGroup);
+        party.setSpectatorPreGameAdvancements(uuid, plugin.getAdvancementManager().captureCompleted(player));
+
+        // Register the spectator
+        party.addSpectator(uuid);
+        playerParties.put(uuid, party);
+
+        // Teleport to game world in spectator mode
+        World world = Bukkit.getWorld(party.getActiveWorldName());
+        if (world != null) {
+            player.teleport(world.getSpawnLocation());
+            player.setGameMode(GameMode.SPECTATOR);
+            player.sendMessage(Component.text()
+                    .append(Component.text("You are now spectating ", NamedTextColor.GRAY))
+                    .append(Component.text(minigame.getName(), NamedTextColor.GOLD))
+                    .append(Component.text(".", NamedTextColor.GRAY))
+                    .build());
+            player.sendMessage(Component.text("Use /rga spectate leave to stop spectating.", NamedTextColor.GRAY));
+        } else {
+            player.sendMessage(Component.text("Game world not found.", NamedTextColor.RED));
+            party.removeSpectator(uuid);
+            playerParties.remove(uuid);
+            return;
+        }
+
+        // Revoke advancements so the spectator doesn't see game achievements
+        plugin.getAdvancementManager().revokeAll(player);
+
+        plugin.getLogger().info(player.getName() + " joined as spectator for '" + minigame.getName() + "'.");
+    }
+
+    /**
+     * Removes a player from spectator mode, restores their advancements,
+     * and teleports them back to the hub.
+     */
+    public void leaveSpectatorMode(Player player) {
+        UUID uuid = player.getUniqueId();
+        Party party = playerParties.get(uuid);
+
+        if (party == null || !party.isSpectator(uuid)) {
+            player.sendMessage(Component.text("You are not currently spectating any game.", NamedTextColor.RED));
+            return;
+        }
+
+        // Restore pre-game advancements
+        Map<String, List<String>> preAdvs = party.getSpectatorPreGameAdvancements(uuid);
+        if (preAdvs != null && !preAdvs.isEmpty()) {
+            plugin.getAdvancementManager().restoreCompleted(player, preAdvs);
+        }
+
+        // Teleport to hub — InventoryManager will handle inventory restoration on world change
+        World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
+        if (hub != null) {
+            player.teleport(hub.getSpawnLocation());
+        }
+
+        player.sendMessage(Component.text("You are no longer spectating.", NamedTextColor.YELLOW));
+
+        // Clean up spectator data
+        party.removeSpectator(uuid);
+        playerParties.remove(uuid);
+
+        plugin.getLogger().info(player.getName() + " stopped spectating '" + party.getMinigame().getName() + "'.");
+    }
+
+    /**
+     * Returns the set of players who are currently spectating any active minigame.
+     */
+    public Set<UUID> getAllSpectators() {
+        Set<UUID> all = new HashSet<>();
+        for (Party party : activeParties.values()) {
+            all.addAll(party.getSpectators());
+        }
+        return all;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -267,6 +418,23 @@ public class PartyManager implements Listener {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
 
+        // Check if player is a spectator
+        Party spectatorParty = null;
+        for (Party p : activeParties.values()) {
+            if (p.isSpectator(uuid)) {
+                spectatorParty = p;
+                break;
+            }
+        }
+        if (spectatorParty != null) {
+            // Spectator disconnected while spectating — their pre-game data is already saved
+            // on the Party. They'll need to re-join through recovery on next login.
+            spectatorParty.removeSpectator(uuid);
+            playerParties.remove(uuid);
+            plugin.getLogger().info("Spectator " + player.getName() + " disconnected from '" + spectatorParty.getMinigame().getName() + "'.");
+            return;
+        }
+
         // Check if the player is in a queued party
         Party queuedParty = queuedPlayers.get(uuid);
         if (queuedParty != null) {
@@ -354,6 +522,13 @@ public class PartyManager implements Listener {
         Minigame minigame = plugin.getMinigameManager().getMinigame(minigameId);
         if (minigame == null) {
             player.sendMessage(Component.text("Unknown minigame: " + minigameId, NamedTextColor.RED));
+            return;
+        }
+
+        // If the player is a spectator, redirect them to leave spectate mode first
+        Party spectatorParty = findPartyForSpectator(player.getUniqueId());
+        if (spectatorParty != null && spectatorParty.getMinigameId().equals(minigameId)) {
+            player.sendMessage(Component.text("You are spectating this game. Use /rga spectate leave first.", NamedTextColor.RED));
             return;
         }
 
@@ -463,6 +638,12 @@ public class PartyManager implements Listener {
     }
 
     public void leaveParty(Player player) {
+        // Check if the player is a spectator
+        if (isSpectator(player.getUniqueId())) {
+            leaveSpectatorMode(player);
+            return;
+        }
+
         // Check if player is in a queued party
         Party queued = queuedPlayers.get(player.getUniqueId());
         if (queued != null) {
@@ -697,15 +878,30 @@ public class PartyManager implements Listener {
             plugin.getAdvancementManager().revokeAll(player);
         }
 
+        // Notify spectators that the game has started
+        for (UUID uuid : party.getSpectators()) {
+            Player spectator = Bukkit.getPlayer(uuid);
+            if (spectator != null) {
+                spectator.sendMessage(Component.text("The game has started!", NamedTextColor.GREEN));
+            }
+        }
+
         if (playerNames.isEmpty()) {
             abortGameStart(party, worldName, isVanilla);
             return;
         }
 
         String allPlayers = String.join(",", playerNames);
+        List<String> spectatorNames = new ArrayList<>();
+        for (UUID specUuid : party.getSpectators()) {
+            Player spectator = Bukkit.getPlayer(specUuid);
+            if (spectator != null) spectatorNames.add(spectator.getName());
+        }
+        String allSpectators = String.join(",", spectatorNames);
+
         if (!minigame.getStartCommands().isEmpty()) {
             executeStartCommands(minigame.getStartCommands(), worldName,
-                    leaderName, allPlayers, playerNames, leaderPlayer);
+                    leaderName, allPlayers, allSpectators, playerNames, leaderPlayer);
         }
     }
 
@@ -762,8 +958,9 @@ public class PartyManager implements Listener {
     }
 
     private void executeStartCommands(List<String> commands, String worldName,
-                                      String leaderName, String allPlayers,
-                                      List<String> playerNames, Player leaderPlayer) {
+                                       String leaderName, String allPlayers,
+                                       String allSpectators,
+                                       List<String> playerNames, Player leaderPlayer) {
         // Named placeholders for each party position in join order
         String secondName  = playerNames.size() >= 2 ? playerNames.get(1) : "";
         String thirdName   = playerNames.size() >= 3 ? playerNames.get(2) : "";
@@ -779,7 +976,7 @@ public class PartyManager implements Listener {
                 String cmd = command.substring("player-each:".length()).trim();
                 for (String playerName : playerNames) {
                     String resolved = resolveCommand(cmd, worldName, leaderName,
-                            allPlayers, playerName, secondName,
+                            allPlayers, allSpectators, playerName, secondName,
                             thirdName, fourthName, fifthName,
                             sixthName, seventhName, eighthName);
                     if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
@@ -796,7 +993,7 @@ public class PartyManager implements Listener {
                 // Run as the leader player — opens GUIs and player-only commands
                 String cmd = command.substring("leader:".length()).trim();
                 String resolved = resolveCommand(cmd, worldName, leaderName,
-                        allPlayers, leaderName, secondName,
+                        allPlayers, allSpectators, leaderName, secondName,
                         thirdName, fourthName, fifthName,
                         sixthName, seventhName, eighthName);
                 if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
@@ -818,7 +1015,7 @@ public class PartyManager implements Listener {
                 String cmd = command.startsWith("console:")
                         ? command.substring("console:".length()).trim()
                         : command.trim();
-                String resolved = resolveCommand(cmd, worldName, leaderName, allPlayers, "", secondName,
+                String resolved = resolveCommand(cmd, worldName, leaderName, allPlayers, allSpectators, "", secondName,
                         thirdName, fourthName, fifthName, sixthName, seventhName, eighthName);
                 if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
                     plugin.getLogger().warning("Blocked unsafe start/conclude command: " + resolved);
@@ -835,22 +1032,24 @@ public class PartyManager implements Listener {
 
     private String resolveCommand(String command, String worldName,
                                    String leaderName, String allPlayers,
+                                   String allSpectators,
                                    String playerName, String secondName,
                                    String thirdName, String fourthName,
                                    String fifthName, String sixthName,
                                    String seventhName, String eighthName) {
         return command
-                .replace("%world%",   PlaceholderSanitizer.sanitize(worldName))
-                .replace("%leader%",  PlaceholderSanitizer.sanitize(leaderName))
-                .replace("%players%", PlaceholderSanitizer.sanitize(allPlayers))
-                .replace("%second%",  PlaceholderSanitizer.sanitize(secondName))
-                .replace("%third%",   PlaceholderSanitizer.sanitize(thirdName))
-                .replace("%fourth%",  PlaceholderSanitizer.sanitize(fourthName))
-                .replace("%fifth%",   PlaceholderSanitizer.sanitize(fifthName))
-                .replace("%sixth%",   PlaceholderSanitizer.sanitize(sixthName))
-                .replace("%seventh%", PlaceholderSanitizer.sanitize(seventhName))
-                .replace("%eighth%",  PlaceholderSanitizer.sanitize(eighthName))
-                .replace("%player%",  PlaceholderSanitizer.sanitize(playerName));
+                .replace("%world%",      PlaceholderSanitizer.sanitize(worldName))
+                .replace("%leader%",     PlaceholderSanitizer.sanitize(leaderName))
+                .replace("%players%",    PlaceholderSanitizer.sanitize(allPlayers))
+                .replace("%spectators%", PlaceholderSanitizer.sanitize(allSpectators))
+                .replace("%second%",     PlaceholderSanitizer.sanitize(secondName))
+                .replace("%third%",      PlaceholderSanitizer.sanitize(thirdName))
+                .replace("%fourth%",     PlaceholderSanitizer.sanitize(fourthName))
+                .replace("%fifth%",      PlaceholderSanitizer.sanitize(fifthName))
+                .replace("%sixth%",      PlaceholderSanitizer.sanitize(sixthName))
+                .replace("%seventh%",    PlaceholderSanitizer.sanitize(seventhName))
+                .replace("%eighth%",     PlaceholderSanitizer.sanitize(eighthName))
+                .replace("%player%",     PlaceholderSanitizer.sanitize(playerName));
     }
 
     // ── Shutdown Cleanup ────────────────────────────────────────────
@@ -891,8 +1090,12 @@ public class PartyManager implements Listener {
             plugin.getInventoryManager().removeTemporaryGroup(worldName + "_the_end");
         }
 
-        // Teleport online players to hub if possible - this ensures they're not in a minigame world on shutdown
-        for (UUID uuid : party.getMembers()) {
+        // Teleport online players and spectators to hub if possible
+        Set<UUID> allParticipants = new HashSet<>();
+        allParticipants.addAll(party.getMembers());
+        allParticipants.addAll(party.getSpectators());
+
+        for (UUID uuid : allParticipants) {
             Player p = Bukkit.getPlayer(uuid);
             if (p != null && hub != null && p.getWorld().getName().startsWith("minigame_")) {
                 p.teleport(hub.getSpawnLocation());
@@ -900,17 +1103,12 @@ public class PartyManager implements Listener {
         }
 
         // Clear party associations - session files are preserved for recovery
-        for (UUID uuid : party.getMembers()) {
+        for (UUID uuid : allParticipants) {
             playerParties.remove(uuid);
         }
         activeParties.remove(party.getMinigameId());
         party.clearPreGameData();
-
-        // NOTE: We intentionally do NOT clean up world files during shutdown because:
-        // 1. Session files already contain all recovery data (pre-game inventory, advancements, world)
-        // 2. File operations during shutdown can cause concurrency issues
-        // 3. World folders will be cleaned up on next startup if recovery is needed
-        // The session file will be loaded and used by SessionManager.loadOrphanedSessions() on next startup
+        party.clearSpectatorPreGameData();
 
         plugin.getLogger().warning("Session '" + worldName + "' preserved for recovery. Players will be restored on next join.");
     }
@@ -946,9 +1144,38 @@ public class PartyManager implements Listener {
         Minigame minigame = party.getMinigame();
         World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
 
+        // Collect spectator names before handling/clearing spectator state
+        List<String> spectatorNames = new ArrayList<>();
+        for (UUID uuid : party.getSpectators()) {
+            Player spectator = Bukkit.getPlayer(uuid);
+            if (spectator != null) spectatorNames.add(spectator.getName());
+        }
+        String allSpectators = String.join(",", spectatorNames);
+
+        // ── Handle spectators before conclusion commands ────────────
+        // Spectators are excluded from conclusion commands and game logic.
+        // Restore their advancements and teleport them to hub.
+        for (UUID uuid : party.getSpectators()) {
+            Player spectator = Bukkit.getPlayer(uuid);
+            if (spectator != null) {
+                // Restore pre-game advancements
+                Map<String, List<String>> preAdvs = party.getSpectatorPreGameAdvancements(uuid);
+                if (preAdvs != null && !preAdvs.isEmpty()) {
+                    plugin.getAdvancementManager().restoreCompleted(spectator, preAdvs);
+                }
+                // Teleport to hub
+                if (hub != null) {
+                    spectator.teleport(hub.getSpawnLocation());
+                }
+                spectator.sendMessage(Component.text("The game has ended. You have been returned to Hub.", NamedTextColor.GOLD));
+            }
+        }
+        // Clean up spectator data
+        party.clearSpectatorPreGameData();
+
         // Fire conclude commands before cleanup so game plugin can do its own teardown
         if (!minigame.getConcludeCommands().isEmpty()) {
-            // Build player info for placeholders
+            // Build player info for placeholders (members only, not spectators)
             List<String> playerNames = new ArrayList<>();
             Player leaderPlayer = Bukkit.getPlayer(party.getLeaderUuid());
             String leaderName = leaderPlayer != null ? leaderPlayer.getName() : "";
@@ -958,7 +1185,7 @@ public class PartyManager implements Listener {
             }
             String allPlayers = String.join(",", playerNames);
             executeStartCommands(minigame.getConcludeCommands(), worldName,
-                    leaderName, allPlayers, playerNames, leaderPlayer);
+                    leaderName, allPlayers, allSpectators, playerNames, leaderPlayer);
         }
 
         // Remove inventory groups immediately so dead players respawn with Hub inventory
@@ -993,13 +1220,20 @@ public class PartyManager implements Listener {
                 p.sendMessage(Component.text("The game has ended! You have been returned to Hub.", NamedTextColor.GOLD));
             } else if (p != null) {
                 p.sendMessage(Component.text("The game has ended! You will be returned to Hub on respawn.", NamedTextColor.GOLD));
-            } else {
             }
         }
 
         for (UUID uuid : party.getMembers()) {
             playerParties.remove(uuid);
         }
+
+        // Also remove spectator party associations
+        for (UUID uuid : party.getSpectators()) {
+            playerParties.remove(uuid);
+        }
+        // Remove spectator references from the party
+        party.getSpectators().forEach(party::removeSpectator);
+
         activeParties.remove(party.getMinigameId());
         party.clearPreGameData();
 
@@ -1033,6 +1267,30 @@ public class PartyManager implements Listener {
     }
 
     // ── Helpers ──────────────────────────────────────────────────
+
+    /**
+     * Finds the party for which the given player UUID is a spectator.
+     */
+    private Party findPartyForSpectator(UUID uuid) {
+        for (Party party : activeParties.values()) {
+            if (party.isSpectator(uuid)) {
+                return party;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns true if the player is currently spectating any active game.
+     */
+    public boolean isSpectator(UUID uuid) {
+        for (Party party : activeParties.values()) {
+            if (party.isSpectator(uuid)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public void refreshLobbyForAll(Party party) {
         for (UUID uuid : party.getMembers()) {

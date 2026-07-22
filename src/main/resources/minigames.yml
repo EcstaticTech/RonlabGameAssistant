@@ -25,10 +25,11 @@
 #     leader:      - runs as the party leader player (use for GUI commands)
 #
 #   Placeholders:
-#     %world%   - the generated world name
-#     %leader%  - party leader's name
-#     %players% - comma-separated list of all player names
-#     %player%  - used with player-each prefix only
+#     %world%      - the generated world name
+#     %leader%     - party leader's name
+#     %players%    - comma-separated list of all player names
+#     %spectators% - comma-separated list of all spectator player names
+#     %player%     - used with player-each prefix only
 #
 # Examples:
 #   start-commands:
@@ -51,6 +52,8 @@ minigames:
     world-type: VANILLA
     queue-enabled: true
     auto-start: true
+    allow-spectators: true
+    max-spectators: 4
     start-commands: []
     conclude-commands: []
     world-settings:

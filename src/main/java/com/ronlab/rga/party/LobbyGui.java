@@ -116,6 +116,20 @@ public class LobbyGui implements Listener {
                 }
             }
 
+            // ── Spectate button (only if the game is currently in progress) ──
+            Party activeParty = plugin.getPartyManager().getPartyForMinigame(minigame.getId());
+            if (activeParty != null && activeParty.getState() == Party.State.IN_GAME && !activeParty.isSpectator(player.getUniqueId())) {
+                ItemStack spectate = new ItemStack(Material.SPYGLASS);
+                ItemMeta spectateMeta = spectate.getItemMeta();
+                spectateMeta.displayName(Component.text("Spectate Current Game", NamedTextColor.AQUA, TextDecoration.BOLD));
+                spectateMeta.lore(List.of(
+                        Component.text("Click to spectate the ongoing game", NamedTextColor.GRAY),
+                        Component.text("while you wait for the queue.", NamedTextColor.GRAY)
+                ));
+                spectate.setItemMeta(spectateMeta);
+                inv.setItem(48, spectate);
+            }
+
             // ── Leave queue button ───────────────────────────────
             ItemStack leave = new ItemStack(Material.RED_BED);
             ItemMeta leaveMeta = leave.getItemMeta();
@@ -266,6 +280,22 @@ public class LobbyGui implements Listener {
         if (event.getCurrentItem().getType().isAir()) return;
 
         int slot = event.getSlot();
+
+        // Spectate button (slot 48)
+        if (slot == 48) {
+            // Determine the minigame ID from the inventory title
+            String title = event.getView().getTitle();
+            if (title.contains("Queue") || title.contains("Lobby")) {
+                // Extract minigame ID from the party if available
+                Party party = plugin.getPartyManager().getPartyForPlayer(player.getUniqueId());
+                if (party != null) {
+                    plugin.getPartyManager().joinAsSpectator(player, party.getMinigameId());
+                } else {
+                    player.sendMessage(Component.text("Unable to determine which game to spectate.", NamedTextColor.RED));
+                }
+            }
+            return;
+        }
 
         // Leave party button
         if (slot == 49) {
