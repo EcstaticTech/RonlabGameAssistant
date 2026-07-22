@@ -1,5 +1,15 @@
 ## Changelog
 
+### v1.9.0
+
+- Added configurable hub entry and restore-on-return inventory behavior (resolves #23).
+  - Config flags `hub-entry.clear-inventory-on-entry` (default `true`) and `hub-entry.restore-inventory-on-return` (default `false`) added to `config.yml`.
+  - In-memory `HubSnapshot` records pre-hub inventory and origin world group when entering Hub with `restore-inventory-on-return: true`.
+  - Exiting Hub back to the same origin world group restores the snapshot instantly without disk I/O; entering a different world group discards the snapshot to preserve world group isolation boundaries.
+  - Snapshot cleaned up on `PlayerQuitEvent` to prevent memory leaks for offline players.
+  - `HubListener.onJoin` respects `clear-inventory-on-entry` to gate initial join wipes.
+  - New test suite `InventoryManagerHubEntryTest` verifies clear, preserve, group-scoped restore, group switch invalidation, and quit cleanup behavior.
+
 ### v1.8.0
 
 - Added `first-visit-spawn` configuration support to `worlds.yml` (resolves #22).

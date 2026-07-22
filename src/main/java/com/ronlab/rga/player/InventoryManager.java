@@ -26,6 +26,9 @@ public class InventoryManager implements Listener {
     private final Map<String, String> worldToGroup = new HashMap<>();
     private final Set<UUID> ignoreNextWorldChange = new HashSet<>();
 
+    private record HubSnapshot(ItemStack[] contents, ItemStack[] armor, ItemStack offhand, int heldSlot, float exp, int level, int totalExp, double health, int foodLevel, float saturation, String originGroup) {}
+    private final Map<UUID, HubSnapshot> hubSnapshots = new HashMap<>();
+
     public InventoryManager(RGA plugin) {
         this.plugin = plugin;
         this.dataFolder = new File(plugin.getDataFolder(), "inventories");
@@ -100,8 +103,18 @@ public class InventoryManager implements Listener {
         }
 
         if (toWorld.equalsIgnoreCase(hubWorld)) {
-            clearPlayer(player);
+            if (plugin.getConfigManager().isRestoreInventoryOnHubReturn() && !fromWorld.equalsIgnoreCase(hubWorld)) {
+                saveHubSnapshot(player, fromGroup);
+            }
+            if (plugin.getConfigManager().isClearInventoryOnHubEntry()) {
+                clearPlayer(player);
+            }
         } else {
+            if (fromWorld.equalsIgnoreCase(hubWorld) && plugin.getConfigManager().isRestoreInventoryOnHubReturn()) {
+                if (restoreHubSnapshot(player, toGroup)) {
+                    return;
+                }
+            }
             loadInventory(player, toGroup);
         }
     }
@@ -109,6 +122,7 @@ public class InventoryManager implements Listener {
     @EventHandler(priority = EventPriority.NORMAL)
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
         String currentWorld = player.getWorld().getName();
         String hubWorld = plugin.getConfigManager().getHubWorld();
 
@@ -116,7 +130,55 @@ public class InventoryManager implements Listener {
             saveInventory(player, getGroup(currentWorld));
         }
 
-        ignoreNextWorldChange.remove(player.getUniqueId());
+        ignoreNextWorldChange.remove(uuid);
+        hubSnapshots.remove(uuid);
+    }
+
+    private void saveHubSnapshot(Player player, String originGroup) {
+        ItemStack[] contents = player.getInventory().getContents().clone();
+        ItemStack[] armor = player.getInventory().getArmorContents().clone();
+        ItemStack offhand = player.getInventory().getItemInOffHand() != null ? player.getInventory().getItemInOffHand().clone() : null;
+        HubSnapshot snapshot = new HubSnapshot(
+                contents,
+                armor,
+                offhand,
+                player.getInventory().getHeldItemSlot(),
+                player.getExp(),
+                player.getLevel(),
+                player.getTotalExperience(),
+                player.getHealth(),
+                player.getFoodLevel(),
+                player.getSaturation(),
+                originGroup
+        );
+        hubSnapshots.put(player.getUniqueId(), snapshot);
+    }
+
+    private boolean restoreHubSnapshot(Player player, String toGroup) {
+        UUID uuid = player.getUniqueId();
+        HubSnapshot snapshot = hubSnapshots.remove(uuid);
+        if (snapshot == null) {
+            return false;
+        }
+
+        if (!snapshot.originGroup().equals(toGroup)) {
+            return false;
+        }
+
+        clearPlayer(player);
+        player.getInventory().setContents(snapshot.contents());
+        player.getInventory().setArmorContents(snapshot.armor());
+        if (snapshot.offhand() != null) {
+            player.getInventory().setItemInOffHand(snapshot.offhand());
+        }
+        player.getInventory().setHeldItemSlot(snapshot.heldSlot());
+        player.setExp(snapshot.exp());
+        player.setLevel(snapshot.level());
+        player.setTotalExperience(snapshot.totalExp());
+        player.setHealth(Math.min(snapshot.health(), player.getMaxHealth()));
+        player.setFoodLevel(snapshot.foodLevel());
+        player.setSaturation(snapshot.saturation());
+        return true;
     }
 
     // ── Save / Load ──────────────────────────────────────────────

@@ -41,6 +41,14 @@ public class ConfigManager {
         return plugin.getConfig().getString("hub-world", "Hub");
     }
 
+    public boolean isClearInventoryOnHubEntry() {
+        return plugin.getConfig().getBoolean("hub-entry.clear-inventory-on-entry", true);
+    }
+
+    public boolean isRestoreInventoryOnHubReturn() {
+        return plugin.getConfig().getBoolean("hub-entry.restore-inventory-on-return", false);
+    }
+
     public List<String> getSmpWorlds() {
         return plugin.getConfig().getStringList("smp-worlds");
     }

@@ -45,14 +45,23 @@ social-item:
     - "&7or return to your current party."
   slot: 7
 
+# Hub entry behaviour
+# clear-inventory-on-entry: if true (default), the player's inventory is cleared
+#   when they enter the hub world (on join or teleport).
+# restore-inventory-on-return: if true, inventory cleared upon entering the hub
+#   will be saved and restored when the player leaves the hub, ONLY IF returning
+#   to the same world group they arrived from.
+hub-entry:
+  clear-inventory-on-entry: true
+  restore-inventory-on-return: false
+
 # -----------------------------------------------
 # Inventory Groups
 # -----------------------------------------------
 # Worlds in the same group share an inventory.
 # Worlds not listed here get their own isolated
 # inventory automatically.
-# Hub is always cleared on entry — do not add it
-# to any group.
+# Do not add the Hub world to any group.
 # -----------------------------------------------
 inventory-groups:
   smp:

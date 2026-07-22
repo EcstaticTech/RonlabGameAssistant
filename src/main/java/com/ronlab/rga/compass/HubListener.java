@@ -50,7 +50,9 @@ public class HubListener implements Listener {
             if (hub != null) {
                 player.teleport(hub.getSpawnLocation());
             }
-            plugin.getInventoryManager().clearPlayer(player);
+            if (plugin.getConfigManager().isClearInventoryOnHubEntry()) {
+                plugin.getInventoryManager().clearPlayer(player);
+            }
             giveCompass(player);
             plugin.getSocialItem().giveSocialItem(player);
         }, 5L);
