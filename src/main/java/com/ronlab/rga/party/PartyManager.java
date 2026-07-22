@@ -17,7 +17,10 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Duration;
 import java.util.*;
@@ -31,7 +34,11 @@ public class PartyManager implements Listener {
     private final Map<String, Party> activeParties = new HashMap<>();
     private final Map<UUID, Party> playerParties = new HashMap<>();
 
+    // ── Grace Period Tasks ─────────────────────────────────────────
+    private final Map<UUID, BukkitTask> gracePeriodTasks = new HashMap<>();
+
     // ── Queueing structures ───────────────────────────────────────
+
     // Per-minigame FIFO queue of waiting parties
     private final Map<String, Queue<Party>> minigameQueues = new HashMap<>();
     // Tracks which players are in a queued party (distinct from active lobby players)
@@ -411,6 +418,176 @@ public class PartyManager implements Listener {
         }
     }
 
+    // ── Grace Period Handling ─────────────────────────────────────
+
+    public void startGracePeriod(Player player, Party party) {
+        UUID uuid = player.getUniqueId();
+
+        // Timer Duplication Guard: if timer is already active for this player, do not spawn another
+        if (gracePeriodTasks.containsKey(uuid) || party.isAway(uuid)) {
+            return;
+        }
+
+        party.setAway(uuid, true);
+        int durationSeconds = plugin.getConfigManager().getPartyGracePeriodDurationSeconds();
+
+        BukkitTask task = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            gracePeriodTasks.remove(uuid);
+            handleGracePeriodTimeout(uuid, party);
+        }, durationSeconds * 20L);
+
+        gracePeriodTasks.put(uuid, task);
+
+        broadcastToParty(party, Component.text()
+                .append(Component.text(player.getName(), NamedTextColor.YELLOW))
+                .append(Component.text(" visited the Hub or disconnected. Grace period active (", NamedTextColor.GRAY))
+                .append(Component.text(durationSeconds + "s", NamedTextColor.WHITE))
+                .append(Component.text(" to return).", NamedTextColor.GRAY))
+                .build(), null);
+
+        if (party.getState() == Party.State.LOBBY) {
+            refreshLobbyForAll(party);
+        }
+    }
+
+    public void cancelGracePeriod(UUID uuid, Party party) {
+        BukkitTask task = gracePeriodTasks.remove(uuid);
+        if (task != null) {
+            task.cancel();
+        }
+
+        if (party != null && party.isAway(uuid)) {
+            party.setAway(uuid, false);
+            Player player = Bukkit.getPlayer(uuid);
+            String name = player != null ? player.getName() : "A player";
+            broadcastToParty(party, Component.text()
+                    .append(Component.text(name, NamedTextColor.GREEN))
+                    .append(Component.text(" returned to the party.", NamedTextColor.YELLOW))
+                    .build(), null);
+
+            if (party.getState() == Party.State.LOBBY) {
+                refreshLobbyForAll(party);
+            }
+        }
+    }
+
+    private void handleGracePeriodTimeout(UUID uuid, Party party) {
+        if (party == null || !party.getMembers().contains(uuid) || !party.isAway(uuid)) {
+            return;
+        }
+
+        boolean wasLeader = uuid.equals(party.getLeaderUuid());
+        party.setAway(uuid, false);
+        party.removeMember(uuid);
+        playerParties.remove(uuid);
+        queuedPlayers.remove(uuid);
+
+        Player player = Bukkit.getPlayer(uuid);
+        String playerName = player != null ? player.getName() : "A player";
+
+        if (player != null) {
+            player.sendMessage(Component.text("Your party grace period has expired.", NamedTextColor.RED));
+        }
+
+        broadcastToParty(party, Component.text()
+                .append(Component.text(playerName, NamedTextColor.YELLOW))
+                .append(Component.text("'s grace period expired and they were removed from the party.", NamedTextColor.RED))
+                .build(), null);
+
+        if (party.getMemberCount() == 0) {
+            if (party.getState() == Party.State.QUEUED) {
+                removeFromQueue(party);
+            } else if (party.getState() == Party.State.IN_GAME && party.getActiveWorldName() != null) {
+                concludeGame(party.getActiveWorldName());
+            } else {
+                activeParties.remove(party.getMinigameId());
+            }
+            return;
+        }
+
+        if (wasLeader) {
+            transferLeader(party, uuid);
+        }
+
+        if (party.getState() == Party.State.LOBBY) {
+            refreshLobbyForAll(party);
+        } else if (party.getState() == Party.State.QUEUED) {
+            notifyQueuedPartyMemberChange(party);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+        String hubWorld = plugin.getConfigManager().getHubWorld();
+        String newWorld = player.getWorld().getName();
+        String oldWorld = event.getFrom().getName();
+
+        Party party = playerParties.get(uuid);
+        if (party == null) {
+            party = queuedPlayers.get(uuid);
+        }
+        if (party == null) return;
+
+        boolean isEnteringHub = newWorld.equalsIgnoreCase(hubWorld);
+        boolean isLeavingHub = oldWorld.equalsIgnoreCase(hubWorld);
+
+        if (isEnteringHub) {
+            if (!plugin.getConfigManager().isPartyGracePeriodEnabled()) {
+                leaveParty(player);
+                return;
+            }
+
+            if (party.getState() == Party.State.IN_GAME && !plugin.getConfigManager().isPartyGracePeriodAllowedInGame()) {
+                leaveParty(player);
+                return;
+            }
+
+            startGracePeriod(player, party);
+        } else if (isLeavingHub) {
+            if (party.isAway(uuid)) {
+                cancelGracePeriod(uuid, party);
+
+                // Teleport returning player back to the active arena if party is IN_GAME
+                if (party.getState() == Party.State.IN_GAME && party.getActiveWorldName() != null) {
+                    World gameWorld = Bukkit.getWorld(party.getActiveWorldName());
+                    if (gameWorld != null && !newWorld.equals(party.getActiveWorldName())) {
+                        player.teleport(gameWorld.getSpawnLocation());
+                        player.setGameMode(GameMode.SURVIVAL);
+                        player.sendMessage(Component.text("Welcome back to the game!", NamedTextColor.GREEN));
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+
+        Party party = playerParties.get(uuid);
+        if (party == null) {
+            party = queuedPlayers.get(uuid);
+        }
+        if (party != null && party.isAway(uuid)) {
+            cancelGracePeriod(uuid, party);
+            if (party.getState() == Party.State.IN_GAME && party.getActiveWorldName() != null) {
+                World gameWorld = Bukkit.getWorld(party.getActiveWorldName());
+                if (gameWorld != null) {
+                    plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                        if (player.isOnline()) {
+                            player.teleport(gameWorld.getSpawnLocation());
+                            player.setGameMode(GameMode.SURVIVAL);
+                            player.sendMessage(Component.text("Welcome back to the game!", NamedTextColor.GREEN));
+                        }
+                    }, 2L);
+                }
+            }
+        }
+    }
+
     // ── Disconnect handling ──────────────────────────────────────
 
     @EventHandler
@@ -427,8 +604,6 @@ public class PartyManager implements Listener {
             }
         }
         if (spectatorParty != null) {
-            // Spectator disconnected while spectating — their pre-game data is already saved
-            // on the Party. They'll need to re-join through recovery on next login.
             spectatorParty.removeSpectator(uuid);
             playerParties.remove(uuid);
             plugin.getLogger().info("Spectator " + player.getName() + " disconnected from '" + spectatorParty.getMinigame().getName() + "'.");
@@ -438,13 +613,30 @@ public class PartyManager implements Listener {
         // Check if the player is in a queued party
         Party queuedParty = queuedPlayers.get(uuid);
         if (queuedParty != null) {
-            handleQueuedPlayerDisconnect(uuid, queuedParty);
+            if (plugin.getConfigManager().isPartyGracePeriodEnabled()) {
+                startGracePeriod(player, queuedParty);
+            } else {
+                handleQueuedPlayerDisconnect(uuid, queuedParty);
+            }
             return;
         }
 
         // Otherwise check active party
         Party party = playerParties.get(uuid);
         if (party == null) return;
+
+        if (plugin.getConfigManager().isPartyGracePeriodEnabled()) {
+            if (party.getState() == Party.State.IN_GAME && !plugin.getConfigManager().isPartyGracePeriodAllowedInGame()) {
+                playerParties.remove(uuid);
+                party.removeMember(uuid);
+                if (party.getMemberCount() == 0 && party.getActiveWorldName() != null) {
+                    concludeGame(party.getActiveWorldName());
+                }
+                return;
+            }
+            startGracePeriod(player, party);
+            return;
+        }
 
         if (party.getState() == Party.State.IN_GAME) {
             playerParties.remove(uuid);
@@ -457,6 +649,7 @@ public class PartyManager implements Listener {
 
         handleLobbyPlayerDisconnect(player, uuid, party);
     }
+
 
     private void handleQueuedPlayerDisconnect(UUID uuid, Party party) {
         boolean wasLeader = uuid.equals(party.getLeaderUuid());
@@ -619,6 +812,8 @@ public class PartyManager implements Listener {
         if (party == null) return;
         UUID uuid = player.getUniqueId();
 
+        cancelGracePeriod(uuid, party);
+
         boolean wasLeader = uuid.equals(party.getLeaderUuid());
         boolean wasMember = party.getMembers().contains(uuid);
 
@@ -644,8 +839,10 @@ public class PartyManager implements Listener {
             return;
         }
 
+        UUID uuid = player.getUniqueId();
+
         // Check if player is in a queued party
-        Party queued = queuedPlayers.get(player.getUniqueId());
+        Party queued = queuedPlayers.get(uuid);
         if (queued != null) {
             leaveQueuedParty(player, queued);
             player.sendMessage(Component.text("You left the queue.", NamedTextColor.YELLOW));
@@ -653,15 +850,17 @@ public class PartyManager implements Listener {
             return;
         }
 
-        Party party = playerParties.remove(player.getUniqueId());
+        Party party = playerParties.remove(uuid);
         if (party == null) return;
 
-        boolean wasLeader = player.getUniqueId().equals(party.getLeaderUuid());
+        cancelGracePeriod(uuid, party);
+
+        boolean wasLeader = uuid.equals(party.getLeaderUuid());
         if (wasLeader && party.getMemberCount() > 1) {
-            transferLeader(party, player.getUniqueId());
+            transferLeader(party, uuid);
         }
 
-        party.removeMember(player.getUniqueId());
+        party.removeMember(uuid);
         player.sendMessage(Component.text("You left the party.", NamedTextColor.YELLOW));
         player.closeInventory();
 
@@ -683,8 +882,14 @@ public class PartyManager implements Listener {
         if (party == null) return;
         if (party.getState() == Party.State.IN_GAME || party.getState() == Party.State.QUEUED) return;
 
+        if (party.hasAwayPlayers() && !party.isReady(player.getUniqueId())) {
+            player.sendMessage(Component.text("Cannot ready up while a party member is visiting the Hub.", NamedTextColor.RED));
+            return;
+        }
+
         boolean nowReady = !party.isReady(player.getUniqueId());
         party.setReady(player.getUniqueId(), nowReady);
+
 
         player.sendMessage(nowReady
                 ? Component.text("You are now ready!", NamedTextColor.GREEN)

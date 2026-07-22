@@ -379,7 +379,7 @@ inventory-groups:
 
 ## Development Status
 
-### Current Version: 1.9.0
+### Current Version: 1.10.0
 
 **Core Functionality**: ✓ Complete and usable
 - All major systems functional and tested

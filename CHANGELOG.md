@@ -1,5 +1,17 @@
 ## Changelog
 
+### v1.10.0
+
+- Implemented party persistence grace period for hub visits (resolves #29).
+  - Added configurable grace period timer system allowing players to temporarily leave their party to visit the hub without immediately disbanding.
+  - Configuration options: `grace-period.enabled` (default `true`), `grace-period.duration-seconds` (default `60`), and `grace-period.allow-in-game` (default `true`).
+  - When a player enters the hub, they are marked as "away" and a BukkitTask timer is started; if the player returns before timeout, the grace period is canceled and the player rejoins the party.
+  - If the grace period expires, the player is removed from the party; if this leaves the party empty in LOBBY state, the party is disbanded; if in IN_GAME state, the game concludes cleanly.
+  - Ready-up button is blocked while any party member is in grace period (via `Party.hasAwayPlayers()` check).
+  - Event handlers: `onPlayerChangedWorld()` triggers grace period on hub entry, `onPlayerJoin()` cancels on return, `onPlayerQuit()` handles disconnections during grace period.
+  - Duplicate timer guard prevents multiple timers for the same player.
+  - Manual testing guide (`GRACE_PERIOD_MANUAL_TEST.md`) documents 10 verification scenarios covering hub visits, timeouts, disconnections, configuration options, in-game state handling, and queue interactions.
+
 ### v1.9.0
 
 - Added configurable hub entry and restore-on-return inventory behavior (resolves #23).

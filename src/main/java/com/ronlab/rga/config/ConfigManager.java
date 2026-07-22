@@ -49,6 +49,19 @@ public class ConfigManager {
         return plugin.getConfig().getBoolean("hub-entry.restore-inventory-on-return", false);
     }
 
+    public boolean isPartyGracePeriodEnabled() {
+        return plugin.getConfig().getBoolean("minigames.grace-period.enabled", true);
+    }
+
+    public int getPartyGracePeriodDurationSeconds() {
+        return plugin.getConfig().getInt("minigames.grace-period.duration-seconds", 60);
+    }
+
+    public boolean isPartyGracePeriodAllowedInGame() {
+        return plugin.getConfig().getBoolean("minigames.grace-period.allow-in-game", true);
+    }
+
+
     public List<String> getSmpWorlds() {
         return plugin.getConfig().getStringList("smp-worlds");
     }

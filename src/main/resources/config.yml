@@ -12,6 +12,11 @@ minigames:
     duration-seconds: 3
     title-color: "<gold>"
     sound-enabled: true
+  grace-period:
+    enabled: true
+    duration-seconds: 60
+    allow-in-game: true
+
 
 # The SMP worlds. Last locations are tracked and
 # restored for any world listed here.

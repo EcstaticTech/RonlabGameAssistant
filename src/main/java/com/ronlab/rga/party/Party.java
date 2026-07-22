@@ -22,6 +22,8 @@ public class Party {
     private final Map<UUID, String> spectatorPreGameGroups = new HashMap<>();
     private final Map<UUID, Map<String, List<String>>> spectatorPreGameAdvancements = new HashMap<>();
 
+    private final Set<UUID> awayPlayers = new HashSet<>();
+
     public Party(UUID leaderUuid, Minigame minigame) {
         this.id = UUID.randomUUID();
         this.minigameId = minigame.getId();
@@ -43,10 +45,11 @@ public class Party {
     public void removeMember(UUID uuid) {
         members.remove(uuid);
         readyPlayers.remove(uuid);
+        awayPlayers.remove(uuid);
     }
 
     public void setReady(UUID uuid, boolean ready) {
-        if (ready) readyPlayers.add(uuid);
+        if (ready && !isAway(uuid)) readyPlayers.add(uuid);
         else readyPlayers.remove(uuid);
     }
 
@@ -56,8 +59,35 @@ public class Party {
 
     public boolean allReady() {
         if (members.size() < minigame.getMinPlayers()) return false;
+        if (hasAwayPlayers()) return false;
         return readyPlayers.containsAll(members);
     }
+
+    public void setAway(UUID uuid, boolean away) {
+        if (away) {
+            awayPlayers.add(uuid);
+            readyPlayers.remove(uuid);
+        } else {
+            awayPlayers.remove(uuid);
+        }
+    }
+
+    public boolean isAway(UUID uuid) {
+        return awayPlayers.contains(uuid);
+    }
+
+    public Set<UUID> getAwayPlayers() {
+        return Collections.unmodifiableSet(awayPlayers);
+    }
+
+    public boolean hasAwayPlayers() {
+        return !awayPlayers.isEmpty();
+    }
+
+    public int getActiveMemberCount() {
+        return members.size() - awayPlayers.size();
+    }
+
 
     public boolean isFull() {
         return members.size() >= minigame.getMaxPlayers();
