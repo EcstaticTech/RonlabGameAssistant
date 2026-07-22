@@ -1,5 +1,14 @@
 ## Changelog
 
+### v1.5.0
+
+- Implemented graceful shutdown cleanup and recovery (resolves #19).
+  - Added robust `onDisable()` hooks to cleanup all active party sessions.
+  - Teleports online players to hub and clears temporary inventory groups during shutdown to protect player state.
+  - Preserves session data files upon shutdown as recovery files.
+  - Scans for and restores orphaned session data on next startup, cleanly recovering player inventories, advancements, and locations when they next connect.
+  - Reports recovery file status on plugin enable/disable.
+
 ### v1.4.1
 
 - Added `/rga status` for runtime visibility into active sessions, loaded managed worlds, and pending recovery state (resolves #18).

@@ -375,7 +375,7 @@ inventory-groups:
 
 ## Development Status
 
-### Current Version: 1.4.1
+### Current Version: 1.5.0
 
 **Core Functionality**: ✓ Complete and usable
 - All major systems functional and tested
@@ -441,7 +441,7 @@ inventory-groups:
 mvn clean package
 ```
 
-Output JAR: `target/RonlabGameAssistant-1.4.1.jar`
+Output JAR: `target/RonlabGameAssistant-1.5.0.jar`
 
 ---
 
