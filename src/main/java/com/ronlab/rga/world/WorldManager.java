@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -69,8 +70,12 @@ public class WorldManager {
                     }
                 }
 
+                // Load optional first-visit-spawn
+                FirstVisitSpawn firstVisitSpawn = parseFirstVisitSpawn(section, worldName);
+
                 WorldSettings settings = new WorldSettings(gamemode, pvp, environment,
-                        difficulty, alias, template, timeLock, weatherLock, disableNether, disableEnd, gamerules);
+                        difficulty, alias, template, timeLock, weatherLock, disableNether, disableEnd,
+                        gamerules, firstVisitSpawn);
                 worldSettings.put(worldName, settings);
 
                 if (loadOnStartup) loadWorld(worldName, environment, settings);
@@ -548,7 +553,24 @@ public class WorldManager {
         }
 
         player.sendMessage(plugin.getConfigManager().getMessage("teleporting"));
-        player.teleport(world.getSpawnLocation());
+
+        // Resolve spawn: if the player has a tracked location for this world use it;
+        // otherwise use first-visit-spawn (or standard world spawn as final fallback).
+        var tracker = plugin.getLocationTracker();
+        if (tracker != null && tracker.hasLocation(player, worldName)) {
+            Location saved = tracker.getLocation(player, worldName);
+            if (saved != null && saved.getWorld() != null) {
+                player.teleport(saved);
+                if (settings != null) player.setGameMode(settings.getGamemode());
+                return true;
+            }
+        }
+
+        // No tracked location — use first-visit-spawn (or world default)
+        Location spawnLoc = (settings != null)
+                ? settings.getSpawnLocation(world)
+                : world.getSpawnLocation();
+        player.teleport(spawnLoc);
         if (settings != null) player.setGameMode(settings.getGamemode());
         return true;
     }
@@ -665,6 +687,77 @@ public class WorldManager {
             plugin.getLogger().warning("Invalid difficulty '" + value + "' for " + worldName + ". Defaulting to NORMAL.");
             return Difficulty.NORMAL;
         }
+    }
+
+    /**
+     * Parses a {@code first-visit-spawn} entry from a world config section.
+     *
+     * <p>Supported YAML formats:
+     * <ul>
+     *   <li><b>Map/Section</b>: {@code first-visit-spawn: {x: 0, y: 64, z: 0, yaw: 90, pitch: 0}}</li>
+     *   <li><b>String</b>: {@code first-visit-spawn: "0, 64, 0, 90, 0"} — yaw and pitch are optional</li>
+     *   <li><b>List</b>: {@code first-visit-spawn: [0, 64, 0, 90, 0]} — yaw and pitch are optional</li>
+     * </ul>
+     *
+     * <p>Missing yaw and/or pitch values always default to {@code 0.0f}.
+     *
+     * @return the parsed {@link FirstVisitSpawn}, or {@code null} if the key is absent or invalid
+     */
+    private FirstVisitSpawn parseFirstVisitSpawn(ConfigurationSection section, String worldName) {
+        if (!section.contains("first-visit-spawn")) return null;
+        try {
+            // ── Map / section format ─────────────────────────────
+            ConfigurationSection sub = section.getConfigurationSection("first-visit-spawn");
+            if (sub != null) {
+                double x     = sub.getDouble("x", 0.0);
+                double y     = sub.getDouble("y", 64.0);
+                double z     = sub.getDouble("z", 0.0);
+                float  yaw   = (float) sub.getDouble("yaw",   0.0);
+                float  pitch = (float) sub.getDouble("pitch", 0.0);
+                return new FirstVisitSpawn(x, y, z, yaw, pitch);
+            }
+
+            // ── List format ──────────────────────────────────────
+            List<?> list = section.getList("first-visit-spawn");
+            if (list != null && !list.isEmpty()) {
+                double x     = toDouble(list, 0, 0.0);
+                double y     = toDouble(list, 1, 64.0);
+                double z     = toDouble(list, 2, 0.0);
+                float  yaw   = (float) toDouble(list, 3, 0.0);
+                float  pitch = (float) toDouble(list, 4, 0.0);
+                return new FirstVisitSpawn(x, y, z, yaw, pitch);
+            }
+
+            // ── String format ────────────────────────────────────
+            String raw = section.getString("first-visit-spawn");
+            if (raw != null && !raw.isBlank()) {
+                String[] parts = raw.split(",");
+                if (parts.length < 3) {
+                    plugin.getLogger().warning("first-visit-spawn for '" + worldName
+                            + "' needs at least x, y, z. Ignoring.");
+                    return null;
+                }
+                double x     = Double.parseDouble(parts[0].trim());
+                double y     = Double.parseDouble(parts[1].trim());
+                double z     = Double.parseDouble(parts[2].trim());
+                float  yaw   = parts.length > 3 ? Float.parseFloat(parts[3].trim()) : 0.0f;
+                float  pitch = parts.length > 4 ? Float.parseFloat(parts[4].trim()) : 0.0f;
+                return new FirstVisitSpawn(x, y, z, yaw, pitch);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Invalid first-visit-spawn for '" + worldName
+                    + "': " + e.getMessage() + ". Ignoring.");
+        }
+        return null;
+    }
+
+    /** Safely extracts a double from a list by index, returning {@code def} when out of bounds. */
+    private double toDouble(List<?> list, int index, double def) {
+        if (index >= list.size()) return def;
+        Object val = list.get(index);
+        if (val instanceof Number num) return num.doubleValue();
+        try { return Double.parseDouble(val.toString()); }
+        catch (NumberFormatException e) { return def; }
     }
 
     // ── Getters ──────────────────────────────────────────────────

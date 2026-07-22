@@ -196,7 +196,7 @@ Minigames can define custom commands to run at specific lifecycle points:
 All plugin behavior is customizable through YAML files:
 
 - **`config.yml`** - Hub world, SMP worlds, compass/social item settings, inventory groups
-- **`worlds.yml`** - World definitions with environment, gamemode, difficulty, time/weather locks
+- **`worlds.yml`** - World definitions with environment, gamemode, difficulty, time/weather locks, and optional `first-visit-spawn` coordinates
 - **`menus.yml`** - Custom GUI menus with items and click actions
 - **`minigames.yml`** - Minigame definitions with world types, player limits, commands
 
@@ -331,6 +331,8 @@ worlds:
     difficulty: NORMAL
     time-lock: 6000
     weather-lock: true
+    # Optional: where players without a tracked location spawn for the first time
+    # first-visit-spawn: {x: 0, y: 64, z: 0, yaw: 0, pitch: 0}
 ```
 
 ### 2. Add a New Minigame

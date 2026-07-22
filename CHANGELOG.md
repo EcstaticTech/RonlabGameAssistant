@@ -1,5 +1,16 @@
 ## Changelog
 
+### v1.8.0
+
+- Added `first-visit-spawn` configuration support to `worlds.yml` (resolves #22).
+  - New optional `first-visit-spawn` key per world entry accepts coordinates in Map (`{x, y, z, yaw, pitch}`), String (`"x, y, z"` — yaw/pitch optional, default `0`), or List (`[x, y, z]`) format.
+  - `LocationTracker` upgraded to per-world location tracking: player locations are now stored under `<uuid>.worlds.<worldName>` in `player-data.yml`.
+  - Veteran players with legacy flat `<uuid>.x/y/z` data are seamlessly migrated on first access; no player is treated as a first-time visitor after the update.
+  - Players with no tracked location for a world are teleported to the configured `first-visit-spawn`; falls back to the standard world spawn if not configured.
+  - `WorldManager.teleportToWorld()` now checks for a per-world tracked location first (veteran behaviour), then falls back to `first-visit-spawn` or world spawn.
+  - New `FirstVisitSpawn` data class and `WorldSettings.getSpawnLocation(World)` helper encapsulate the fallback hierarchy.
+  - 6 new unit tests in `WorldSettingsTest` covering all parsing formats and fallback behaviour.
+
 ### v1.7.0
 
 - Finalized minigame spectator support implementation (resolves spectator task in Phase 4 roadmap).

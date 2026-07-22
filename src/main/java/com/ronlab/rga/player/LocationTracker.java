@@ -28,7 +28,11 @@ public class LocationTracker implements Listener {
     private final File dataFile;
     private FileConfiguration dataConfig;
 
-    private final Map<UUID, Location> lastSmpLocations = new HashMap<>();
+    /**
+     * In-memory cache: UUID → (worldName → Location).
+     * Replaced the old flat {@code lastSmpLocations} map to support per-world tracking.
+     */
+    private final Map<UUID, Map<String, Location>> worldLocations = new HashMap<>();
 
     public LocationTracker(RGA plugin) {
         this.plugin = plugin;
@@ -50,26 +54,83 @@ public class LocationTracker implements Listener {
 
     // ── Public API ───────────────────────────────────────────────
 
+    /**
+     * Saves the player's location, keyed by the world that location belongs to.
+     */
     public void saveLocation(Player player, Location location) {
-        lastSmpLocations.put(player.getUniqueId(), location.clone());
-        writeLocationToDisk(player.getUniqueId(), location);
-        try {
-            dataConfig.save(dataFile);
-        } catch (IOException e) {
-            plugin.getLogger().severe("Could not save player-data.yml: " + e.getMessage());
-        }
+        if (location == null || location.getWorld() == null) return;
+        String worldName = location.getWorld().getName();
+        worldLocations
+                .computeIfAbsent(player.getUniqueId(), id -> new HashMap<>())
+                .put(worldName, location.clone());
+        writeLocationToDisk(player.getUniqueId(), worldName, location);
+        persistToDisk();
     }
 
+    /**
+     * Returns {@code true} if a tracked location exists for the player in <em>any</em> SMP world.
+     * Triggers legacy migration when needed.
+     */
     public boolean hasLocation(Player player) {
-        if (lastSmpLocations.containsKey(player.getUniqueId())) return true;
-        return dataConfig.contains(player.getUniqueId().toString());
+        UUID uuid = player.getUniqueId();
+        Map<String, Location> perWorld = worldLocations.get(uuid);
+        if (perWorld != null && !perWorld.isEmpty()) return true;
+        if (dataConfig.contains(uuid + ".worlds")) return true;
+        // Legacy path — migrate if present
+        if (dataConfig.contains(uuid + ".x")) {
+            migrateLegacyEntry(uuid);
+            return worldLocations.containsKey(uuid) && !worldLocations.get(uuid).isEmpty();
+        }
+        return false;
     }
 
+    /**
+     * Returns {@code true} if a tracked location exists for the player in the given world.
+     * Triggers legacy migration when needed.
+     */
+    public boolean hasLocation(Player player, String worldName) {
+        UUID uuid = player.getUniqueId();
+        ensureMigrated(uuid);
+        Map<String, Location> perWorld = worldLocations.get(uuid);
+        if (perWorld != null && perWorld.containsKey(worldName)) return true;
+        return dataConfig.contains(uuid + ".worlds." + worldName);
+    }
+
+    /**
+     * Returns the tracked location for the player's first available SMP world, or {@code null}.
+     * Triggers legacy migration when needed.
+     */
     public Location getLocation(Player player) {
-        if (lastSmpLocations.containsKey(player.getUniqueId())) {
-            return lastSmpLocations.get(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        ensureMigrated(uuid);
+        Map<String, Location> perWorld = worldLocations.get(uuid);
+        if (perWorld != null && !perWorld.isEmpty()) {
+            return perWorld.values().iterator().next();
         }
-        return loadLocationFromDisk(player.getUniqueId());
+        if (dataConfig.contains(uuid + ".worlds")) {
+            var worldsSection = dataConfig.getConfigurationSection(uuid + ".worlds");
+            if (worldsSection != null) {
+                for (String wn : worldsSection.getKeys(false)) {
+                    Location loc = loadLocationFromDisk(uuid, wn);
+                    if (loc != null) return loc;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns the tracked location for the player in the given world, or {@code null}.
+     * Triggers legacy migration when needed.
+     */
+    public Location getLocation(Player player, String worldName) {
+        UUID uuid = player.getUniqueId();
+        ensureMigrated(uuid);
+        Map<String, Location> perWorld = worldLocations.get(uuid);
+        if (perWorld != null && perWorld.containsKey(worldName)) {
+            return perWorld.get(worldName);
+        }
+        return loadLocationFromDisk(uuid, worldName);
     }
 
     public void teleportToLastLocation(Player player) {
@@ -87,7 +148,7 @@ public class LocationTracker implements Listener {
             }
         }
 
-        // No saved location — fall back to first SMP world spawn
+        // No saved location — fall back to first SMP world, honouring first-visit-spawn
         List<String> smpWorlds = plugin.getConfigManager().getSmpWorlds();
         if (smpWorlds.isEmpty()) {
             player.sendMessage(plugin.getConfigManager().getMessage("no-smp-location"));
@@ -103,23 +164,23 @@ public class LocationTracker implements Listener {
 
         player.sendMessage(Component.text("No saved SMP location found. Sending you to the SMP world spawn.", NamedTextColor.GRAY));
         player.sendMessage(plugin.getConfigManager().getMessage("teleporting"));
-        player.teleport(fallback.getSpawnLocation());
 
         var settings = plugin.getWorldManager().getSettings(fallbackWorldName);
+        Location spawnLoc = (settings != null) ? settings.getSpawnLocation(fallback) : fallback.getSpawnLocation();
+        player.teleport(spawnLoc);
         if (settings != null) player.setGameMode(settings.getGamemode());
     }
 
     // ── Persistence ──────────────────────────────────────────────
 
     public void saveAll() {
-        for (Map.Entry<UUID, Location> entry : lastSmpLocations.entrySet()) {
-            writeLocationToDisk(entry.getKey(), entry.getValue());
+        for (Map.Entry<UUID, Map<String, Location>> entry : worldLocations.entrySet()) {
+            UUID uuid = entry.getKey();
+            for (Map.Entry<String, Location> worldEntry : entry.getValue().entrySet()) {
+                writeLocationToDisk(uuid, worldEntry.getKey(), worldEntry.getValue());
+            }
         }
-        try {
-            dataConfig.save(dataFile);
-        } catch (IOException e) {
-            plugin.getLogger().severe("Could not save player-data.yml: " + e.getMessage());
-        }
+        persistToDisk();
     }
 
     private void loadFromDisk() {
@@ -132,33 +193,123 @@ public class LocationTracker implements Listener {
             }
         }
         dataConfig = YamlConfiguration.loadConfiguration(dataFile);
+
+        // Eagerly load all persisted per-world locations into memory
+        for (String uuidStr : dataConfig.getKeys(false)) {
+            try {
+                UUID uuid = UUID.fromString(uuidStr);
+                if (dataConfig.contains(uuidStr + ".worlds")) {
+                    var worldsSection = dataConfig.getConfigurationSection(uuidStr + ".worlds");
+                    if (worldsSection == null) continue;
+                    for (String worldName : worldsSection.getKeys(false)) {
+                        Location loc = loadLocationFromDisk(uuid, worldName);
+                        if (loc != null) {
+                            worldLocations.computeIfAbsent(uuid, id -> new HashMap<>()).put(worldName, loc);
+                        }
+                    }
+                }
+                // Legacy flat entries are left on disk and migrated lazily on first access
+            } catch (IllegalArgumentException ignored) {
+                // key is not a UUID — skip
+            }
+        }
     }
 
-    private void writeLocationToDisk(UUID uuid, Location loc) {
+    private void writeLocationToDisk(UUID uuid, String worldName, Location loc) {
         if (loc == null || loc.getWorld() == null) return;
-        String path = uuid.toString();
+        String path = uuid + ".worlds." + worldName;
         dataConfig.set(path + ".world", loc.getWorld().getName());
-        dataConfig.set(path + ".x", loc.getX());
-        dataConfig.set(path + ".y", loc.getY());
-        dataConfig.set(path + ".z", loc.getZ());
-        dataConfig.set(path + ".yaw", loc.getYaw());
-        dataConfig.set(path + ".pitch", loc.getPitch());
+        dataConfig.set(path + ".x",     loc.getX());
+        dataConfig.set(path + ".y",     loc.getY());
+        dataConfig.set(path + ".z",     loc.getZ());
+        dataConfig.set(path + ".yaw",   (double) loc.getYaw());
+        dataConfig.set(path + ".pitch", (double) loc.getPitch());
     }
 
-    private Location loadLocationFromDisk(UUID uuid) {
-        String path = uuid.toString();
+    private Location loadLocationFromDisk(UUID uuid, String worldName) {
+        String path = uuid + ".worlds." + worldName;
         if (!dataConfig.contains(path)) return null;
 
-        String worldName = dataConfig.getString(path + ".world");
-        World world = Bukkit.getWorld(worldName);
+        String storedWorldName = dataConfig.getString(path + ".world", worldName);
+        World world = Bukkit.getWorld(storedWorldName);
         if (world == null) return null;
 
-        double x = dataConfig.getDouble(path + ".x");
-        double y = dataConfig.getDouble(path + ".y");
-        double z = dataConfig.getDouble(path + ".z");
-        float yaw = (float) dataConfig.getDouble(path + ".yaw");
-        float pitch = (float) dataConfig.getDouble(path + ".pitch");
+        double x     = dataConfig.getDouble(path + ".x");
+        double y     = dataConfig.getDouble(path + ".y");
+        double z     = dataConfig.getDouble(path + ".z");
+        float  yaw   = (float) dataConfig.getDouble(path + ".yaw");
+        float  pitch = (float) dataConfig.getDouble(path + ".pitch");
 
         return new Location(world, x, y, z, yaw, pitch);
+    }
+
+    private void persistToDisk() {
+        try {
+            dataConfig.save(dataFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save player-data.yml: " + e.getMessage());
+        }
+    }
+
+    // ── Legacy migration ─────────────────────────────────────────
+
+    /**
+     * Migrates a legacy top-level {@code <uuid>.world/.x/.y/.z/.yaw/.pitch} entry into the new
+     * {@code <uuid>.worlds.<world>} structure. Called at most once per UUID per server session.
+     *
+     * <p>When the world is currently loaded the migrated location is also cached in memory.
+     * When the world is unloaded the raw coordinates are still written to the new disk path so
+     * they are available when the world comes back online, and are not wrongly treated as absent.
+     */
+    private void migrateLegacyEntry(UUID uuid) {
+        String base = uuid.toString();
+        if (!dataConfig.contains(base + ".x")) return; // nothing to migrate
+
+        String worldName = dataConfig.getString(base + ".world");
+        World world = (worldName != null) ? Bukkit.getWorld(worldName) : null;
+
+        if (worldName != null && !worldName.isBlank()) {
+            double x     = dataConfig.getDouble(base + ".x");
+            double y     = dataConfig.getDouble(base + ".y");
+            double z     = dataConfig.getDouble(base + ".z");
+            float  yaw   = (float) dataConfig.getDouble(base + ".yaw");
+            float  pitch = (float) dataConfig.getDouble(base + ".pitch");
+
+            // Write into the new per-world path on disk (works even when world is unloaded)
+            String path = uuid + ".worlds." + worldName;
+            dataConfig.set(path + ".world",  worldName);
+            dataConfig.set(path + ".x",      x);
+            dataConfig.set(path + ".y",      y);
+            dataConfig.set(path + ".z",      z);
+            dataConfig.set(path + ".yaw",    (double) yaw);
+            dataConfig.set(path + ".pitch",  (double) pitch);
+
+            // Cache in memory only when the world is currently loaded
+            if (world != null) {
+                Location loc = new Location(world, x, y, z, yaw, pitch);
+                worldLocations.computeIfAbsent(uuid, id -> new HashMap<>()).put(worldName, loc);
+            }
+        }
+
+        // Remove legacy top-level keys
+        dataConfig.set(base + ".world",  null);
+        dataConfig.set(base + ".x",      null);
+        dataConfig.set(base + ".y",      null);
+        dataConfig.set(base + ".z",      null);
+        dataConfig.set(base + ".yaw",    null);
+        dataConfig.set(base + ".pitch",  null);
+        persistToDisk();
+
+        plugin.getLogger().info("Migrated legacy location data for player " + uuid + " \u2192 " + worldName);
+    }
+
+    /**
+     * Triggers legacy migration for the given UUID if needed. No-op when already migrated
+     * or when no legacy data exists.
+     */
+    private void ensureMigrated(UUID uuid) {
+        if (!worldLocations.containsKey(uuid) && dataConfig.contains(uuid + ".x")) {
+            migrateLegacyEntry(uuid);
+        }
     }
 }
