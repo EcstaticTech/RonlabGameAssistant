@@ -5,12 +5,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ronlab</groupId>
-    <artifactId>RonlabGameAssistant</artifactId>
+    <artifactId>rga-api</artifactId>
     <version>1.10.1</version>
     <packaging>jar</packaging>
 
-    <name>RonlabGameAssistant</name>
-    <description>All-in-one game assistant plugin for Ronlab server.</description>
+    <name>rga-api</name>
+    <description>Public Event API for Ronlab Game Assistant companion plugins.</description>
 
     <properties>
         <java.version>25</java.version>
@@ -27,40 +27,14 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.ronlab</groupId>
-            <artifactId>rga-api</artifactId>
-            <version>1.10.1</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
             <version>[26.1.2.build,)</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>5.10.2</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>5.11.0</version>
-            <scope>test</scope>
-        </dependency>
-
     </dependencies>
 
     <build>
-        <sourceDirectory>src/main/java</sourceDirectory>
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>false</filtering>
-            </resource>
-        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -69,13 +43,6 @@
                 <configuration>
                     <release>25</release>
                 </configuration>
-            </plugin>
-
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
             </plugin>
         </plugins>
     </build>

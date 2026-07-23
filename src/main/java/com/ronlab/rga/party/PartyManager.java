@@ -1,6 +1,8 @@
 package com.ronlab.rga.party;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.api.event.MinigameConcludeEvent;
+import com.ronlab.rga.api.event.MinigameStartEvent;
 import com.ronlab.rga.minigame.Minigame;
 import com.ronlab.rga.minigame.WorldCopyManager;
 import com.ronlab.rga.util.AdventureUtil;
@@ -963,6 +965,21 @@ public class PartyManager implements Listener {
                     return;
                 }
 
+                World world = Bukkit.getWorld(worldName);
+                if (world == null) {
+                    broadcastToParty(party, Component.text("Game world failed to load. Please try again.", NamedTextColor.RED), null);
+                    abortGameStart(party, worldName, true);
+                    return;
+                }
+
+                MinigameStartEvent startEvent = new MinigameStartEvent(minigame.getId(), minigame.getName(), worldName, party.getMembers());
+                Bukkit.getPluginManager().callEvent(startEvent);
+                if (startEvent.isCancelled()) {
+                    broadcastToParty(party, Component.text("Game start was cancelled by an event listener.", NamedTextColor.YELLOW), null);
+                    abortGameStart(party, worldName, true);
+                    return;
+                }
+
                 party.setActiveWorldName(worldName);
                 party.setState(Party.State.IN_GAME);
 
@@ -972,13 +989,6 @@ public class PartyManager implements Listener {
                 // Register all three dimensions as a shared inventory group
                 plugin.getInventoryManager().addTemporaryGroup(worldName,
                         List.of(worldName, worldName + "_the_nether", worldName + "_the_end"));
-
-                World world = Bukkit.getWorld(worldName);
-                if (world == null) {
-                    broadcastToParty(party, Component.text("Game world failed to load. Please try again.", NamedTextColor.RED), null);
-                    party.setState(Party.State.LOBBY);
-                    return;
-                }
 
                 startCountdownAndLaunch(party, worldName, world, minigame, true);
             } else {
@@ -990,18 +1000,26 @@ public class PartyManager implements Listener {
                         return;
                     }
 
+                    World world = Bukkit.getWorld(worldName);
+                    if (world == null) {
+                        broadcastToParty(party, Component.text("Game world failed to load. Please try again.", NamedTextColor.RED), null);
+                        abortGameStart(party, worldName, false);
+                        return;
+                    }
+
+                    MinigameStartEvent startEvent = new MinigameStartEvent(minigame.getId(), minigame.getName(), worldName, party.getMembers());
+                    Bukkit.getPluginManager().callEvent(startEvent);
+                    if (startEvent.isCancelled()) {
+                        broadcastToParty(party, Component.text("Game start was cancelled by an event listener.", NamedTextColor.YELLOW), null);
+                        abortGameStart(party, worldName, false);
+                        return;
+                    }
+
                     party.setActiveWorldName(worldName);
                     party.setState(Party.State.IN_GAME);
 
                     // Write-ahead session snapshot right after world creation
                     plugin.getSessionManager().saveSession(party, worldName);
-
-                    World world = Bukkit.getWorld(worldName);
-                    if (world == null) {
-                        broadcastToParty(party, Component.text("Game world failed to load. Please try again.", NamedTextColor.RED), null);
-                        party.setState(Party.State.LOBBY);
-                        return;
-                    }
 
                     startCountdownAndLaunch(party, worldName, world, minigame, false);
                 });
@@ -1128,14 +1146,16 @@ public class PartyManager implements Listener {
 
         broadcastToParty(party, Component.text("The game start was cancelled because the party became unavailable.", NamedTextColor.YELLOW), null);
         party.setState(Party.State.LOBBY);
+        party.setActiveWorldName(null);
 
-        for (UUID uuid : party.getMembers()) {
-            playerParties.remove(uuid);
+        if (worldName != null) {
+            plugin.getInventoryManager().removeTemporaryGroup(worldName);
+            plugin.getInventoryManager().removeTemporaryGroup(worldName + "_the_nether");
+            plugin.getInventoryManager().removeTemporaryGroup(worldName + "_the_end");
+            worldCopyManager.cleanupWorld(worldName, isVanilla);
+            plugin.getSessionManager().deleteSession(worldName);
         }
-        activeParties.remove(party.getMinigameId());
-
-        worldCopyManager.cleanupWorld(worldName, isVanilla);
-        plugin.getSessionManager().deleteSession(worldName);
+        refreshLobbyForAll(party);
     }
 
     private NamedTextColor getCountdownTitleColor() {
@@ -1320,7 +1340,11 @@ public class PartyManager implements Listener {
 
     // ── Game End ─────────────────────────────────────────────────
 
-    public void concludeGame(String worldName) {
+    public boolean concludeGame(String worldName) {
+        return concludeGame(worldName, null);
+    }
+
+    public boolean concludeGame(String worldName, Map<UUID, ? extends Number> scores) {
         // Resolve to base world name in case a dimension suffix was passed
         // e.g. minigame_tag_abc_the_nether -> minigame_tag_abc
         String baseName = worldName;
@@ -1340,13 +1364,27 @@ public class PartyManager implements Listener {
 
         if (party == null) {
             plugin.getLogger().warning("No party found for world: " + worldName);
-            return;
+            return false;
         }
 
         // Use the resolved base name going forward
         worldName = baseName;
 
         Minigame minigame = party.getMinigame();
+
+        MinigameConcludeEvent concludeEvent = new MinigameConcludeEvent(
+                minigame.getId(),
+                minigame.getName(),
+                worldName,
+                party.getMembers(),
+                scores
+        );
+        Bukkit.getPluginManager().callEvent(concludeEvent);
+        if (concludeEvent.isCancelled()) {
+            plugin.getLogger().info("MinigameConcludeEvent was cancelled for session: " + worldName);
+            return false;
+        }
+
         World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
 
         // Collect spectator names before handling/clearing spectator state
@@ -1469,6 +1507,7 @@ public class PartyManager implements Listener {
 
         plugin.getLogger().info("Concluded minigame '" + minigame.getName()
                 + "' in world '" + worldName + "'.");
+        return true;
     }
 
     // ── Helpers ──────────────────────────────────────────────────

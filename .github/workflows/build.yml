@@ -27,16 +27,16 @@ jobs:
         run: mvn clean package --no-transfer-progress
 
       - name: List jar contents
-        run: jar tf target/RonlabGameAssistant-1.0.3.jar
+        run: jar tf target/RonlabGameAssistant-*.jar
 
       - name: Upload JAR to Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: github.event_name == 'release'
         with:
-          files: target/RonlabGameAssistant-1.0.3.jar
+          files: target/RonlabGameAssistant-*.jar
 
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
           name: RonlabGameAssistant
-          path: target/RonlabGameAssistant-1.0.3.jar
+          path: target/RonlabGameAssistant-*.jar

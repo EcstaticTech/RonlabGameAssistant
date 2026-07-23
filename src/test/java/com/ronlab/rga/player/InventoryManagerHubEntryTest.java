@@ -39,12 +39,21 @@ class InventoryManagerHubEntryTest {
     void setUp() throws Exception {
         tempDir = Files.createTempDirectory("rga-inv-test").toFile();
 
+        Object registryAccessMock = Proxy.newProxyInstance(
+                Class.forName("io.papermc.paper.registry.RegistryAccess").getClassLoader(),
+                new Class<?>[] { Class.forName("io.papermc.paper.registry.RegistryAccess") },
+                (proxy, method, args) -> null
+        );
+
         Server serverMock = (Server) Proxy.newProxyInstance(
                 Server.class.getClassLoader(),
                 new Class<?>[] { Server.class },
                 (proxy, method, args) -> {
                     if (method.getName().equals("getLogger")) {
                         return Logger.getLogger("Minecraft");
+                    }
+                    if (method.getName().equals("getRegistryAccess")) {
+                        return registryAccessMock;
                     }
                     if (method.getName().equals("getPluginManager")) {
                         return Proxy.newProxyInstance(
@@ -73,6 +82,7 @@ class InventoryManagerHubEntryTest {
         plugin.config = config;
 
         TestConfigManager configMgr = (TestConfigManager) unsafe.allocateInstance(TestConfigManager.class);
+        setPrivateField(configMgr, "this$0", this);
         setPrivateField(configMgr, "plugin", plugin);
         setPrivateField(plugin, "configManager", configMgr);
 
@@ -211,6 +221,32 @@ class InventoryManagerHubEntryTest {
             ItemStack item = (ItemStack) unsafe.allocateInstance(ItemStack.class);
             setPrivateField(item, "type", mat);
             setPrivateField(item, "amount", amount);
+
+            ItemStack delegate = (ItemStack) unsafe.allocateInstance(ItemStack.class);
+            setPrivateField(delegate, "type", mat);
+            setPrivateField(delegate, "amount", amount);
+
+            // Create anonymous subclass of ItemStack as craftDelegate
+            ItemStack customDelegate = new ItemStack() {
+                @Override
+                public Map<String, Object> serialize() {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("v", 3953);
+                    map.put("type", mat.name());
+                    map.put("amount", amount);
+                    return map;
+                }
+                @Override
+                public Material getType() {
+                    return mat;
+                }
+                @Override
+                public int getAmount() {
+                    return amount;
+                }
+            };
+
+            setPrivateField(item, "craftDelegate", customDelegate);
             return item;
         } catch (Exception e) {
             throw new RuntimeException(e);
