@@ -27,6 +27,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
     private static final Map<String, String> SUBCOMMAND_PERMISSIONS = Map.ofEntries(
         Map.entry("help",             "rga.world.teleport"),  // anyone with any access can see help
+        Map.entry("reloadconfig",     "rga.reload"),
         Map.entry("reload",           "rga.reload"),
         Map.entry("listworlds",       "rga.world.teleport"),
         Map.entry("tp",               "rga.world.teleport"),
@@ -107,7 +108,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "help" -> sendHelp(sender);
 
-            case "reload" -> {
+            case "reloadconfig", "reload" -> {
+                if (sub.equals("reload")) {
+                    sender.sendMessage(Component.text("Note: /rga reload is an alias for /rga reloadconfig.", NamedTextColor.GRAY));
+                }
                 plugin.reload();
                 sender.sendMessage(plugin.getConfigManager().getMessage("reloaded"));
             }
@@ -510,7 +514,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             List<String> allSubs = List.of(
-                "help", "reload", "listworlds", "tp", "compass",
+                "help", "reloadconfig", "reload", "listworlds", "tp", "compass",
                 "createworld", "importworld", "loadworld", "unloadworld", "deleteworld",
                 "setspawn", "setworldgamemode", "setworldpvp", "setworlddifficulty",
                 "setworldtime", "setworldweather", "setworldalias", "setworldtemplate",
@@ -702,8 +706,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 .append(Component.text(" - Show this help menu", NamedTextColor.GRAY))
                 .build());
         sender.sendMessage(Component.text()
-                .append(Component.text("/rga reload", NamedTextColor.YELLOW))
-                .append(Component.text(" - Reload all configs", NamedTextColor.GRAY))
+                .append(Component.text("/rga reloadconfig", NamedTextColor.YELLOW))
+                .append(Component.text(" - Reload configs and world definitions", NamedTextColor.GRAY))
                 .build());
         sender.sendMessage(Component.text()
                 .append(Component.text("/rga listworlds", NamedTextColor.YELLOW))

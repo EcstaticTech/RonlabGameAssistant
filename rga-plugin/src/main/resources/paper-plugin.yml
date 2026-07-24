@@ -8,7 +8,7 @@ authors: []
 commands:
   rga:
     description: Ronlab Game Assistant admin command.
-    usage: /rga <reload|tp|conclude|createworld|compass>
+    usage: /rga <reloadconfig|tp|conclude|createworld|compass>
     permission: rga.admin
   hub:
     description: Return to the Hub world.
@@ -28,7 +28,7 @@ permissions:
       rga.session.status: true
       rga.session.cleanup: true
   rga.reload:
-    description: Allows reloading RGA configs (/rga reload).
+    description: Allows reloading RGA configs and world definitions (/rga reloadconfig, /rga reload).
     default: op
   rga.world.teleport:
     description: Allows listing worlds and teleporting players (/rga listworlds, /rga tp, /rga compass).

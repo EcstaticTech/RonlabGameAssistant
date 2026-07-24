@@ -137,7 +137,7 @@ public class RGA extends JavaPlugin {
         inventoryManager.reload();
         minigameManager.reload();
         worldManager.loadConfiguredWorlds();
-        getLogger().info("Ronlab Game Assistant reloaded.");
+        getLogger().info("Ronlab Game Assistant configuration and world definitions reloaded.");
     }
 
     public static RGA getInstance() { return instance; }

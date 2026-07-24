@@ -12,6 +12,12 @@
   - Established unit testing suite `MinigameEventTest` verifying event firing, field contents, scores map mutation, and cancellation handling (#35).
   - Published comprehensive developer integration and migration guide in `EVENT_API_KNOWN_LIMITATIONS.md` (#37).
   - Tracked follow-up issue #38 for companion-initiated conclude request API.
+- Audited `/reload` command behavior and renamed primary subcommand to `/rga reloadconfig` (resolves #25).
+  - Audited `RGA.reload()` behavior: confirmed configuration reload is isolated to RGA plugin scope and does not trigger server-level `Bukkit.reload()`. Identified and documented that `worldManager.loadConfiguredWorlds()` initializes and loads any newly configured `load-on-startup: true` worlds in `worlds.yml`.
+  - Renamed primary subcommand to `/rga reloadconfig` and retained `/rga reload` as a backwards-compatible alias with notification guidance.
+  - Maintained single permission node `rga.reload` covering both `/rga reloadconfig` and `/rga reload` to ensure backwards compatibility.
+  - Updated command usage strings in `paper-plugin.yml`, `RGACommand` help text, tab completions, and `README.md`.
+  - Added unit test suite `RGACommandTest` verifying subcommand execution, alias notifications, permission checks, and tab completions per ADR #35.
 
 ### v1.10.0
 

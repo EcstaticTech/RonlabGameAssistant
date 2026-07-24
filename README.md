@@ -242,7 +242,7 @@ All plugin behavior is customizable through YAML files:
 
 ### Architectural Constraints
 
-- **Configuration Reload**: `/rga reload` requires reload; live config changes not supported
+- **Configuration Reload**: `/rga reloadconfig` reloads configs, GUI menus, and world definitions (alias: `/rga reload`); live config changes not supported
 - **World Deletion**: Old minigame worlds must be manually cleaned if deletion fails
 - **Session Persistence**: Write-ahead session snapshots survive server restarts; crash-recovered players get inventory, advancements, and location restored. Active parties and in-progress game sessions remain in-memory only.
 - **Synchronous World Operations**: World copying blocks the main thread (I/O intensive)
@@ -261,7 +261,7 @@ All plugin behavior is customizable through YAML files:
 
 ### Admin Commands
 ```
-/rga reload              - Reload configuration files
+/rga reloadconfig       - Reload configuration files and world definitions (alias: /rga reload)
 /rga tp <world>         - Teleport to a world
 /rga conclude <world>   - Conclude a minigame session in a world
 /rga createworld <name> - Create a new world
@@ -291,7 +291,7 @@ All plugin behavior is customizable through YAML files:
 | Node | Grants | Default |
 |---|---|---|
 | `rga.admin` | Wildcard — all nodes below | `op` |
-| `rga.reload` | `/rga reload` | `op` |
+| `rga.reload` | `/rga reloadconfig`, `/rga reload` | `op` |
 | `rga.world.teleport` | `/rga tp`, `/rga compass`, `/rga listworlds` | `op` |
 | `rga.world.manage` | `createworld`, `importworld`, `loadworld`, `unloadworld`, `deleteworld` | `op` |
 | `rga.world.configure` | `setspawn`, `setworldgamemode/pvp/difficulty/time/weather/alias/template`, `gamerule` | `op` |
