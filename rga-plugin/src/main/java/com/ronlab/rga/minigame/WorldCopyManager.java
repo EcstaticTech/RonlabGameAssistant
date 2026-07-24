@@ -1,6 +1,7 @@
 package com.ronlab.rga.minigame;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.util.FileUtils;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 
@@ -312,22 +313,9 @@ public class WorldCopyManager {
 
     private void deleteFolder(File folder) {
         if (folder == null || !folder.exists()) return;
-        Path rootPath = folder.toPath();
-        try {
-            Files.walkFileTree(rootPath, new SimpleFileVisitor<>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    Files.deleteIfExists(file);
-                    return FileVisitResult.CONTINUE;
-                }
-                @Override
-                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                    Files.deleteIfExists(dir);
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (IOException e) {
-            plugin.getLogger().severe("Failed to recursively delete " + folder + ": " + e.getMessage());
+        boolean deleted = FileUtils.deleteDirectoryWithRetry(folder, 3, 250);
+        if (!deleted) {
+            plugin.getLogger().severe("Failed to recursively delete " + folder);
         }
     }
 }

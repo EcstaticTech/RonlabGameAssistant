@@ -76,6 +76,7 @@ public class RGA extends JavaPlugin {
         partyManager = new PartyManager(this);
 
         worldManager.loadConfiguredWorlds();
+        worldManager.purgeOrphanedSessionFolders();
 
         socialItem = new SocialItem(this);
         browsePartiesGui = new BrowsePartiesGui(this);
