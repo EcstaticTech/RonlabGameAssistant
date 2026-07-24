@@ -20,5 +20,15 @@ public enum ConcludeResult {
     /**
      * No active party/session was found for the specified world.
      */
-    NOT_FOUND
+    NOT_FOUND,
+
+    /**
+     * Session is already in the process of teardown.
+     */
+    ALREADY_CONCLUDING,
+
+    /**
+     * An internal exception or I/O failure occurred during teardown.
+     */
+    ERROR
 }

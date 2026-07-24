@@ -1,5 +1,16 @@
 ## Changelog
 
+### v1.12.0
+
+- Implemented programmatic session conclusion API & event (resolves #38 and #27).
+  - Created `RGAGameRequestConcludeEvent` in `com.ronlab.rga.api.event` extending `MinigameEvent` and implementing `Cancellable` with isolated static `HandlerList`.
+  - Expanded `ConcludeResult` enum with operational failure modes: `SUCCESS`, `CANCELLED`, `NOT_FOUND`, `ALREADY_CONCLUDING`, and `ERROR`.
+  - Added `CONCLUDING` state to `Party.State` enum and audited state handling across `PartyManager` and `RGACommand`.
+  - Implemented `RGA.requestSessionConclude(worldName, reason, scores)` and `PartyManager.requestSessionConclude(...)` with main-thread safety guard (`Bukkit.isPrimaryThread()`).
+  - Added safe score conversion routine with overflow clamping (`Integer.MIN_VALUE`..`Integer.MAX_VALUE`) and numeric truncation logging.
+  - Published companion plugin integration guide in `docs/companion-integration.md` and updated `EVENT_API_KNOWN_LIMITATIONS.md`.
+  - Added unit test suite `SessionConcludeApiTest.java` verifying successful conclusions, event cancellations, thread safety guards, state guards, and score conversion safeguards.
+
 - Hardened YAML configuration parsing, defensive enum parsers & dimension toggles (resolves #30).
   - Enforced strict `isSet()` precedence logic for `disable-nether` and `disable-end` dimension toggles (`world-settings (if set)` > `minigame root (if set)` > `false`).
   - Added absent/null-valued command list warnings using `!section.isSet(cmdKey)` for `start-commands` and `conclude-commands`.

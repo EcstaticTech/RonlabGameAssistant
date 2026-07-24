@@ -6,7 +6,7 @@ import java.util.*;
 
 public class Party {
 
-    public enum State { LOBBY, QUEUED, IN_GAME }
+    public enum State { LOBBY, QUEUED, IN_GAME, CONCLUDING }
 
     private final UUID id;
     private final String minigameId;

@@ -4,6 +4,7 @@ import com.ronlab.rga.RGA;
 import com.ronlab.rga.api.event.ConcludeResult;
 import com.ronlab.rga.api.event.MinigameConcludeEvent;
 import com.ronlab.rga.api.event.MinigameStartEvent;
+import com.ronlab.rga.api.event.RGAGameRequestConcludeEvent;
 import com.ronlab.rga.minigame.Minigame;
 import com.ronlab.rga.minigame.WorldCopyManager;
 import com.ronlab.rga.util.AdventureUtil;
@@ -1339,6 +1340,88 @@ public class PartyManager implements Listener {
         plugin.getLogger().warning("Session '" + worldName + "' preserved for recovery. Players will be restored on next join.");
     }
 
+    // ── Programmatic Conclude API ────────────────────────────────
+
+    public Party getPartyByWorld(String worldName) {
+        if (worldName == null) return null;
+        String baseName = worldName;
+        if (baseName.endsWith("_the_nether")) {
+            baseName = baseName.substring(0, baseName.length() - "_the_nether".length());
+        } else if (baseName.endsWith("_the_end")) {
+            baseName = baseName.substring(0, baseName.length() - "_the_end".length());
+        }
+        for (Party p : activeParties.values()) {
+            if (baseName.equals(p.getActiveWorldName())) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    private int safeConvertScore(Number value) {
+        if (value == null) return 0;
+        long longVal = value.longValue();
+        if (longVal > Integer.MAX_VALUE) {
+            plugin.getLogger().warning("[RGA] Score value " + longVal + " exceeds Integer.MAX_VALUE. Clamping to MAX_VALUE.");
+            return Integer.MAX_VALUE;
+        }
+        if (longVal < Integer.MIN_VALUE) {
+            plugin.getLogger().warning("[RGA] Score value " + longVal + " below Integer.MIN_VALUE. Clamping to MIN_VALUE.");
+            return Integer.MIN_VALUE;
+        }
+        return value.intValue();
+    }
+
+    public ConcludeResult requestSessionConclude(String worldName, String rawReason, Map<UUID, ? extends Number> rawScores) {
+        if (!Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException(
+                "requestSessionConclude must be called on the main server thread. " +
+                "Use Bukkit.getScheduler().runTask() when calling from an async context."
+            );
+        }
+
+        Party party = getPartyByWorld(worldName);
+        if (party == null) {
+            return ConcludeResult.NOT_FOUND;
+        }
+        if (party.getState() == Party.State.CONCLUDING) {
+            return ConcludeResult.ALREADY_CONCLUDING;
+        }
+
+        String reason = (rawReason != null && rawReason.length() > 100) ? rawReason.substring(0, 100) : rawReason;
+        Minigame minigame = party.getMinigame();
+        RGAGameRequestConcludeEvent requestEvent = new RGAGameRequestConcludeEvent(
+                minigame.getId(),
+                minigame.getName(),
+                party.getActiveWorldName() != null ? party.getActiveWorldName() : worldName,
+                party.getMembers(),
+                reason,
+                rawScores
+        );
+
+        Bukkit.getPluginManager().callEvent(requestEvent);
+        if (requestEvent.isCancelled()) {
+            return ConcludeResult.CANCELLED;
+        }
+
+        Map<UUID, Integer> convertedScores = new HashMap<>();
+        if (requestEvent.getScores() != null) {
+            for (Map.Entry<UUID, Number> entry : requestEvent.getScores().entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    convertedScores.put(entry.getKey(), safeConvertScore(entry.getValue()));
+                }
+            }
+        }
+
+        try {
+            party.setState(Party.State.CONCLUDING);
+            return concludeGame(worldName, convertedScores);
+        } catch (Exception e) {
+            plugin.getLogger().severe("[RGA] Internal error during programmatic conclude for world '" + worldName + "': " + e.getMessage());
+            return ConcludeResult.ERROR;
+        }
+    }
+
     // ── Game End ─────────────────────────────────────────────────
 
     public ConcludeResult concludeGame(String worldName) {
@@ -1346,30 +1429,15 @@ public class PartyManager implements Listener {
     }
 
     public ConcludeResult concludeGame(String worldName, Map<UUID, ? extends Number> scores) {
-        // Resolve to base world name in case a dimension suffix was passed
-        // e.g. minigame_tag_abc_the_nether -> minigame_tag_abc
-        String baseName = worldName;
-        if (baseName.endsWith("_the_nether")) {
-            baseName = baseName.substring(0, baseName.length() - "_the_nether".length());
-        } else if (baseName.endsWith("_the_end")) {
-            baseName = baseName.substring(0, baseName.length() - "_the_end".length());
-        }
-
-        Party party = null;
-        for (Party p : activeParties.values()) {
-            if (baseName.equals(p.getActiveWorldName())) {
-                party = p;
-                break;
-            }
-        }
-
+        Party party = getPartyByWorld(worldName);
         if (party == null) {
             plugin.getLogger().warning("No party found for world: " + worldName);
             return ConcludeResult.NOT_FOUND;
         }
 
-        // Use the resolved base name going forward
-        worldName = baseName;
+        if (party.getActiveWorldName() != null) {
+            worldName = party.getActiveWorldName();
+        }
 
         Minigame minigame = party.getMinigame();
 

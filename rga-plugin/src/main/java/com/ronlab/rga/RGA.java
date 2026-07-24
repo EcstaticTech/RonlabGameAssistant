@@ -25,6 +25,9 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 import com.ronlab.rga.util.VersionGuard;
 
+import com.ronlab.rga.api.event.ConcludeResult;
+import java.util.Map;
+import java.util.UUID;
 import com.ronlab.rga.session.SessionManager;
 
 public class RGA extends JavaPlugin {
@@ -138,6 +141,11 @@ public class RGA extends JavaPlugin {
         minigameManager.reload();
         worldManager.loadConfiguredWorlds();
         getLogger().info("Ronlab Game Assistant configuration and world definitions reloaded.");
+    }
+
+    public ConcludeResult requestSessionConclude(String worldName, String reason, Map<UUID, ? extends Number> scores) {
+        if (partyManager == null) return ConcludeResult.ERROR;
+        return partyManager.requestSessionConclude(worldName, reason, scores);
     }
 
     public static RGA getInstance() { return instance; }

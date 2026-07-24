@@ -49,6 +49,12 @@ All events reside under the package `com.ronlab.rga.api.event`.
 - **Cancellable**: Yes. If `setCancelled(true)` is called, RGA cleanly aborts game start, cleans up temporary arena world files and inventory groups, and returns party members to the lobby.
 - **Fields**: `minigameId`, `minigameName`, `worldName`, `playerUuids`.
 
+### `RGAGameRequestConcludeEvent`
+- **Fired**: When a programmatic conclusion request is initiated via `RGA.requestSessionConclude(...)`.
+- **Cancellable**: Yes. Companion plugins can inspect reason/scores and call `setCancelled(true)` to veto the conclusion request.
+- **Listen-Only Interface**: Firing `RGAGameRequestConcludeEvent` manually does NOT trigger session teardown. Companion plugins must invoke `RGA.requestSessionConclude(...)`.
+- **Fields**: `minigameId`, `minigameName`, `worldName`, `playerUuids`, `reason`, `scores` (`Map<UUID, Number>`).
+
 ### `MinigameConcludeEvent`
 - **Fired**: On entry to `PartyManager.concludeGame()`.
 - **Cancellable**: Yes. Calling `setCancelled(true)` prevents session conclusion.
@@ -57,7 +63,18 @@ All events reside under the package `com.ronlab.rga.api.event`.
 
 ---
 
-## 3. Migration Guide from Legacy Console Commands
+## 3. Migration Guide & Programmatic Conclusion API
+
+### Programmatic Conclude Interface (`requestSessionConclude`)
+Companion plugins can programmatically conclude active minigame sessions by calling `RGA.requestSessionConclude(worldName, reason, scores)` on the main server thread.
+
+```java
+ConcludeResult result = RGA.getInstance().requestSessionConclude(
+    "minigame_tag_123",
+    "Game finished cleanly",
+    Map.of(playerUuid, 100)
+);
+```
 
 ### Legacy Pattern (Deprecated)
 Minigames previously dispatched raw console commands such as:
@@ -71,10 +88,17 @@ package com.ronlab.blockshuffle.listener;
 
 import com.ronlab.rga.api.event.MinigameConcludeEvent;
 import com.ronlab.rga.api.event.MinigameStartEvent;
+import com.ronlab.rga.api.event.RGAGameRequestConcludeEvent;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
 public class RgaEventListener implements Listener {
+
+    @EventHandler
+    public void onRequestConclude(RGAGameRequestConcludeEvent event) {
+        if (!"block_shuffle".equals(event.getMinigameId())) return;
+        // Veto or prepare for programmatic conclude request
+    }
 
     @EventHandler
     public void onMinigameStart(MinigameStartEvent event) {
@@ -104,11 +128,13 @@ public class RgaEventListener implements Listener {
    - Active session state is protected by write-ahead session persistence (`SessionManager`), but companion plugins must ensure custom in-memory event handlers are re-registered upon plugin re-enable.
 
 3. **In-Process Conclude API Feedback & `ConcludeResult` Enum**:
-   - Companion plugins invoking `PartyManager.concludeGame(worldName, scores)` directly in Java receive synchronous feedback via the [ConcludeResult](file:///m:/projects/RonlabGameAssistant/rga-api/src/main/java/com/ronlab/rga/api/event/ConcludeResult.java) enum (`com.ronlab.rga.api.event.ConcludeResult`).
+   - Companion plugins invoking `RGA.requestSessionConclude(...)` or `PartyManager.concludeGame(...)` receive synchronous feedback via the [ConcludeResult](file:///m:/projects/RonlabGameAssistant/rga-api/src/main/java/com/ronlab/rga/api/event/ConcludeResult.java) enum (`com.ronlab.rga.api.event.ConcludeResult`).
    - Possible enum return values:
      - `SUCCESS`: The session was successfully concluded and cleaned up.
      - `CANCELLED`: Conclusion was cancelled by an event listener (and active online party members were remaining). Note: If zero online members remain, RGA overrides cancellation to prevent abandoned sessions.
      - `NOT_FOUND`: No active party/session was found matching the specified world name.
+     - `ALREADY_CONCLUDING`: Session is already in the teardown phase (`Party.State.CONCLUDING`).
+     - `ERROR`: An internal exception occurred during teardown.
 
 4. **No Event Fired on World Creation Failure**:
    - `MinigameStartEvent` is **only** fired after arena world creation and template loading succeed.

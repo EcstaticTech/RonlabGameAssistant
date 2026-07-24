@@ -338,6 +338,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 switch (result) {
                     case CANCELLED -> sender.sendMessage(Component.text("Game conclusion was cancelled by a plugin.", NamedTextColor.RED));
                     case NOT_FOUND -> sender.sendMessage(Component.text("No active session for world '" + worldName + "'.", NamedTextColor.RED));
+                    case ALREADY_CONCLUDING -> sender.sendMessage(Component.text("Session is already in the process of teardown.", NamedTextColor.RED));
+                    case ERROR -> sender.sendMessage(Component.text("An internal error occurred during teardown.", NamedTextColor.RED));
                     case SUCCESS -> sender.sendMessage(Component.text("Game concluded for world: " + worldName, NamedTextColor.GREEN));
                 }
             }
