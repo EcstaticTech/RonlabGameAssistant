@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.ronlab</groupId>
         <artifactId>rga-parent</artifactId>
-        <version>1.10.1</version>
+        <version>1.11.0</version>
     </parent>
 
     <artifactId>RonlabGameAssistant</artifactId>
@@ -20,7 +20,7 @@
         <dependency>
             <groupId>com.ronlab</groupId>
             <artifactId>rga-api</artifactId>
-            <version>1.10.1</version>
+            <version>1.11.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>

@@ -12,7 +12,7 @@ Companion plugins should depend on `rga-api` via Maven or JitPack:
 <dependency>
     <groupId>com.ronlab</groupId>
     <artifactId>rga-api</artifactId>
-    <version>1.10.0</version>
+    <version>1.11.0</version>
     <scope>provided</scope>
 </dependency>
 ```
@@ -94,11 +94,40 @@ public class RgaEventListener implements Listener {
 
 ## 4. Known Limitations & Failure Path Contracts
 
-1. **Score Mutation (Last-Write-Wins)**:
-   - The `scores` map in `MinigameConcludeEvent` is mutable. If multiple listeners alter the score for a player, standard Bukkit `EventPriority` ordering applies (higher priority runs later and takes precedence).
+1. **Score Mutation (Last-Write-Wins Rules & EventPriority Precedence)**:
+   - The `scores` map in `MinigameConcludeEvent` is mutable (`Map<UUID, Number>`).
+   - If multiple listeners alter the score for a player, standard Bukkit `EventPriority` ordering applies (`LOWEST` -> `LOW` -> `NORMAL` -> `HIGH` -> `HIGHEST` -> `MONITOR`).
+   - A listener executing at a higher priority runs later and overwrites values set by earlier listeners (Last-Write-Wins).
 
 2. **Hot-Swapping & Server Reloads**:
-   - Registered `rga-api` listeners should unregister or handle plugin disable gracefully during `/reload`. Active session state is protected by write-ahead session persistence.
+   - Registered `rga-api` listeners should unregister or handle plugin disable gracefully during `/reload`.
+   - Active session state is protected by write-ahead session persistence (`SessionManager`), but companion plugins must ensure custom in-memory event handlers are re-registered upon plugin re-enable.
 
-3. **In-Process Conclude API Feedback**:
-   - `PartyManager.concludeGame(worldName, scores)` returns a `boolean` (`true` if concluded, `false` if cancelled or party not found). Companion plugins calling this method directly in Java receive synchronous feedback.
+3. **In-Process Conclude API Feedback & `ConcludeResult` Enum**:
+   - Companion plugins invoking `PartyManager.concludeGame(worldName, scores)` directly in Java receive synchronous feedback via the [ConcludeResult](file:///m:/projects/RonlabGameAssistant/rga-api/src/main/java/com/ronlab/rga/api/event/ConcludeResult.java) enum (`com.ronlab.rga.api.event.ConcludeResult`).
+   - Possible enum return values:
+     - `SUCCESS`: The session was successfully concluded and cleaned up.
+     - `CANCELLED`: Conclusion was cancelled by an event listener (and active online party members were remaining). Note: If zero online members remain, RGA overrides cancellation to prevent abandoned sessions.
+     - `NOT_FOUND`: No active party/session was found matching the specified world name.
+
+4. **No Event Fired on World Creation Failure**:
+   - `MinigameStartEvent` is **only** fired after arena world creation and template loading succeed.
+   - If Bukkit world loading or template duplication fails (e.g. IO error, missing world folder), `MinigameStartEvent` will **NOT** fire.
+   - In this failure scenario, RGA executes internal `abortGameStart()` cleanup:
+     - Reverts party state to `LOBBY` and clears active world association.
+     - Cleans up any registered temporary inventory groups (`InventoryManager`).
+     - Triggers `WorldCopyManager.cleanupWorld()` to purge residual temporary world directories.
+     - Deletes orphaned session persistence records (`SessionManager`).
+     - Restores party members safely to the lobby.
+
+5. **API Versioning & Semver Policy**:
+   - `rga-api` follows Semantic Versioning (SemVer).
+   - Additive event API changes (e.g. new fields, new lifecycle events, new enum values) trigger a minor version bump on `rga-parent` / `rga-api` (e.g. `1.11.0` -> `1.12.0`).
+   - Companion plugins compiled against an older minor version of `rga-api` retain backwards binary compatibility due to strict field retention and non-breaking contract policies.
+
+---
+
+## Related Documentation
+
+- [DECISION_35_TESTING_FRAMEWORK.md](file:///m:/projects/RonlabGameAssistant/DECISION_35_TESTING_FRAMEWORK.md)
+- [ConcludeResult.java](file:///m:/projects/RonlabGameAssistant/rga-api/src/main/java/com/ronlab/rga/api/event/ConcludeResult.java)

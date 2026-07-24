@@ -1,6 +1,7 @@
 package com.ronlab.rga.command;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.api.event.ConcludeResult;
 import com.ronlab.rga.minigame.Minigame;
 import com.ronlab.rga.party.Party;
 import com.ronlab.rga.util.AdventureUtil;
@@ -344,25 +345,12 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             case "conclude" -> {
                 if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga conclude <worldname>", NamedTextColor.RED)); return true; }
                 String worldName = args[1];
-                String baseName = worldName;
-                if (baseName.endsWith("_the_nether")) {
-                    baseName = baseName.substring(0, baseName.length() - "_the_nether".length());
-                } else if (baseName.endsWith("_the_end")) {
-                    baseName = baseName.substring(0, baseName.length() - "_the_end".length());
+                ConcludeResult result = plugin.getPartyManager().concludeGame(worldName);
+                switch (result) {
+                    case CANCELLED -> sender.sendMessage(Component.text("Game conclusion was cancelled by a plugin.", NamedTextColor.RED));
+                    case NOT_FOUND -> sender.sendMessage(Component.text("No active session for world '" + worldName + "'.", NamedTextColor.RED));
+                    case SUCCESS -> sender.sendMessage(Component.text("Game concluded for world: " + worldName, NamedTextColor.GREEN));
                 }
-                boolean active = false;
-                for (com.ronlab.rga.party.Party p : plugin.getPartyManager().getActiveParties().values()) {
-                    if (baseName.equals(p.getActiveWorldName())) {
-                        active = true;
-                        break;
-                    }
-                }
-                if (!active) {
-                    sender.sendMessage(Component.text("No active session for world '" + worldName + "'.", NamedTextColor.RED));
-                    return true;
-                }
-                plugin.getPartyManager().concludeGame(worldName);
-                sender.sendMessage(Component.text("Game concluded for world: " + worldName, NamedTextColor.GREEN));
             }
 
             case "concludeall" -> {
@@ -371,14 +359,25 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage(Component.text("No active games to conclude.", NamedTextColor.YELLOW));
                     return true;
                 }
-                int count = parties.size();
+                int successCount = 0;
+                int cancelledCount = 0;
                 // Copy values to avoid concurrent modification
-                new java.util.ArrayList<>(parties.values()).forEach(party -> {
+                List<com.ronlab.rga.party.Party> partyList = new ArrayList<>(parties.values());
+                for (com.ronlab.rga.party.Party party : partyList) {
                     if (party.getActiveWorldName() != null) {
-                        plugin.getPartyManager().concludeGame(party.getActiveWorldName());
+                        ConcludeResult res = plugin.getPartyManager().concludeGame(party.getActiveWorldName());
+                        if (res == ConcludeResult.SUCCESS) {
+                            successCount++;
+                        } else if (res == ConcludeResult.CANCELLED) {
+                            cancelledCount++;
+                        }
                     }
-                });
-                sender.sendMessage(Component.text("Concluded " + count + " active game(s).", NamedTextColor.GREEN));
+                }
+                if (cancelledCount > 0) {
+                    sender.sendMessage(Component.text("Concluded " + successCount + " active game(s) (" + cancelledCount + " cancelled by plugins).", NamedTextColor.YELLOW));
+                } else {
+                    sender.sendMessage(Component.text("Concluded " + successCount + " active game(s).", NamedTextColor.GREEN));
+                }
             }
 
             case "cleanupsession" -> {

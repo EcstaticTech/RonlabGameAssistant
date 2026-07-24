@@ -1,6 +1,7 @@
 package com.ronlab.rga.party;
 
 import com.ronlab.rga.RGA;
+import com.ronlab.rga.api.event.ConcludeResult;
 import com.ronlab.rga.api.event.MinigameConcludeEvent;
 import com.ronlab.rga.api.event.MinigameStartEvent;
 import com.ronlab.rga.minigame.Minigame;
@@ -1340,11 +1341,11 @@ public class PartyManager implements Listener {
 
     // ── Game End ─────────────────────────────────────────────────
 
-    public boolean concludeGame(String worldName) {
+    public ConcludeResult concludeGame(String worldName) {
         return concludeGame(worldName, null);
     }
 
-    public boolean concludeGame(String worldName, Map<UUID, ? extends Number> scores) {
+    public ConcludeResult concludeGame(String worldName, Map<UUID, ? extends Number> scores) {
         // Resolve to base world name in case a dimension suffix was passed
         // e.g. minigame_tag_abc_the_nether -> minigame_tag_abc
         String baseName = worldName;
@@ -1364,7 +1365,7 @@ public class PartyManager implements Listener {
 
         if (party == null) {
             plugin.getLogger().warning("No party found for world: " + worldName);
-            return false;
+            return ConcludeResult.NOT_FOUND;
         }
 
         // Use the resolved base name going forward
@@ -1381,8 +1382,13 @@ public class PartyManager implements Listener {
         );
         Bukkit.getPluginManager().callEvent(concludeEvent);
         if (concludeEvent.isCancelled()) {
-            plugin.getLogger().info("MinigameConcludeEvent was cancelled for session: " + worldName);
-            return false;
+            boolean zeroOnlineMembers = getOnlinePartyMembers(party).isEmpty();
+            if (zeroOnlineMembers) {
+                plugin.getLogger().warning("Zero members remaining - overriding event cancellation for session: " + worldName);
+            } else {
+                plugin.getLogger().info("MinigameConcludeEvent was cancelled for session: " + worldName);
+                return ConcludeResult.CANCELLED;
+            }
         }
 
         World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
@@ -1507,7 +1513,7 @@ public class PartyManager implements Listener {
 
         plugin.getLogger().info("Concluded minigame '" + minigame.getName()
                 + "' in world '" + worldName + "'.");
-        return true;
+        return ConcludeResult.SUCCESS;
     }
 
     // ── Helpers ──────────────────────────────────────────────────

@@ -1,12 +1,13 @@
 ## Changelog
 
-### v1.10.1
+### v1.11.0
 
 - Implemented companion plugin event-driven integration API (resolves #24 umbrella and #31–#37).
-  - Extracted standalone `com.ronlab:rga-api:1.10.1` Maven submodule (`rga-api/pom.xml`) for companion plugin artifact distribution (#36).
+  - Extracted standalone `com.ronlab:rga-api:1.11.0` Maven submodule (`rga-api/pom.xml`) for companion plugin artifact distribution (#36).
   - Created base `MinigameEvent` and concrete event API package `com.ronlab.rga.api.event` (#32).
   - Implemented `MinigameStartEvent` fired in `PartyManager.startGame()` after arena world creation/load succeeds, honoring listener cancellation to cleanly abort game start (#33).
   - Implemented `MinigameConcludeEvent` fired in `PartyManager.concludeGame()` with a mutable `scores` map (`Map<UUID, Number>`) and updated `concludeGame()` signature to return `boolean` (#34).
+  - Documented breaking API surface changes: introduced `ConcludeResult` return type for structured conclusion status and updated `MinigameConcludeEvent` scores contract (`Map<UUID, Number>`).
   - Reordered world load validation before state mutation in `PartyManager.startGame()` and extracted shared `abortGameStart()` helper to clean up inventory groups, session snapshots, and temporary worlds on failure (#31).
   - Established unit testing suite `MinigameEventTest` verifying event firing, field contents, scores map mutation, and cancellation handling (#35).
   - Published comprehensive developer integration and migration guide in `EVENT_API_KNOWN_LIMITATIONS.md` (#37).
