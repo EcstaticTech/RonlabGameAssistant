@@ -1,90 +1,38 @@
-## Changelog
+# Changelog
 
-- Configured `maven-shade-plugin` in `rga-plugin/pom.xml` to shade `rga-api` into the primary plugin artifact.
-  - Added `maven-shade-plugin` configuration bundling `com.ronlab:rga-api` directly into `rga-plugin/target/RonlabGameAssistant-1.12.0.jar`.
-  - Set `<createDependencyReducedPom>false</createDependencyReducedPom>` to ensure clean POM generation.
-  - Enables PaperMC server deployments to host `RonlabGameAssistant.jar` self-containedly without extra server plugin dependencies, while companion plugin developers continue referencing `com.ronlab:rga-api` via Maven.
+All notable changes to this project will be documented in this file.
 
-- Implemented datapack stripping in `WorldCopyManager` (resolves #39).
-  - Added `FileVisitResult.SKIP_SUBTREE` check in `WorldCopyManager.copyFolder`'s `preVisitDirectory` for directories named `datapacks` (case-insensitive).
-  - Fulfilled ADR-0002 by preventing unnecessary file writes, eliminating false expectations of per-session datapack isolation, and reducing session creation I/O overhead.
-  - Ensured Paper 26.1 nested dimension subfolders (`dimensions/minecraft/the_nether`, `dimensions/minecraft/the_end`) and standard region files remain fully preserved.
-  - Added unit test suite `WorldCopyManagerDatapackStripTest.java` verifying datapack directory omission and nested dimension folder copy resilience.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-- Standardized orphan session startup detection and status reporting (resolves #43).
-  - Added `SessionStatus` enum (`ACTIVE`, `ORPHANED`) and updated `SessionManager.loadOrphanedSessions()` to scan persistence files on boot and output formatted diagnostics: `[RGA WARNING] Detected ORPHANED minigame session for world '%world%'...`.
-  - Added boot-sequence race condition guard in `WorldManager.loadWorld()` to explicitly skip automatic loading of orphaned minigame world folders into Bukkit on server boot, keeping them unloaded on disk until administrative cleanup.
-  - Updated `StatusReportFormatter` and `RGACommand` (`/rga status` and `/rga sessions list`) to surface explicit `[ORPHANED]` badges next to orphaned worlds alongside active `[ACTIVE]` sessions.
-  - Maintained `/rga cleanupsession <world>` as the explicit trigger for unloading and deleting orphaned session files and disk folders.
-  - Added unit test suite `OrphanSessionDetectionTest.java` verifying startup detection, boot sequence guards, status formatting, and explicit cleanup triggers.
+## [1.12.1] - 2026-07-24
 
-- Enforced config snapshot immutability across `/rga reloadconfig` (resolves #42).
-  - Wrapped all `Minigame` collection fields (`startCommands`, `concludeCommands`, `displayLore`, `gamerules`) in `List.copyOf()` and `Map.copyOf()` to make `Minigame` instances immutable snapshots at construction time.
-  - Wrapped `WorldSettings` `gamerules` map in `Map.copyOf()` for immutability.
-  - Ensured active `Party` and `GameSession` instances retain their launch `Minigame` snapshot when `MinigameManager` reloads configuration mid-session.
-  - Updated `/rga reloadconfig` feedback text and default message `reloaded` in `config.yml`: `"&a[RGA] Configuration reloaded. Active game sessions will retain their launch configuration."`
-  - Added unit test suite `ConfigImmutabilityTest.java` verifying `UnsupportedOperationException` on mutation attempts and reload snapshot isolation.
+### Changed
+- **Repository Structure:** Relocated internal design documents, ADRs, and migration checklists into `docs/` using `git mv` to preserve history.
+- **Dependency Alignment:** Locked Paper target to `26.2` and Java to `25` across all POMs and companion templates.
 
-- Reconciled `README.md` with v1.12.0 state and surfaced architectural docs (resolves #41).
-  - Updated version references throughout `README.md` to `v1.12.0`.
-  - Documented multi-module Maven build architecture (`rga-api` and `rga-plugin`) and root `mvn clean package` outputs.
-  - Added dedicated section for companion event API (`MinigameStartEvent`, `MinigameConcludeEvent` with mutable scores map, `GameSessionRequestConcludeEvent`).
-  - Documented missing features: `first-visit-spawn` in `worlds.yml`, configurable hub entry behavior, party persistence grace period, and minigame queueing/auto-start.
-  - Updated `/rga reloadconfig` operational semantics and replaced stale single-console-sender limitation with role-based command execution (`console:`, `player-each:`, `leader:`).
-  - Linked to `EVENT_API_KNOWN_LIMITATIONS.md` and `docs/adr/ADR-0002-datapack-isolation.md`.
+### Fixed
+- **Config Log Spam (#M1):** Wrapped `saveResource()` calls in `ConfigManager` with file-existence guards to eliminate startup log warnings.
+- **Windows File Handle Leaks:** Documented explicit `deleteDirectoryWithRetry()` GC routines releasing `.mca` region locks on world teardown.
 
-- Implemented template-level concurrency locks in `WorldCopyManager` (resolves #40).
-  - Added `ConcurrentHashMap<String, ReentrantLock>` to `WorldCopyManager` keyed by normalized source template world name.
-  - Enforced key-based lock acquisition and `finally`-block lock release in `copyTemplateWorld` to prevent file access collisions and read races during concurrent async template copies.
-  - Added unit test suite `WorldCopyManagerLockTest.java` verifying lock instance reuse, copy completion, failure path lock release, and sequential execution under concurrent copy tasks.
+---
 
-- Evaluated datapack isolation strategy & published ADR-0002 (resolves #28).
-  - Published Architectural Decision Record `docs/adr-0002-datapack-isolation-strategy.md` documenting CraftBukkit/Paper global server registry design and per-world datapack limitations.
-  - Documented static propagation (template baked terrain/NBT) vs dynamic non-propagation (inert session folder datapacks, global registry leakage).
-  - Formulated Java plugin replication feasibility matrix and provided session-scoped Java event listener override patterns for `CraftItemEvent`, `LootGenerateEvent`, and `BlockBreakEvent`.
-  - Assessed operational RAM/multi-instance infrastructure cost of Velocity proxy isolation tier.
-  - Registered follow-up implementation issue #39 for `WorldCopyManager` datapack directory stripping.
+## [1.12.0] - 2026-07-24
 
-- Implemented programmatic session conclusion API & event (resolves #38 and #27).
-  - Created `RGAGameRequestConcludeEvent` in `com.ronlab.rga.api.event` extending `MinigameEvent` and implementing `Cancellable` with isolated static `HandlerList`.
-  - Expanded `ConcludeResult` enum with operational failure modes: `SUCCESS`, `CANCELLED`, `NOT_FOUND`, `ALREADY_CONCLUDING`, and `ERROR`.
-  - Added `CONCLUDING` state to `Party.State` enum and audited state handling across `PartyManager` and `RGACommand`.
-  - Implemented `RGA.requestSessionConclude(worldName, reason, scores)` and `PartyManager.requestSessionConclude(...)` with main-thread safety guard (`Bukkit.isPrimaryThread()`).
-  - Added safe score conversion routine with overflow clamping (`Integer.MIN_VALUE`..`Integer.MAX_VALUE`) and numeric truncation logging.
-  - Published companion plugin integration guide in `docs/companion-integration.md` and updated `EVENT_API_KNOWN_LIMITATIONS.md`.
-  - Added unit test suite `SessionConcludeApiTest.java` verifying successful conclusions, event cancellations, thread safety guards, state guards, and score conversion safeguards.
+### Added
+- **Orphan Session Recovery (#43):** Write-ahead persistence logging and boot-time session purging for crash recovery.
+- **Concurrency Safeguards (#40):** `WorldCopyManager` thread safety using `ReentrantLock` maps per world template.
+- **Config Immutability (#42):** Immutable wrapper list/map protection for loaded minigame configurations.
+- **Module Shading:** Configured `maven-shade-plugin` in `rga-plugin/pom.xml` to shade `rga-api` into the primary plugin artifact (`RonlabGameAssistant-1.12.0.jar`).
+- **Programmatic Conclude API:** Implemented programmatic session conclusion API & event (`RGAGameRequestConcludeEvent`, `requestSessionConclude`).
 
-- Hardened YAML configuration parsing, defensive enum parsers & dimension toggles (resolves #30).
-  - Enforced strict `isSet()` precedence logic for `disable-nether` and `disable-end` dimension toggles (`world-settings (if set)` > `minigame root (if set)` > `false`).
-  - Added absent/null-valued command list warnings using `!section.isSet(cmdKey)` for `start-commands` and `conclude-commands`.
-  - Implemented `Object`-accepting, case-insensitive (`Locale.ROOT`), and numeric-mapped enum parsers in `WorldManager` (`parseEnvironment`, `parseDifficulty`, `parseGameMode`).
-  - Refactored `WorldCopyManager` template copying to skip disabled dimension subfolders (`_nether`, `_the_end`, `the_nether`, `the_end`, `DIM-1`, `DIM1`) while keeping source templates read-only.
-  - Implemented specific fallback warning contracts in `ConfigManager` (`getHubWorld()` -> `"world"`, `getMessage()` -> raw key string) and `MenuManager` (`parseMaterial()` -> `STONE`, `parseTitle()` -> `"Unnamed Menu"`).
-  - Documented Bukkit nether portal limitation note: enabling `disable-nether`/`disable-end` stops dimension folder creation but does not block Bukkit portal generation if `allow-nether=true` in `server.properties`.
-- Implemented companion plugin event-driven integration API (resolves #24 umbrella and #31–#37).
-  - Extracted standalone `com.ronlab:rga-api:1.11.0` Maven submodule (`rga-api/pom.xml`) for companion plugin artifact distribution (#36).
-  - Created base `MinigameEvent` and concrete event API package `com.ronlab.rga.api.event` (#32).
-  - Implemented `MinigameStartEvent` fired in `PartyManager.startGame()` after arena world creation/load succeeds, honoring listener cancellation to cleanly abort game start (#33).
-  - Implemented `MinigameConcludeEvent` fired in `PartyManager.concludeGame()` with a mutable `scores` map (`Map<UUID, Number>`) and updated `concludeGame()` signature to return `boolean` (#34).
-  - Documented breaking API surface changes: introduced `ConcludeResult` return type for structured conclusion status and updated `MinigameConcludeEvent` scores contract (`Map<UUID, Number>`).
-  - Reordered world load validation before state mutation in `PartyManager.startGame()` and extracted shared `abortGameStart()` helper to clean up inventory groups, session snapshots, and temporary worlds on failure (#31).
-  - Established unit testing suite `MinigameEventTest` verifying event firing, field contents, scores map mutation, and cancellation handling (#35).
-  - Published comprehensive developer integration and migration guide in `EVENT_API_KNOWN_LIMITATIONS.md` (#37).
-  - Tracked follow-up issue #38 for companion-initiated conclude request API.
-- Audited `/reload` command behavior and renamed primary subcommand to `/rga reloadconfig` (resolves #25).
-  - Audited `RGA.reload()` behavior: confirmed configuration reload is isolated to RGA plugin scope and does not trigger server-level `Bukkit.reload()`. Identified and documented that `worldManager.loadConfiguredWorlds()` initializes and loads any newly configured `load-on-startup: true` worlds in `worlds.yml`.
-  - Renamed primary subcommand to `/rga reloadconfig` and retained `/rga reload` as a backwards-compatible alias with notification guidance.
-  - Maintained single permission node `rga.reload` covering both `/rga reloadconfig` and `/rga reload` to ensure backwards compatibility.
-  - Updated command usage strings in `paper-plugin.yml`, `RGACommand` help text, tab completions, and `README.md`.
-  - Enforced centralized world name validation across all entry points with a structured severity taxonomy (resolves #26).
-  - Implemented `WorldNameValidator` and `ValidationResult` in `com.ronlab.rga.util` separating Hard Security Violations (path traversal `..`, OS-illegal characters) from Format Tier checks.
-  - Added soft migration toggle `strict-world-name-validation: false` (default `false` in v1.11.x) to `config.yml` with getter in `ConfigManager`.
-  - Hardened untrusted command boundary (`RGACommand.java`): dispatches check `WorldNameValidator.validate(worldName, isStrict)` and return appropriate security vs format error messages.
-  - Hardened trusted config parsing boundary (`WorldManager.java`, `MinigameManager.java`): security violations trigger `SEVERE` errors and skip the entry, while cosmetic warnings (spaces, leading dots) log `WARNING` and load the world/minigame normally to prevent data loss.
-  - Ensured generator conformity in `WorldCopyManager.java` by sanitizing minigame IDs when constructing session world names.
-  - Added comprehensive unit test suite `WorldNameValidatorTest.java` verifying path traversal, OS characters, cosmetic warnings, strict mode, length boundaries, and filesystem sanitization.
+### Fixed
+- **Datapack Stripping (#39):** Async world copy logic now strips `/datapacks/` directories on world creation.
+- **Yaml Config Hardening (#30):** Enforced strict `isSet()` precedence logic for `disable-nether` and `disable-end` dimension toggles.
 
-### v1.10.0
+---
+
+### [1.11.0] - 2026-07-24
 
 
 - Implemented party persistence grace period for hub visits (resolves #29).

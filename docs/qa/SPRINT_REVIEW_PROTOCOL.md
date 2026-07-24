@@ -67,11 +67,11 @@ protocol exists to prevent:
 ## Step 5 — Files to check every sprint
 
 ```
-plan.md                                         (roadmap context)
+docs/HISTORICAL_PLAN.md                         (roadmap context)
 README.md                                       (current-version field)
 CHANGELOG.md                                    (latest entry)
-GITHUB_ISSUE_ROADMAP.md                         (issue status)
-src/main/resources/paper-plugin.yml             (version:)
+docs/GITHUB_ISSUE_ROADMAP.md                    (issue status)
+rga-plugin/src/main/resources/paper-plugin.yml (version:)
 pom.xml                                         (<version>)
 .github/workflows/build.yml                     (JAR filename — should be *.jar)
 ```

@@ -394,7 +394,7 @@ inventory-groups:
 
 ## Development Status
 
-### Current Version: 1.12.0
+### Current Version: 1.12.1
 
 **Core Functionality**: ✓ Complete and usable
 - All major systems functional and tested
@@ -467,8 +467,8 @@ mvn clean package
 ```
 
 Artifacts produced:
-- **API JAR**: `rga-api/target/rga-api-1.12.0.jar` (standalone Maven dependency artifact for companion plugin developers)
-- **Plugin JAR**: `rga-plugin/target/RonlabGameAssistant-1.12.0.jar` (shaded plugin bundle including `rga-api`; deploy directly to server `plugins/` directory)
+- **API JAR**: `rga-api/target/rga-api-1.12.1.jar` (standalone Maven dependency artifact for companion plugin developers)
+- **Plugin JAR**: `rga-plugin/target/RonlabGameAssistant-1.12.1.jar` (shaded plugin bundle including `rga-api`; deploy directly to server `plugins/` directory)
 
 
 ---
