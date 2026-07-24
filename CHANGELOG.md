@@ -1,5 +1,11 @@
 ## Changelog
 
+- Implemented datapack stripping in `WorldCopyManager` (resolves #39).
+  - Added `FileVisitResult.SKIP_SUBTREE` check in `WorldCopyManager.copyFolder`'s `preVisitDirectory` for directories named `datapacks` (case-insensitive).
+  - Fulfilled ADR-0002 by preventing unnecessary file writes, eliminating false expectations of per-session datapack isolation, and reducing session creation I/O overhead.
+  - Ensured Paper 26.1 nested dimension subfolders (`dimensions/minecraft/the_nether`, `dimensions/minecraft/the_end`) and standard region files remain fully preserved.
+  - Added unit test suite `WorldCopyManagerDatapackStripTest.java` verifying datapack directory omission and nested dimension folder copy resilience.
+
 - Standardized orphan session startup detection and status reporting (resolves #43).
   - Added `SessionStatus` enum (`ACTIVE`, `ORPHANED`) and updated `SessionManager.loadOrphanedSessions()` to scan persistence files on boot and output formatted diagnostics: `[RGA WARNING] Detected ORPHANED minigame session for world '%world%'...`.
   - Added boot-sequence race condition guard in `WorldManager.loadWorld()` to explicitly skip automatic loading of orphaned minigame world folders into Bukkit on server boot, keeping them unloaded on disk until administrative cleanup.

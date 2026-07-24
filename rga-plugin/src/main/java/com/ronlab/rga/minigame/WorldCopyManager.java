@@ -263,6 +263,9 @@ public class WorldCopyManager {
                     throws IOException {
                 if (!dir.equals(source)) {
                     String dirName = dir.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+                    if (dirName.equals("datapacks")) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
                     if (disableNether && (dirName.endsWith("_nether") || dirName.equals("the_nether") || dirName.equals("dim-1"))) {
                         return FileVisitResult.SKIP_SUBTREE;
                     }
