@@ -1,5 +1,10 @@
 ## Changelog
 
+- Configured `maven-shade-plugin` in `rga-plugin/pom.xml` to shade `rga-api` into the primary plugin artifact.
+  - Added `maven-shade-plugin` configuration bundling `com.ronlab:rga-api` directly into `rga-plugin/target/RonlabGameAssistant-1.12.0.jar`.
+  - Set `<createDependencyReducedPom>false</createDependencyReducedPom>` to ensure clean POM generation.
+  - Enables PaperMC server deployments to host `RonlabGameAssistant.jar` self-containedly without extra server plugin dependencies, while companion plugin developers continue referencing `com.ronlab:rga-api` via Maven.
+
 - Implemented datapack stripping in `WorldCopyManager` (resolves #39).
   - Added `FileVisitResult.SKIP_SUBTREE` check in `WorldCopyManager.copyFolder`'s `preVisitDirectory` for directories named `datapacks` (case-insensitive).
   - Fulfilled ADR-0002 by preventing unnecessary file writes, eliminating false expectations of per-session datapack isolation, and reducing session creation I/O overhead.

@@ -1,15 +1,16 @@
 package com.ronlab.rga.command;
 
 import com.ronlab.rga.RGA;
-import com.ronlab.rga.util.AdventureUtil;
+import io.papermc.paper.command.brigadier.BasicCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.jspecify.annotations.NullMarked;
 
-public class HubCommand implements CommandExecutor {
+@NullMarked
+public class HubCommand implements BasicCommand {
 
     private final RGA plugin;
 
@@ -18,15 +19,16 @@ public class HubCommand implements CommandExecutor {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public void execute(CommandSourceStack stack, String[] args) {
+        CommandSender sender = stack.getSender();
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("This command can only be used by players.", NamedTextColor.RED));
-            return true;
+            return;
         }
 
         if (!player.hasPermission("rga.hub")) {
             player.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
-            return true;
+            return;
         }
 
         String currentWorld = player.getWorld().getName();
@@ -35,14 +37,14 @@ public class HubCommand implements CommandExecutor {
         // Don't teleport if already in Hub
         if (currentWorld.equalsIgnoreCase(hubWorld)) {
             player.sendMessage(Component.text("You are already in the Hub!", NamedTextColor.YELLOW));
-            return true;
+            return;
         }
 
         // If the player is a spectator, restore their advancements and remove them from spectator mode
         if (plugin.getPartyManager().isSpectator(player.getUniqueId())) {
             plugin.getPartyManager().leaveSpectatorMode(player);
             // leaveSpectatorMode already teleports to hub, so we're done
-            return true;
+            return;
         }
 
         // If leaving an SMP world, save the player's current location first
@@ -52,7 +54,5 @@ public class HubCommand implements CommandExecutor {
 
         // Teleport to Hub
         plugin.getWorldManager().teleportToWorld(player, hubWorld);
-
-        return true;
     }
-}
+}

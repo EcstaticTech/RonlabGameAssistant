@@ -2,9 +2,9 @@ package com.ronlab.rga.command;
 
 import com.ronlab.rga.RGA;
 import com.ronlab.rga.config.ConfigManager;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,7 +24,7 @@ class RGACommandTest {
     private TestRGA plugin;
     private TestConfigManager configManager;
     private CommandSender senderMock;
-    private Command commandDummy;
+    private CommandSourceStack stackMock;
     private RGACommand rgaCommand;
 
     private List<String> sentMessages;
@@ -59,7 +60,17 @@ class RGACommandTest {
                 }
         );
 
-        commandDummy = new TestCommand("rga");
+        stackMock = (CommandSourceStack) Proxy.newProxyInstance(
+                CommandSourceStack.class.getClassLoader(),
+                new Class<?>[]{CommandSourceStack.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("getSender")) {
+                        return senderMock;
+                    }
+                    return null;
+                }
+        );
+
         rgaCommand = new RGACommand(plugin);
     }
 
@@ -67,9 +78,8 @@ class RGACommandTest {
     void testReloadConfig_WithPermission_InvokesPluginReloadAndSendsMessage() {
         permissions.add("rga.reload");
 
-        boolean result = rgaCommand.onCommand(senderMock, commandDummy, "rga", new String[]{"reloadconfig"});
+        rgaCommand.execute(stackMock, new String[]{"reloadconfig"});
 
-        assertTrue(result);
         assertTrue(plugin.reloaded, "plugin.reload() should be invoked when executing /rga reloadconfig");
         assertTrue(sentMessages.contains("Ronlab Game Assistant reloaded successfully."));
         assertFalse(sentMessages.stream().anyMatch(msg -> msg.contains("alias")), "No alias notice for primary /rga reloadconfig");
@@ -79,9 +89,8 @@ class RGACommandTest {
     void testReloadAlias_WithPermission_InvokesPluginReloadAndSendsAliasNotice() {
         permissions.add("rga.reload");
 
-        boolean result = rgaCommand.onCommand(senderMock, commandDummy, "rga", new String[]{"reload"});
+        rgaCommand.execute(stackMock, new String[]{"reload"});
 
-        assertTrue(result);
         assertTrue(plugin.reloaded, "plugin.reload() should be invoked when executing /rga reload");
         assertTrue(sentMessages.stream().anyMatch(msg -> msg.contains("alias")), "Alias notice should be sent when executing legacy /rga reload");
         assertTrue(sentMessages.contains("Ronlab Game Assistant reloaded successfully."));
@@ -91,9 +100,8 @@ class RGACommandTest {
     void testReloadConfig_WithoutPermission_RejectsExecution() {
         // No permissions added
 
-        boolean result = rgaCommand.onCommand(senderMock, commandDummy, "rga", new String[]{"reloadconfig"});
+        rgaCommand.execute(stackMock, new String[]{"reloadconfig"});
 
-        assertTrue(result);
         assertFalse(plugin.reloaded, "plugin.reload() should NOT be invoked without permission");
         assertTrue(sentMessages.contains("You do not have permission to do that."));
     }
@@ -102,21 +110,11 @@ class RGACommandTest {
     void testTabComplete_IncludesReloadConfig() {
         permissions.add("rga.reload");
 
-        List<String> completions = rgaCommand.onTabComplete(senderMock, commandDummy, "rga", new String[]{"reload"});
+        Collection<String> completions = rgaCommand.suggest(stackMock, new String[]{"reload"});
 
         assertNotNull(completions);
         assertTrue(completions.contains("reloadconfig"), "Tab completions should contain reloadconfig");
         assertTrue(completions.contains("reload"), "Tab completions should contain reload alias");
-    }
-
-    private static class TestCommand extends Command {
-        protected TestCommand(String name) {
-            super(name);
-        }
-        @Override
-        public boolean execute(CommandSender sender, String commandLabel, String[] args) {
-            return false;
-        }
     }
 
     private static class TestRGA extends RGA {

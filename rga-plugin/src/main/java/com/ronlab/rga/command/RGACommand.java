@@ -10,18 +10,17 @@ import com.ronlab.rga.util.WorldNameValidator;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import io.papermc.paper.command.brigadier.BasicCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import org.bukkit.*;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class RGACommand implements CommandExecutor, TabCompleter {
+public class RGACommand implements BasicCommand {
 
     private final RGA plugin;
 
@@ -72,13 +71,14 @@ public class RGACommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public void execute(CommandSourceStack stack, String[] args) {
+        CommandSender sender = stack.getSender();
         if (!hasAnyRGAPermission(sender)) {
             sender.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
-            return true;
+            return;
         }
 
-        if (args.length == 0) { sendHelp(sender); return true; }
+        if (args.length == 0) { sendHelp(sender); return; }
 
         String sub = args[0].toLowerCase();
         String worldToCheck = null;
@@ -101,7 +101,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage(Component.text(valResult.getErrorMessage(), NamedTextColor.RED));
                     sender.sendMessage(Component.text("Note: Disable 'strict-world-name-validation' in config.yml to allow non-standard names.", NamedTextColor.YELLOW));
                 }
-                return true;
+                return;
             }
         }
 
@@ -109,7 +109,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
         String requiredPerm = SUBCOMMAND_PERMISSIONS.get(sub);
         if (requiredPerm != null && !sender.hasPermission(requiredPerm)) {
             sender.sendMessage(plugin.getConfigManager().getMessage("no-permission"));
-            return true;
+            return;
         }
 
         switch (sub) {
@@ -151,16 +151,16 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             }
 
             case "tp" -> {
-                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga tp <player> <world>", NamedTextColor.RED)); return true; }
+                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga tp <player> <world>", NamedTextColor.RED)); return; }
                 Player target = Bukkit.getPlayer(args[1]);
-                if (target == null) { sender.sendMessage(Component.text("Player not found.", NamedTextColor.RED)); return true; }
+                if (target == null) { sender.sendMessage(Component.text("Player not found.", NamedTextColor.RED)); return; }
                 plugin.getWorldManager().teleportToWorld(target, args[2]);
             }
 
             case "compass" -> {
-                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga compass <player>", NamedTextColor.RED)); return true; }
+                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga compass <player>", NamedTextColor.RED)); return; }
                 Player target = Bukkit.getPlayer(args[1]);
-                if (target == null) { sender.sendMessage(Component.text("Player not found.", NamedTextColor.RED)); return true; }
+                if (target == null) { sender.sendMessage(Component.text("Player not found.", NamedTextColor.RED)); return; }
                 plugin.getHubListener().giveCompass(target);
                 sender.sendMessage(Component.text("Gave navigator compass to " + target.getName() + ".", NamedTextColor.GREEN));
             }
@@ -168,22 +168,22 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             case "createworld" -> {
                 if (args.length < 5) {
                     sender.sendMessage(Component.text("Usage: /rga createworld <name> <environment> <gamemode> <pvp>", NamedTextColor.RED));
-                    return true;
+                    return;
                 }
                 World.Environment env; GameMode gm;
                 try { env = World.Environment.valueOf(args[2].toUpperCase()); }
-                catch (IllegalArgumentException e) { sender.sendMessage(Component.text("Invalid environment.", NamedTextColor.RED)); return true; }
+                catch (IllegalArgumentException e) { sender.sendMessage(Component.text("Invalid environment.", NamedTextColor.RED)); return; }
                 try { gm = GameMode.valueOf(args[3].toUpperCase()); }
-                catch (IllegalArgumentException e) { sender.sendMessage(Component.text("Invalid gamemode.", NamedTextColor.RED)); return true; }
+                catch (IllegalArgumentException e) { sender.sendMessage(Component.text("Invalid gamemode.", NamedTextColor.RED)); return; }
                 boolean pvp = Boolean.parseBoolean(args[4]);
-                if (Bukkit.getWorld(args[1]) != null) { sender.sendMessage(Component.text("World already loaded.", NamedTextColor.RED)); return true; }
+                if (Bukkit.getWorld(args[1]) != null) { sender.sendMessage(Component.text("World already loaded.", NamedTextColor.RED)); return; }
                 sender.sendMessage(Component.text("Creating world '" + args[1] + "'...", NamedTextColor.YELLOW));
                 boolean ok = plugin.getWorldManager().createWorld(args[1], env, gm, pvp);
                 sender.sendMessage(ok ? Component.text("World created!", NamedTextColor.GREEN) : Component.text("Failed to create world.", NamedTextColor.RED));
             }
 
             case "importworld" -> {
-                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga importworld <foldername>", NamedTextColor.RED)); return true; }
+                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga importworld <foldername>", NamedTextColor.RED)); return; }
                 sender.sendMessage(Component.text("Importing world '" + args[1] + "'...", NamedTextColor.YELLOW));
                 boolean ok = plugin.getWorldManager().importWorld(args[1], sender);
                 if (ok) {
@@ -199,28 +199,28 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             }
 
             case "loadworld" -> {
-                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga loadworld <name>", NamedTextColor.RED)); return true; }
-                if (Bukkit.getWorld(args[1]) != null) { sender.sendMessage(Component.text("World already loaded.", NamedTextColor.RED)); return true; }
+                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga loadworld <name>", NamedTextColor.RED)); return; }
+                if (Bukkit.getWorld(args[1]) != null) { sender.sendMessage(Component.text("World already loaded.", NamedTextColor.RED)); return; }
                 sender.sendMessage(Component.text("Loading world '" + args[1] + "'...", NamedTextColor.YELLOW));
                 boolean ok = plugin.getWorldManager().loadExistingWorld(args[1]);
                 sender.sendMessage(ok ? Component.text("World loaded!", NamedTextColor.GREEN) : Component.text("Failed. Does the folder exist?", NamedTextColor.RED));
             }
 
             case "unloadworld" -> {
-                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga unloadworld <name>", NamedTextColor.RED)); return true; }
+                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga unloadworld <name>", NamedTextColor.RED)); return; }
                 String hub = plugin.getConfigManager().getHubWorld();
                 if (args[1].equalsIgnoreCase(hub) || args[1].equalsIgnoreCase("world")) {
-                    sender.sendMessage(Component.text("You cannot unload the Hub or default world.", NamedTextColor.RED)); return true;
+                    sender.sendMessage(Component.text("You cannot unload the Hub or default world.", NamedTextColor.RED)); return;
                 }
                 boolean ok = plugin.getWorldManager().unloadWorld(args[1], sender);
                 sender.sendMessage(ok ? Component.text("World unloaded.", NamedTextColor.GREEN) : Component.text("Failed to unload world.", NamedTextColor.RED));
             }
 
             case "deleteworld" -> {
-                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga deleteworld <name>", NamedTextColor.RED)); return true; }
+                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga deleteworld <name>", NamedTextColor.RED)); return; }
                 String hub = plugin.getConfigManager().getHubWorld();
                 if (args[1].equalsIgnoreCase(hub) || args[1].equalsIgnoreCase("world")) {
-                    sender.sendMessage(Component.text("You cannot delete the Hub or default world.", NamedTextColor.RED)); return true;
+                    sender.sendMessage(Component.text("You cannot delete the Hub or default world.", NamedTextColor.RED)); return;
                 }
                 sender.sendMessage(Component.text("Deleting world '" + args[1] + "'...", NamedTextColor.YELLOW));
                 boolean ok = plugin.getWorldManager().deleteWorld(args[1], sender);
@@ -229,30 +229,30 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
 
             case "setspawn" -> {
-                if (!(sender instanceof Player player)) { sender.sendMessage(Component.text("Players only.", NamedTextColor.RED)); return true; }
+                if (!(sender instanceof Player player)) { sender.sendMessage(Component.text("Players only.", NamedTextColor.RED)); return; }
                 String worldName = args.length >= 2 ? args[1] : player.getWorld().getName();
                 World world = Bukkit.getWorld(worldName);
-                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return true; }
+                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return; }
                 world.setSpawnLocation(player.getLocation());
                 sender.sendMessage(Component.text("Spawn for '" + worldName + "' set to your location.", NamedTextColor.GREEN));
             }
 
             case "setworldgamemode" -> {
-                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldgamemode <world> <gamemode>", NamedTextColor.RED)); return true; }
+                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldgamemode <world> <gamemode>", NamedTextColor.RED)); return; }
                 World world = Bukkit.getWorld(args[1]);
-                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return true; }
+                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return; }
                 GameMode gm;
                 try { gm = GameMode.valueOf(args[2].toUpperCase()); }
-                catch (IllegalArgumentException e) { sender.sendMessage(Component.text("Invalid gamemode.", NamedTextColor.RED)); return true; }
+                catch (IllegalArgumentException e) { sender.sendMessage(Component.text("Invalid gamemode.", NamedTextColor.RED)); return; }
                 plugin.getWorldManager().setWorldGamemode(args[1], gm);
                 for (Player p : world.getPlayers()) p.setGameMode(gm);
                 sender.sendMessage(Component.text("Gamemode for '" + args[1] + "' set to " + gm.name() + ".", NamedTextColor.GREEN));
             }
 
             case "setworldpvp" -> {
-                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldpvp <world> <true/false>", NamedTextColor.RED)); return true; }
+                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldpvp <world> <true/false>", NamedTextColor.RED)); return; }
                 World world = Bukkit.getWorld(args[1]);
-                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return true; }
+                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return; }
                 boolean pvp = Boolean.parseBoolean(args[2]);
                 world.setPVP(pvp);
                 plugin.getWorldManager().setWorldPvp(args[1], pvp);
@@ -260,12 +260,12 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             }
 
             case "setworlddifficulty" -> {
-                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworlddifficulty <world> <difficulty>", NamedTextColor.RED)); return true; }
+                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworlddifficulty <world> <difficulty>", NamedTextColor.RED)); return; }
                 World world = Bukkit.getWorld(args[1]);
-                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return true; }
+                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return; }
                 Difficulty diff;
                 try { diff = Difficulty.valueOf(args[2].toUpperCase()); }
-                catch (IllegalArgumentException e) { sender.sendMessage(Component.text("Invalid difficulty.", NamedTextColor.RED)); return true; }
+                catch (IllegalArgumentException e) { sender.sendMessage(Component.text("Invalid difficulty.", NamedTextColor.RED)); return; }
                 plugin.getWorldManager().setWorldDifficulty(args[1], diff);
                 sender.sendMessage(Component.text("Difficulty for '" + args[1] + "' set to " + diff.name() + ".", NamedTextColor.GREEN));
             }
@@ -274,10 +274,10 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 if (args.length < 3) {
                     sender.sendMessage(Component.text("Usage: /rga setworldtime <world> <day|noon|night|midnight|<ticks>|-1>", NamedTextColor.RED));
                     sender.sendMessage(Component.text("Use -1 to unlock time.", NamedTextColor.GRAY));
-                    return true;
+                    return;
                 }
                 World world = Bukkit.getWorld(args[1]);
-                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return true; }
+                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return; }
                 long ticks = switch (args[2].toLowerCase()) {
                     case "day" -> 1000L;
                     case "noon" -> 6000L;
@@ -288,7 +288,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                         catch (NumberFormatException e) { yield Long.MIN_VALUE; }
                     }
                 };
-                if (ticks == Long.MIN_VALUE) { sender.sendMessage(Component.text("Invalid time value.", NamedTextColor.RED)); return true; }
+                if (ticks == Long.MIN_VALUE) { sender.sendMessage(Component.text("Invalid time value.", NamedTextColor.RED)); return; }
                 plugin.getWorldManager().setWorldTimeLock(args[1], ticks);
                 sender.sendMessage(ticks >= 0
                         ? Component.text("Time for '" + args[1] + "' locked to " + ticks + " ticks.", NamedTextColor.GREEN)
@@ -296,35 +296,35 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             }
 
             case "setworldweather" -> {
-                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldweather <world> <true/false>", NamedTextColor.RED)); return true; }
+                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldweather <world> <true/false>", NamedTextColor.RED)); return; }
                 World world = Bukkit.getWorld(args[1]);
-                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return true; }
+                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return; }
                 boolean locked = Boolean.parseBoolean(args[2]);
                 plugin.getWorldManager().setWorldWeatherLock(args[1], locked);
                 sender.sendMessage(Component.text("Weather lock for '" + args[1] + "' set to " + locked + ".", NamedTextColor.GREEN));
             }
 
             case "setworldalias" -> {
-                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldalias <world> <alias>", NamedTextColor.RED)); return true; }
+                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldalias <world> <alias>", NamedTextColor.RED)); return; }
                 plugin.getWorldManager().setWorldAlias(args[1], args[2]);
                 sender.sendMessage(Component.text("Alias for '" + args[1] + "' set to '" + args[2] + "'.", NamedTextColor.GREEN));
             }
 
             case "setworldtemplate" -> {
-                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldtemplate <world> <true/false>", NamedTextColor.RED)); return true; }
+                if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga setworldtemplate <world> <true/false>", NamedTextColor.RED)); return; }
                 World world = Bukkit.getWorld(args[1]);
-                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return true; }
+                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return; }
                 boolean template = Boolean.parseBoolean(args[2]);
                 plugin.getWorldManager().setWorldTemplate(args[1], template);
                 sender.sendMessage(Component.text("Template status for '" + args[1] + "' set to " + template + ".", NamedTextColor.GREEN));
             }
 
             case "gamerule" -> {
-                if (args.length < 4) { sender.sendMessage(Component.text("Usage: /rga gamerule <world> <rule> <value>", NamedTextColor.RED)); return true; }
+                if (args.length < 4) { sender.sendMessage(Component.text("Usage: /rga gamerule <world> <rule> <value>", NamedTextColor.RED)); return; }
                 World world = Bukkit.getWorld(args[1]);
-                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return true; }
+                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return; }
                 GameRule<?> rule = GameRule.getByName(args[2]);
-                if (rule == null) { sender.sendMessage(Component.text("Unknown gamerule: " + args[2], NamedTextColor.RED)); return true; }
+                if (rule == null) { sender.sendMessage(Component.text("Unknown gamerule: " + args[2], NamedTextColor.RED)); return; }
                 boolean applied = applyGameRule(world, rule, args[3]);
                 sender.sendMessage(applied
                         ? Component.text("Gamerule " + args[2] + " set to " + args[3] + " in " + args[1] + ".", NamedTextColor.GREEN)
@@ -332,7 +332,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             }
 
             case "conclude" -> {
-                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga conclude <worldname>", NamedTextColor.RED)); return true; }
+                if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga conclude <worldname>", NamedTextColor.RED)); return; }
                 String worldName = args[1];
                 ConcludeResult result = plugin.getPartyManager().concludeGame(worldName);
                 switch (result) {
@@ -348,7 +348,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 var parties = plugin.getPartyManager().getActiveParties();
                 if (parties.isEmpty()) {
                     sender.sendMessage(Component.text("No active games to conclude.", NamedTextColor.YELLOW));
-                    return true;
+                    return;
                 }
                 int successCount = 0;
                 int cancelledCount = 0;
@@ -374,7 +374,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             case "cleanupsession" -> {
                 if (args.length < 2) {
                     sender.sendMessage(Component.text("Usage: /rga cleanupsession <worldname>", NamedTextColor.RED));
-                    return true;
+                    return;
                 }
                 String targetWorld = args[1];
 
@@ -399,13 +399,13 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             case "spectate" -> {
                 if (!(sender instanceof Player player)) {
                     sender.sendMessage(Component.text("Players only.", NamedTextColor.RED));
-                    return true;
+                    return;
                 }
 
                 // /rga spectate leave — leave spectator mode
                 if (args.length >= 2 && args[1].equalsIgnoreCase("leave")) {
                     plugin.getPartyManager().leaveSpectatorMode(player);
-                    return true;
+                    return;
                 }
 
                 // /rga spectate <minigame> or /rga spectate
@@ -435,7 +435,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                             .append(Component.text("Usage: ", NamedTextColor.GRAY))
                             .append(Component.text("/rga spectate <minigame>", NamedTextColor.YELLOW))
                             .build());
-                    return true;
+                    return;
                 }
 
                 String minigameId = args[1].toLowerCase();
@@ -480,7 +480,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             default -> sendHelp(sender);
         }
 
-        return true;
+        return;
     }
 
     // ── Gamerule helper ──────────────────────────────────────────
@@ -499,8 +499,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command,
-                                      String alias, String[] args) {
+    public Collection<String> suggest(CommandSourceStack stack, String[] args) {
+        CommandSender sender = stack.getSender();
         if (!hasAnyRGAPermission(sender)) return Collections.emptyList();
         List<String> completions = new ArrayList<>();
 

@@ -21,7 +21,8 @@ import com.ronlab.rga.world.WorldManager;
 import com.ronlab.rga.social.BrowsePartiesGui;
 import com.ronlab.rga.social.SocialItem;
 import com.ronlab.rga.social.SocialListener;
-import org.bukkit.command.PluginCommand;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import java.util.List;
 import org.bukkit.plugin.java.JavaPlugin;
 import com.ronlab.rga.util.VersionGuard;
 
@@ -89,14 +90,12 @@ public class RGA extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new SocialListener(this), this);
 
         RGACommand rgaCommand = new RGACommand(this);
-        PluginCommand rga = getCommand("rga");
-        if (rga != null) {
-            rga.setExecutor(rgaCommand);
-            rga.setTabCompleter(rgaCommand);
-        }
+        HubCommand hubCommand = new HubCommand(this);
 
-        PluginCommand hub = getCommand("hub");
-        if (hub != null) hub.setExecutor(new HubCommand(this));
+        this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            event.registrar().register("rga", "Ronlab Game Assistant main command", List.of("ronlab"), rgaCommand);
+            event.registrar().register("hub", "Teleport to the server hub world", List.of(), hubCommand);
+        });
 
         getLogger().info("Ronlab Game Assistant enabled.");
     }

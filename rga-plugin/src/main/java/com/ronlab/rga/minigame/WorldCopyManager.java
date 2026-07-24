@@ -102,16 +102,14 @@ public class WorldCopyManager {
                 + UUID.randomUUID().toString().substring(0, 8);
 
 
-        // Templates must be top-level world folders
-        File templateFolder = new File(Bukkit.getWorldContainer(), templateWorldName);
+        File templateFolder = resolveWorldFolder(templateWorldName);
         if (!templateFolder.exists() || !templateFolder.isDirectory()) {
             plugin.getLogger().severe(
-                "Template world folder not found at server root: " + templateWorldName
-                + ". Template worlds must be top-level folders in the server directory.");
+                "Template world folder not found: " + templateWorldName);
             return CompletableFuture.completedFuture(null);
         }
 
-        File destination = new File(Bukkit.getWorldContainer(), newWorldName);
+        File destination = new File(templateFolder.getParentFile(), newWorldName);
         boolean disableNether = minigame.isDisableNether();
         boolean disableEnd = minigame.isDisableEnd();
 
@@ -211,8 +209,7 @@ public class WorldCopyManager {
             Bukkit.unloadWorld(world, false);
         }
 
-        // Minigame worlds are always top-level folders
-        File folder = new File(Bukkit.getWorldContainer(), worldName);
+        File folder = resolveWorldFolder(worldName);
         if (folder.exists()) {
             deleteFolder(folder);
             plugin.getLogger().info("Deleted minigame world: " + worldName);
@@ -221,13 +218,40 @@ public class WorldCopyManager {
 
     // ── Folder utilities ─────────────────────────────────────────
 
+    public File resolveWorldFolder(String worldName) {
+        if (plugin != null && plugin.getWorldManager() != null) {
+            return plugin.getWorldManager().getWorldFolder(worldName);
+        }
+        File dimensionsFolder = new File(Bukkit.getWorldContainer(), "dimensions/minecraft");
+        if (dimensionsFolder.exists() && dimensionsFolder.isDirectory()) {
+            File[] files = dimensionsFolder.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isDirectory() && file.getName().equalsIgnoreCase(worldName)) {
+                        return file;
+                    }
+                }
+            }
+        }
+        File serverRoot = Bukkit.getWorldContainer();
+        File[] rootFiles = serverRoot.listFiles();
+        if (rootFiles != null) {
+            for (File file : rootFiles) {
+                if (file.isDirectory() && file.getName().equalsIgnoreCase(worldName)) {
+                    return file;
+                }
+            }
+        }
+        return new File(dimensionsFolder, worldName);
+    }
+
     /**
-     * Finds a world folder. Checks the server root (top-level) first.
+     * Finds a world folder using three-tier dimension resolution.
      */
     public File findWorldFolder(String worldName) {
-        Path path = Bukkit.getWorldContainer().toPath().resolve(worldName);
-        if (Files.isDirectory(path)) {
-            return path.toFile();
+        File folder = resolveWorldFolder(worldName);
+        if (folder.exists() && folder.isDirectory()) {
+            return folder;
         }
         return null;
     }

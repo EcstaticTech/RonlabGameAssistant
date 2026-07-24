@@ -467,8 +467,9 @@ mvn clean package
 ```
 
 Artifacts produced:
-- **API JAR**: `rga-api/target/rga-api-1.12.0.jar` (dependency artifact for companion plugins)
-- **Plugin JAR**: `rga-plugin/target/rga-plugin-1.12.0.jar` (deploy this JAR to `plugins/`)
+- **API JAR**: `rga-api/target/rga-api-1.12.0.jar` (standalone Maven dependency artifact for companion plugin developers)
+- **Plugin JAR**: `rga-plugin/target/RonlabGameAssistant-1.12.0.jar` (shaded plugin bundle including `rga-api`; deploy directly to server `plugins/` directory)
+
 
 ---
 
