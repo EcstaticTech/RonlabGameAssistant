@@ -1,6 +1,11 @@
 ## Changelog
 
-### v1.12.0
+- Evaluated datapack isolation strategy & published ADR-0002 (resolves #28).
+  - Published Architectural Decision Record `docs/adr-0002-datapack-isolation-strategy.md` documenting CraftBukkit/Paper global server registry design and per-world datapack limitations.
+  - Documented static propagation (template baked terrain/NBT) vs dynamic non-propagation (inert session folder datapacks, global registry leakage).
+  - Formulated Java plugin replication feasibility matrix and provided session-scoped Java event listener override patterns for `CraftItemEvent`, `LootGenerateEvent`, and `BlockBreakEvent`.
+  - Assessed operational RAM/multi-instance infrastructure cost of Velocity proxy isolation tier.
+  - Registered follow-up implementation issue #39 for `WorldCopyManager` datapack directory stripping.
 
 - Implemented programmatic session conclusion API & event (resolves #38 and #27).
   - Created `RGAGameRequestConcludeEvent` in `com.ronlab.rga.api.event` extending `MinigameEvent` and implementing `Cancellable` with isolated static `HandlerList`.

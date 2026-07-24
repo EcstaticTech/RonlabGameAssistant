@@ -146,14 +146,16 @@ public class RgaEventListener implements Listener {
      - Deletes orphaned session persistence records (`SessionManager`).
      - Restores party members safely to the lobby.
 
-5. **API Versioning & Semver Policy**:
-   - `rga-api` follows Semantic Versioning (SemVer).
-   - Additive event API changes (e.g. new fields, new lifecycle events, new enum values) trigger a minor version bump on `rga-parent` / `rga-api` (e.g. `1.11.0` -> `1.12.0`).
-   - Companion plugins compiled against an older minor version of `rga-api` retain backwards binary compatibility due to strict field retention and non-breaking contract policies.
+6. **Datapack Isolation & Global Registries (ADR-0002)**:
+   - Bukkit/Paper loads datapacks into global server registries. Sub-folder `/datapacks/` directories inside minigame session worlds are ignored by Paper and stripped by `WorldCopyManager`.
+   - Companion plugins must implement minigame mechanics via Java event listeners rather than `.mcfunction` datapacks.
+   - See complete Architectural Decision Record in [adr-0002-datapack-isolation-strategy.md](file:///m:/projects/RonlabGameAssistant/docs/adr-0002-datapack-isolation-strategy.md).
 
 ---
 
 ## Related Documentation
 
+- [adr-0002-datapack-isolation-strategy.md](file:///m:/projects/RonlabGameAssistant/docs/adr-0002-datapack-isolation-strategy.md)
+- [companion-integration.md](file:///m:/projects/RonlabGameAssistant/docs/companion-integration.md)
 - [DECISION_35_TESTING_FRAMEWORK.md](file:///m:/projects/RonlabGameAssistant/DECISION_35_TESTING_FRAMEWORK.md)
 - [ConcludeResult.java](file:///m:/projects/RonlabGameAssistant/rga-api/src/main/java/com/ronlab/rga/api/event/ConcludeResult.java)
