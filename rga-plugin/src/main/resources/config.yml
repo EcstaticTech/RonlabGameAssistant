@@ -96,5 +96,5 @@ messages:
   no-smp-location: "&cYou have no saved SMP location yet. Visit the SMP first!"
   teleporting: "&aTeleporting..."
   world-not-found: "&cWorld '{world}' could not be found."
-  reloaded: "&aRonlab Game Assistant reloaded successfully."
+  reloaded: "&a[RGA] Configuration reloaded. Active game sessions will retain their launch configuration."
   no-permission: "&cYou do not have permission to do that."

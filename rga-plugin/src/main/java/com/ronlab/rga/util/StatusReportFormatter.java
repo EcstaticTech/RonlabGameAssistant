@@ -8,7 +8,11 @@ public final class StatusReportFormatter {
 
     private StatusReportFormatter() {}
 
-    public record SessionEntry(String id, String worldName, int players) {}
+    public record SessionEntry(String id, String worldName, int players, String statusTag) {
+        public SessionEntry(String id, String worldName, int players) {
+            this(id, worldName, players, "[ACTIVE]");
+        }
+    }
 
     public record WorldEntry(String name, String state, int players, String gamemode, boolean pvp) {}
 
@@ -30,6 +34,7 @@ public final class StatusReportFormatter {
             for (SessionEntry session : sessions) {
                 lines.add(" - " + session.id()
                         + " | World: " + session.worldName()
+                        + " | Status: " + session.statusTag()
                         + " | Players: " + session.players());
             }
         }

@@ -455,6 +455,8 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                                 .append(Component.text(mgId, NamedTextColor.WHITE))
                                 .append(Component.text(" | World: ", NamedTextColor.GRAY))
                                 .append(Component.text(party.getActiveWorldName(), NamedTextColor.WHITE))
+                                .append(Component.text(" | Status: ", NamedTextColor.GRAY))
+                                .append(Component.text("[ACTIVE]", NamedTextColor.GREEN))
                                 .append(Component.text(" | Members: ", NamedTextColor.GRAY))
                                 .append(Component.text(party.getMemberCount(), NamedTextColor.WHITE))
                                 .build());
@@ -468,9 +470,12 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                     orphans.forEach(worldName -> sender.sendMessage(Component.text()
                             .append(Component.text(" - World: ", NamedTextColor.GRAY))
                             .append(Component.text(worldName, NamedTextColor.WHITE))
+                            .append(Component.text(" | Status: ", NamedTextColor.GRAY))
+                            .append(Component.text("[ORPHANED]", NamedTextColor.RED))
                             .build()));
                 }
             }
+
 
             default -> sendHelp(sender);
         }

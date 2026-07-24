@@ -1,5 +1,32 @@
 ## Changelog
 
+- Standardized orphan session startup detection and status reporting (resolves #43).
+  - Added `SessionStatus` enum (`ACTIVE`, `ORPHANED`) and updated `SessionManager.loadOrphanedSessions()` to scan persistence files on boot and output formatted diagnostics: `[RGA WARNING] Detected ORPHANED minigame session for world '%world%'...`.
+  - Added boot-sequence race condition guard in `WorldManager.loadWorld()` to explicitly skip automatic loading of orphaned minigame world folders into Bukkit on server boot, keeping them unloaded on disk until administrative cleanup.
+  - Updated `StatusReportFormatter` and `RGACommand` (`/rga status` and `/rga sessions list`) to surface explicit `[ORPHANED]` badges next to orphaned worlds alongside active `[ACTIVE]` sessions.
+  - Maintained `/rga cleanupsession <world>` as the explicit trigger for unloading and deleting orphaned session files and disk folders.
+  - Added unit test suite `OrphanSessionDetectionTest.java` verifying startup detection, boot sequence guards, status formatting, and explicit cleanup triggers.
+
+- Enforced config snapshot immutability across `/rga reloadconfig` (resolves #42).
+  - Wrapped all `Minigame` collection fields (`startCommands`, `concludeCommands`, `displayLore`, `gamerules`) in `List.copyOf()` and `Map.copyOf()` to make `Minigame` instances immutable snapshots at construction time.
+  - Wrapped `WorldSettings` `gamerules` map in `Map.copyOf()` for immutability.
+  - Ensured active `Party` and `GameSession` instances retain their launch `Minigame` snapshot when `MinigameManager` reloads configuration mid-session.
+  - Updated `/rga reloadconfig` feedback text and default message `reloaded` in `config.yml`: `"&a[RGA] Configuration reloaded. Active game sessions will retain their launch configuration."`
+  - Added unit test suite `ConfigImmutabilityTest.java` verifying `UnsupportedOperationException` on mutation attempts and reload snapshot isolation.
+
+- Reconciled `README.md` with v1.12.0 state and surfaced architectural docs (resolves #41).
+  - Updated version references throughout `README.md` to `v1.12.0`.
+  - Documented multi-module Maven build architecture (`rga-api` and `rga-plugin`) and root `mvn clean package` outputs.
+  - Added dedicated section for companion event API (`MinigameStartEvent`, `MinigameConcludeEvent` with mutable scores map, `GameSessionRequestConcludeEvent`).
+  - Documented missing features: `first-visit-spawn` in `worlds.yml`, configurable hub entry behavior, party persistence grace period, and minigame queueing/auto-start.
+  - Updated `/rga reloadconfig` operational semantics and replaced stale single-console-sender limitation with role-based command execution (`console:`, `player-each:`, `leader:`).
+  - Linked to `EVENT_API_KNOWN_LIMITATIONS.md` and `docs/adr/ADR-0002-datapack-isolation.md`.
+
+- Implemented template-level concurrency locks in `WorldCopyManager` (resolves #40).
+  - Added `ConcurrentHashMap<String, ReentrantLock>` to `WorldCopyManager` keyed by normalized source template world name.
+  - Enforced key-based lock acquisition and `finally`-block lock release in `copyTemplateWorld` to prevent file access collisions and read races during concurrent async template copies.
+  - Added unit test suite `WorldCopyManagerLockTest.java` verifying lock instance reuse, copy completion, failure path lock release, and sequential execution under concurrent copy tasks.
+
 - Evaluated datapack isolation strategy & published ADR-0002 (resolves #28).
   - Published Architectural Decision Record `docs/adr-0002-datapack-isolation-strategy.md` documenting CraftBukkit/Paper global server registry design and per-world datapack limitations.
   - Documented static propagation (template baked terrain/NBT) vs dynamic non-propagation (inert session folder datapacks, global registry leakage).

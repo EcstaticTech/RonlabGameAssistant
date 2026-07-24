@@ -49,13 +49,13 @@ public class Minigame {
         this.id = id;
         this.name = name;
         this.displayItem = displayItem;
-        this.displayLore = displayLore;
+        this.displayLore = displayLore != null ? List.copyOf(displayLore) : List.of();
         this.maxPlayers = maxPlayers;
         this.minPlayers = minPlayers;
         this.worldType = worldType;
         this.templateWorld = templateWorld;
-        this.startCommands = startCommands;
-        this.concludeCommands = concludeCommands;
+        this.startCommands = startCommands != null ? List.copyOf(startCommands) : List.of();
+        this.concludeCommands = concludeCommands != null ? List.copyOf(concludeCommands) : List.of();
         this.queueEnabled = queueEnabled;
         this.autoStart = autoStart;
         this.allowSpectators = allowSpectators;
@@ -63,7 +63,7 @@ public class Minigame {
         this.gameMode = gameMode;
         this.pvp = pvp;
         this.difficulty = difficulty;
-        this.gamerules = gamerules;
+        this.gamerules = gamerules != null ? Map.copyOf(gamerules) : Map.of();
         this.disableNether = disableNether;
         this.disableEnd = disableEnd;
     }

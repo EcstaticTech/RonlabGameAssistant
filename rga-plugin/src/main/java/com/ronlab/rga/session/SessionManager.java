@@ -18,6 +18,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SessionManager {
 
+    public enum SessionStatus {
+        ACTIVE,
+        ORPHANED
+    }
+
     private final RGA plugin;
     private final File sessionsDir;
     private final Map<UUID, OrphanedMemberData> pendingRecoveries = new ConcurrentHashMap<>();
@@ -107,6 +112,7 @@ public class SessionManager {
             String worldName = config.getString("world-name");
             if (worldName == null) continue;
 
+            String minigameId = config.getString("minigame-id", "unknown");
             orphanedSessionWorlds.add(worldName);
             ConfigurationSection membersSec = config.getConfigurationSection("members");
             int count = 0;
@@ -128,9 +134,16 @@ public class SessionManager {
                     } catch (IllegalArgumentException ignored) {}
                 }
             }
-            plugin.getLogger().warning("Detected orphaned session '" + worldName + "' with " + count + " player(s) pending recovery.");
+            plugin.getLogger().warning("[RGA WARNING] Detected ORPHANED minigame session for world '" + worldName
+                    + "' (Minigame ID: '" + minigameId + "', " + count + " pending player recovery record(s)). "
+                    + "Explicit deletion requires /rga cleanupsession " + worldName + ".");
         }
     }
+
+    public boolean isOrphanedSession(String worldName) {
+        return orphanedSessionWorlds.contains(worldName);
+    }
+
 
     public boolean isPendingRecovery(UUID playerUuid) {
         return pendingRecoveries.containsKey(playerUuid);
