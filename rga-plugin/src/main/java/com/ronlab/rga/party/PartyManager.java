@@ -975,6 +975,16 @@ public class PartyManager implements Listener {
                 }
 
                 MinigameStartEvent startEvent = new MinigameStartEvent(minigame.getId(), minigame.getName(), worldName, party.getMembers());
+
+                // ── Diagnostic: confirm payload before companion plugins receive it ──
+                plugin.getLogger().info("[RGA DEBUG] Dispatching MinigameStartEvent...");
+                plugin.getLogger().info("[RGA DEBUG] -> Minigame ID: " + minigame.getId());
+                plugin.getLogger().info("[RGA DEBUG] -> World: " + world.getName());
+                plugin.getLogger().info("[RGA DEBUG] -> Players in payload: " + party.getMembers().size());
+                if (party.getMembers().isEmpty()) {
+                    plugin.getLogger().warning("[RGA DEBUG] -> WARNING: Player list is empty! Companion plugins will not start.");
+                }
+
                 Bukkit.getPluginManager().callEvent(startEvent);
                 if (startEvent.isCancelled()) {
                     broadcastToParty(party, Component.text("Game start was cancelled by an event listener.", NamedTextColor.YELLOW), null);
@@ -1010,6 +1020,16 @@ public class PartyManager implements Listener {
                     }
 
                     MinigameStartEvent startEvent = new MinigameStartEvent(minigame.getId(), minigame.getName(), worldName, party.getMembers());
+
+                    // ── Diagnostic: confirm payload before companion plugins receive it ──
+                    plugin.getLogger().info("[RGA DEBUG] Dispatching MinigameStartEvent...");
+                    plugin.getLogger().info("[RGA DEBUG] -> Minigame ID: " + minigame.getId());
+                    plugin.getLogger().info("[RGA DEBUG] -> World: " + world.getName());
+                    plugin.getLogger().info("[RGA DEBUG] -> Players in payload: " + party.getMembers().size());
+                    if (party.getMembers().isEmpty()) {
+                        plugin.getLogger().warning("[RGA DEBUG] -> WARNING: Player list is empty! Companion plugins will not start.");
+                    }
+
                     Bukkit.getPluginManager().callEvent(startEvent);
                     if (startEvent.isCancelled()) {
                         broadcastToParty(party, Component.text("Game start was cancelled by an event listener.", NamedTextColor.YELLOW), null);
