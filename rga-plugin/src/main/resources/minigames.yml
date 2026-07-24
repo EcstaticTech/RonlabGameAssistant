@@ -35,7 +35,9 @@
 #   start-commands:
 #     - "console: manhunt start %world%"
 #     - "console: team assign runner %leader%"
-#     - "player-each: tell %player% Good luck!"
+# Note on Nether/End Toggles: Enabling disable-nether or disable-end stops RGA from pre-creating or copying dimension folders for game sessions.
+# It does not block Bukkit from auto-generating nether worlds upon portal activation if allow-nether=true in server.properties.
+# To completely block portal traversal, set allow-nether=false globally or use a portal-cancellation plugin.
 # -----------------------------------------------
 
 minigames:

@@ -38,7 +38,13 @@ public class ConfigManager {
     // ── Convenience getters ──────────────────────────────────────
 
     public String getHubWorld() {
-        return plugin.getConfig().getString("hub-world", "Hub");
+        String hub = plugin.getConfig().getString("hub-world");
+        if (hub == null || hub.isBlank()) {
+            plugin.getLogger().warning("[RGA] No hub-world configured. Falling back to 'world'. "
+                    + "Verify this world exists on your server or set hub-world in config.yml.");
+            return "world";
+        }
+        return hub;
     }
 
     public boolean isClearInventoryOnHubEntry() {
@@ -74,15 +80,28 @@ public class ConfigManager {
         return ConsoleCommandAllowlist.isAllowed(getConsoleCommandAllowlist(), command);
     }
 
+    public boolean isStrictWorldNameValidation() {
+        return plugin.getConfig().getBoolean("strict-world-name-validation", false);
+    }
+
+
     public Component getMessage(String key) {
-        String raw = plugin.getConfig().getString("messages." + key, "&cMessage not found: " + key);
+        String raw = plugin.getConfig().getString("messages." + key);
+        if (raw == null) {
+            plugin.getLogger().info(String.format("[RGA] Message key '%s' not found in config. Returning raw key string.", key));
+            return AdventureUtil.color(key);
+        }
         String resolved = raw.replace("{world}", "");
         return AdventureUtil.color(resolved);
     }
 
     public Component getMessage(String key, String worldName) {
-        String raw = plugin.getConfig().getString("messages." + key, "&cMessage not found: " + key);
-        String resolved = raw.replace("{world}", worldName);
+        String raw = plugin.getConfig().getString("messages." + key);
+        if (raw == null) {
+            plugin.getLogger().info(String.format("[RGA] Message key '%s' not found in config. Returning raw key string.", key));
+            return AdventureUtil.color(key);
+        }
+        String resolved = raw.replace("{world}", worldName != null ? worldName : "");
         return AdventureUtil.color(resolved);
     }
 

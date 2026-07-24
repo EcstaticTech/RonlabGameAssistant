@@ -92,9 +92,17 @@ public class RGACommand implements CommandExecutor, TabCompleter {
             if (args.length >= 2) worldToCheck = args[1];
         }
 
-        if (worldToCheck != null && !com.ronlab.rga.util.WorldNameValidator.isValid(worldToCheck)) {
-            sender.sendMessage(Component.text("Invalid world name. World names may only contain letters, numbers, underscores, and hyphens (max 64 characters).", NamedTextColor.RED));
-            return true;
+        if (worldToCheck != null) {
+            WorldNameValidator.ValidationResult valResult = WorldNameValidator.validate(worldToCheck, plugin.getConfigManager().isStrictWorldNameValidation());
+            if (!valResult.isValid()) {
+                if (valResult.getErrorMessage() != null && valResult.getErrorMessage().startsWith("Security Violation")) {
+                    sender.sendMessage(Component.text("Security: World name contains path traversal or illegal characters.", NamedTextColor.RED));
+                } else {
+                    sender.sendMessage(Component.text(valResult.getErrorMessage(), NamedTextColor.RED));
+                    sender.sendMessage(Component.text("Note: Disable 'strict-world-name-validation' in config.yml to allow non-standard names.", NamedTextColor.YELLOW));
+                }
+                return true;
+            }
         }
 
         // Per-subcommand permission check
@@ -146,10 +154,6 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 if (args.length < 3) { sender.sendMessage(Component.text("Usage: /rga tp <player> <world>", NamedTextColor.RED)); return true; }
                 Player target = Bukkit.getPlayer(args[1]);
                 if (target == null) { sender.sendMessage(Component.text("Player not found.", NamedTextColor.RED)); return true; }
-                if (!WorldNameValidator.isValid(args[2])) {
-                    sender.sendMessage(Component.text("Invalid world name.", NamedTextColor.RED));
-                    return true;
-                }
                 plugin.getWorldManager().teleportToWorld(target, args[2]);
             }
 
@@ -166,10 +170,6 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                     sender.sendMessage(Component.text("Usage: /rga createworld <name> <environment> <gamemode> <pvp>", NamedTextColor.RED));
                     return true;
                 }
-                if (!WorldNameValidator.isValid(args[1])) {
-                    sender.sendMessage(Component.text("Invalid world name. Must be alphanumeric plus underscores, periods, and hyphens (max 64 chars).", NamedTextColor.RED));
-                    return true;
-                }
                 World.Environment env; GameMode gm;
                 try { env = World.Environment.valueOf(args[2].toUpperCase()); }
                 catch (IllegalArgumentException e) { sender.sendMessage(Component.text("Invalid environment.", NamedTextColor.RED)); return true; }
@@ -184,10 +184,6 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "importworld" -> {
                 if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga importworld <foldername>", NamedTextColor.RED)); return true; }
-                if (!WorldNameValidator.isValid(args[1])) {
-                    sender.sendMessage(Component.text("Invalid world name.", NamedTextColor.RED));
-                    return true;
-                }
                 sender.sendMessage(Component.text("Importing world '" + args[1] + "'...", NamedTextColor.YELLOW));
                 boolean ok = plugin.getWorldManager().importWorld(args[1], sender);
                 if (ok) {
@@ -204,10 +200,6 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "loadworld" -> {
                 if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga loadworld <name>", NamedTextColor.RED)); return true; }
-                if (!WorldNameValidator.isValid(args[1])) {
-                    sender.sendMessage(Component.text("Invalid world name.", NamedTextColor.RED));
-                    return true;
-                }
                 if (Bukkit.getWorld(args[1]) != null) { sender.sendMessage(Component.text("World already loaded.", NamedTextColor.RED)); return true; }
                 sender.sendMessage(Component.text("Loading world '" + args[1] + "'...", NamedTextColor.YELLOW));
                 boolean ok = plugin.getWorldManager().loadExistingWorld(args[1]);
@@ -216,10 +208,6 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "unloadworld" -> {
                 if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga unloadworld <name>", NamedTextColor.RED)); return true; }
-                if (!WorldNameValidator.isValid(args[1])) {
-                    sender.sendMessage(Component.text("Invalid world name.", NamedTextColor.RED));
-                    return true;
-                }
                 String hub = plugin.getConfigManager().getHubWorld();
                 if (args[1].equalsIgnoreCase(hub) || args[1].equalsIgnoreCase("world")) {
                     sender.sendMessage(Component.text("You cannot unload the Hub or default world.", NamedTextColor.RED)); return true;
@@ -230,10 +218,6 @@ public class RGACommand implements CommandExecutor, TabCompleter {
 
             case "deleteworld" -> {
                 if (args.length < 2) { sender.sendMessage(Component.text("Usage: /rga deleteworld <name>", NamedTextColor.RED)); return true; }
-                if (!WorldNameValidator.isValid(args[1])) {
-                    sender.sendMessage(Component.text("Invalid world name.", NamedTextColor.RED));
-                    return true;
-                }
                 String hub = plugin.getConfigManager().getHubWorld();
                 if (args[1].equalsIgnoreCase(hub) || args[1].equalsIgnoreCase("world")) {
                     sender.sendMessage(Component.text("You cannot delete the Hub or default world.", NamedTextColor.RED)); return true;
@@ -242,6 +226,7 @@ public class RGACommand implements CommandExecutor, TabCompleter {
                 boolean ok = plugin.getWorldManager().deleteWorld(args[1], sender);
                 sender.sendMessage(ok ? Component.text("World deleted.", NamedTextColor.GREEN) : Component.text("Failed to delete world.", NamedTextColor.RED));
             }
+
 
             case "setspawn" -> {
                 if (!(sender instanceof Player player)) { sender.sendMessage(Component.text("Players only.", NamedTextColor.RED)); return true; }

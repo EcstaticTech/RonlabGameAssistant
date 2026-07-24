@@ -1,7 +1,12 @@
 ## Changelog
 
-### v1.11.0
-
+- Hardened YAML configuration parsing, defensive enum parsers & dimension toggles (resolves #30).
+  - Enforced strict `isSet()` precedence logic for `disable-nether` and `disable-end` dimension toggles (`world-settings (if set)` > `minigame root (if set)` > `false`).
+  - Added absent/null-valued command list warnings using `!section.isSet(cmdKey)` for `start-commands` and `conclude-commands`.
+  - Implemented `Object`-accepting, case-insensitive (`Locale.ROOT`), and numeric-mapped enum parsers in `WorldManager` (`parseEnvironment`, `parseDifficulty`, `parseGameMode`).
+  - Refactored `WorldCopyManager` template copying to skip disabled dimension subfolders (`_nether`, `_the_end`, `the_nether`, `the_end`, `DIM-1`, `DIM1`) while keeping source templates read-only.
+  - Implemented specific fallback warning contracts in `ConfigManager` (`getHubWorld()` -> `"world"`, `getMessage()` -> raw key string) and `MenuManager` (`parseMaterial()` -> `STONE`, `parseTitle()` -> `"Unnamed Menu"`).
+  - Documented Bukkit nether portal limitation note: enabling `disable-nether`/`disable-end` stops dimension folder creation but does not block Bukkit portal generation if `allow-nether=true` in `server.properties`.
 - Implemented companion plugin event-driven integration API (resolves #24 umbrella and #31–#37).
   - Extracted standalone `com.ronlab:rga-api:1.11.0` Maven submodule (`rga-api/pom.xml`) for companion plugin artifact distribution (#36).
   - Created base `MinigameEvent` and concrete event API package `com.ronlab.rga.api.event` (#32).
@@ -17,9 +22,16 @@
   - Renamed primary subcommand to `/rga reloadconfig` and retained `/rga reload` as a backwards-compatible alias with notification guidance.
   - Maintained single permission node `rga.reload` covering both `/rga reloadconfig` and `/rga reload` to ensure backwards compatibility.
   - Updated command usage strings in `paper-plugin.yml`, `RGACommand` help text, tab completions, and `README.md`.
-  - Added unit test suite `RGACommandTest` verifying subcommand execution, alias notifications, permission checks, and tab completions per ADR #35.
+  - Enforced centralized world name validation across all entry points with a structured severity taxonomy (resolves #26).
+  - Implemented `WorldNameValidator` and `ValidationResult` in `com.ronlab.rga.util` separating Hard Security Violations (path traversal `..`, OS-illegal characters) from Format Tier checks.
+  - Added soft migration toggle `strict-world-name-validation: false` (default `false` in v1.11.x) to `config.yml` with getter in `ConfigManager`.
+  - Hardened untrusted command boundary (`RGACommand.java`): dispatches check `WorldNameValidator.validate(worldName, isStrict)` and return appropriate security vs format error messages.
+  - Hardened trusted config parsing boundary (`WorldManager.java`, `MinigameManager.java`): security violations trigger `SEVERE` errors and skip the entry, while cosmetic warnings (spaces, leading dots) log `WARNING` and load the world/minigame normally to prevent data loss.
+  - Ensured generator conformity in `WorldCopyManager.java` by sanitizing minigame IDs when constructing session world names.
+  - Added comprehensive unit test suite `WorldNameValidatorTest.java` verifying path traversal, OS characters, cosmetic warnings, strict mode, length boundaries, and filesystem sanitization.
 
 ### v1.10.0
+
 
 - Implemented party persistence grace period for hub visits (resolves #29).
   - Added configurable grace period timer system allowing players to temporarily leave their party to visit the hub without immediately disbanding.

@@ -42,7 +42,11 @@ public class MenuManager {
             ConfigurationSection menuSection = menusSection.getConfigurationSection(menuName);
             if (menuSection == null) continue;
 
-            String title = menuSection.getString("title", "&8Menu");
+            String title = menuSection.getString("title");
+            if (title == null || title.isBlank()) {
+                plugin.getLogger().warning(String.format("[RGA] Menu '%s' has no title configured, defaulting to 'Unnamed Menu'.", menuName));
+                title = "Unnamed Menu";
+            }
             int size = menuSection.getInt("size", 27);
             List<MenuItemDefinition> items = new ArrayList<>();
 
@@ -52,11 +56,15 @@ public class MenuManager {
                     ConfigurationSection itemSection = itemsSection.getConfigurationSection(itemKey);
                     if (itemSection == null) continue;
 
-                    String materialName = itemSection.getString("material", "STONE").toUpperCase();
-                    Material material = AdventureUtil.safeMaterial(materialName, Material.STONE);
-                    if (material == Material.STONE && !materialName.equals("STONE")) {
-                        plugin.getLogger().warning("Invalid material '" + materialName
-                                + "' for item '" + itemKey + "' in menu '" + menuName + "'.");
+                    String materialName = itemSection.getString("material");
+                    Material material = Material.STONE;
+                    if (materialName == null || materialName.isBlank()) {
+                        plugin.getLogger().warning(String.format("[RGA] Missing material for item '%s' in menu '%s', defaulting to STONE.", itemKey, menuName));
+                    } else {
+                        material = AdventureUtil.safeMaterial(materialName.toUpperCase(Locale.ROOT), Material.STONE);
+                        if (material == Material.STONE && !materialName.equalsIgnoreCase("STONE")) {
+                            plugin.getLogger().warning(String.format("[RGA] Invalid material '%s' for item '%s' in menu '%s', defaulting to STONE.", materialName, itemKey, menuName));
+                        }
                     }
 
                     String name = itemSection.getString("name", "&fItem");
@@ -68,6 +76,10 @@ public class MenuManager {
                     boolean showPlayerCount = itemSection.getBoolean("show-player-count", false);
                     String playerCountWorld = itemSection.getString("player-count-world", "");
                     String minigameId = itemSection.getString("minigame-id", "");
+
+                    if (itemSection.contains("minigame-id") && minigameId.isBlank()) {
+                        plugin.getLogger().warning(String.format("[RGA] Item '%s' in menu '%s' has empty minigame-id configured.", itemKey, menuName));
+                    }
 
                     items.add(new MenuItemDefinition(material, name, rawLore, slot,
                             leftClick, rightClick, showPlayerCount, playerCountWorld, minigameId));

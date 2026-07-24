@@ -30,6 +30,11 @@ smp-worlds:
 # "say" or "whitelist add" to restrict them.
 console-command-allowlist: []
 
+# Strict world name validation for command entry points.
+# Defaults to false in v1.11.x to allow legacy world name support with warnings.
+strict-world-name-validation: false
+
+
 # Compass item settings
 compass:
   material: COMPASS

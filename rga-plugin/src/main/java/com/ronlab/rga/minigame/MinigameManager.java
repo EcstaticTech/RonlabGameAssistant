@@ -64,8 +64,36 @@ public class MinigameManager {
             }
 
             String templateWorld = mg.getString("template-world", null);
+            if (templateWorld != null) {
+                var res = com.ronlab.rga.util.WorldNameValidator.validate(templateWorld, false);
+                if (!res.isValid()) {
+                    plugin.getLogger().severe(String.format(
+                        "[RGA] SECURITY ERROR: Minigame '%s' template-world '%s': %s",
+                        id, templateWorld, res.getErrorMessage()
+                    ));
+                    continue;
+                }
+                if (res.hasWarnings()) {
+                    for (String warning : res.getWarnings()) {
+                        plugin.getLogger().warning(String.format(
+                            "[RGA] WARNING: Minigame '%s' template-world '%s': %s",
+                            id, templateWorld, warning
+                        ));
+                    }
+                }
+            }
+
+            for (String cmdKey : List.of("start-commands", "conclude-commands")) {
+                if (!mg.isSet(cmdKey)) {
+                    plugin.getLogger().warning(String.format(
+                        "[RGA] Minigame '%s' has no '%s' configured. Verify setup if integrating with companion plugins.",
+                        id, cmdKey
+                    ));
+                }
+            }
             List<String> startCommands = mg.getStringList("start-commands");
             List<String> concludeCommands = mg.getStringList("conclude-commands");
+
 
             // ── World settings ────────────────────────────────────
             ConfigurationSection ws = mg.getConfigurationSection("world-settings");
@@ -77,25 +105,24 @@ public class MinigameManager {
             boolean disableNether = false;
             boolean disableEnd = false;
 
+            if (mg.isSet("disable-nether")) {
+                disableNether = mg.getBoolean("disable-nether");
+            }
+            if (ws != null && ws.isSet("disable-nether")) {
+                disableNether = ws.getBoolean("disable-nether");
+            }
+
+            if (mg.isSet("disable-end")) {
+                disableEnd = mg.getBoolean("disable-end");
+            }
+            if (ws != null && ws.isSet("disable-end")) {
+                disableEnd = ws.getBoolean("disable-end");
+            }
+
             if (ws != null) {
-                String gmStr = ws.getString("gamemode", "SURVIVAL").toUpperCase();
-                try { gameMode = GameMode.valueOf(gmStr); }
-                catch (IllegalArgumentException e) {
-                    plugin.getLogger().warning("Invalid gamemode '" + gmStr
-                            + "' in world-settings for " + id + ". Defaulting to SURVIVAL.");
-                }
-
+                gameMode = plugin.getWorldManager().parseGameMode(id, ws.get("gamemode"));
                 pvp = ws.getBoolean("pvp", true);
-
-                String diffStr = ws.getString("difficulty", "NORMAL").toUpperCase();
-                try { difficulty = Difficulty.valueOf(diffStr); }
-                catch (IllegalArgumentException e) {
-                    plugin.getLogger().warning("Invalid difficulty '" + diffStr
-                            + "' in world-settings for " + id + ". Defaulting to NORMAL.");
-                }
-
-                disableNether = ws.getBoolean("disable-nether", false);
-                disableEnd = ws.getBoolean("disable-end", false);
+                difficulty = plugin.getWorldManager().parseDifficulty(id, ws.get("difficulty"));
 
                 ConfigurationSection grSection = ws.getConfigurationSection("gamerules");
                 if (grSection != null) {

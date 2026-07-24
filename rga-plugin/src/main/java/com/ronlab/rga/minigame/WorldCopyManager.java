@@ -24,12 +24,14 @@ public class WorldCopyManager {
      * Returns the base world name, or null on failure.
      */
     public String createVanillaWorld(Minigame minigame) {
-        String baseName = "minigame_" + minigame.getId() + "_"
+        String cleanId = com.ronlab.rga.util.WorldNameValidator.sanitizeForFilesystem(minigame.getId());
+        String baseName = "minigame_" + cleanId + "_"
                 + UUID.randomUUID().toString().substring(0, 8);
 
         String overworldName = baseName;
         String netherName    = baseName + "_the_nether";
         String endName       = baseName + "_the_end";
+
 
         WorldCreator overworldCreator = new WorldCreator(overworldName);
         overworldCreator.environment(World.Environment.NORMAL);
@@ -82,8 +84,10 @@ public class WorldCopyManager {
      */
     public CompletableFuture<String> copyTemplateWorld(Minigame minigame) {
         String templateWorldName = minigame.getTemplateWorld();
-        String newWorldName = "minigame_" + minigame.getId() + "_"
+        String cleanId = com.ronlab.rga.util.WorldNameValidator.sanitizeForFilesystem(minigame.getId());
+        String newWorldName = "minigame_" + cleanId + "_"
                 + UUID.randomUUID().toString().substring(0, 8);
+
 
         // Templates must be top-level world folders
         File templateFolder = new File(Bukkit.getWorldContainer(), templateWorldName);
@@ -95,10 +99,12 @@ public class WorldCopyManager {
         }
 
         File destination = new File(Bukkit.getWorldContainer(), newWorldName);
+        boolean disableNether = minigame.isDisableNether();
+        boolean disableEnd = minigame.isDisableEnd();
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                copyFolder(templateFolder.toPath(), destination.toPath());
+                copyFolder(templateFolder.toPath(), destination.toPath(), disableNether, disableEnd);
             } catch (IOException e) {
                 plugin.getLogger().severe("Failed to copy template world: " + e.getMessage());
                 deleteFolder(destination);
@@ -233,11 +239,20 @@ public class WorldCopyManager {
         }
     }
 
-    private void copyFolder(Path source, Path destination) throws IOException {
+    private void copyFolder(Path source, Path destination, boolean disableNether, boolean disableEnd) throws IOException {
         Files.walkFileTree(source, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
                     throws IOException {
+                if (!dir.equals(source)) {
+                    String dirName = dir.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+                    if (disableNether && (dirName.endsWith("_nether") || dirName.equals("the_nether") || dirName.equals("dim-1"))) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    if (disableEnd && (dirName.endsWith("_the_end") || dirName.equals("the_end") || dirName.equals("dim1"))) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                }
                 Files.createDirectories(destination.resolve(source.relativize(dir)));
                 return FileVisitResult.CONTINUE;
             }
@@ -252,17 +267,18 @@ public class WorldCopyManager {
     }
 
     private void deleteFolder(File folder) {
+        if (folder == null || !folder.exists()) return;
         Path rootPath = folder.toPath();
         try {
             Files.walkFileTree(rootPath, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    Files.delete(file);
+                    Files.deleteIfExists(file);
                     return FileVisitResult.CONTINUE;
                 }
                 @Override
                 public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                    Files.delete(dir);
+                    Files.deleteIfExists(dir);
                     return FileVisitResult.CONTINUE;
                 }
             });
