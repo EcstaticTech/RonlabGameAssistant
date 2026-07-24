@@ -29,9 +29,7 @@ public class ConfigManager {
 
     private FileConfiguration loadConfig(String name) {
         File file = new File(plugin.getDataFolder(), name);
-        if (!file.exists()) {
-            plugin.saveResource(name, false);
-        }
+        plugin.saveResourceIfNotExists(name);
         return YamlConfiguration.loadConfiguration(file);
     }
 

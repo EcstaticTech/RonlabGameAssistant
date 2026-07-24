@@ -27,6 +27,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import com.ronlab.rga.util.VersionGuard;
 
 import com.ronlab.rga.api.event.ConcludeResult;
+import java.io.File;
 import java.util.Map;
 import java.util.UUID;
 import com.ronlab.rga.session.SessionManager;
@@ -58,9 +59,9 @@ public class RGA extends JavaPlugin {
         instance = this;
 
         saveDefaultConfig();
-        saveResource("worlds.yml", false);
-        saveResource("menus.yml", false);
-        saveResource("minigames.yml", false);
+        saveResourceIfNotExists("worlds.yml");
+        saveResourceIfNotExists("menus.yml");
+        saveResourceIfNotExists("minigames.yml");
 
         configManager = new ConfigManager(this);
         locationTracker = new LocationTracker(this);
@@ -146,6 +147,13 @@ public class RGA extends JavaPlugin {
     public ConcludeResult requestSessionConclude(String worldName, String reason, Map<UUID, ? extends Number> scores) {
         if (partyManager == null) return ConcludeResult.ERROR;
         return partyManager.requestSessionConclude(worldName, reason, scores);
+    }
+
+    public void saveResourceIfNotExists(String resourcePath) {
+        File file = new File(getDataFolder(), resourcePath);
+        if (!file.exists()) {
+            saveResource(resourcePath, false);
+        }
     }
 
     public static RGA getInstance() { return instance; }

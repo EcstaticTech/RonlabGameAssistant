@@ -26,7 +26,7 @@ public class MinigameManager {
         minigames.clear();
 
         File file = new File(plugin.getDataFolder(), "minigames.yml");
-        if (!file.exists()) plugin.saveResource("minigames.yml", false);
+        plugin.saveResourceIfNotExists("minigames.yml");
 
         FileConfiguration config = YamlConfiguration.loadConfiguration(file);
         ConfigurationSection section = config.getConfigurationSection("minigames");

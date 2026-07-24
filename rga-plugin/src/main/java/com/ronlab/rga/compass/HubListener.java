@@ -46,6 +46,7 @@ public class HubListener implements Listener {
         plugin.getInventoryManager().markIgnoreNextWorldChange(player.getUniqueId());
 
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) return;
             World hub = Bukkit.getWorld(hubWorld);
             if (hub != null) {
                 player.teleport(hub.getSpawnLocation());
@@ -71,6 +72,7 @@ public class HubListener implements Listener {
 
         if (newWorld.equalsIgnoreCase(hubWorld)) {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (!player.isOnline()) return;
                 if (plugin.getConfigManager().isGiveCompassOnJoin()) {
                     giveCompass(player);
                 }
