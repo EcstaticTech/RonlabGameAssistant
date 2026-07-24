@@ -1,0 +1,12 @@
+name: RGACompanionSkeleton
+version: '1.0.0'
+main: com.ronlab.companion.CompanionSkeletonPlugin
+api-version: '26.1'
+description: Reference companion plugin template for Ronlab Game Assistant (RGA).
+author: Ronlab Team
+
+dependencies:
+  server:
+    RonlabGameAssistant:
+      load: BEFORE
+      required: true
