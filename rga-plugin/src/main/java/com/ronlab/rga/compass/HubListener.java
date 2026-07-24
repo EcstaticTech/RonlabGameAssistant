@@ -53,8 +53,12 @@ public class HubListener implements Listener {
             if (plugin.getConfigManager().isClearInventoryOnHubEntry()) {
                 plugin.getInventoryManager().clearPlayer(player);
             }
-            giveCompass(player);
-            plugin.getSocialItem().giveSocialItem(player);
+            if (plugin.getConfigManager().isGiveCompassOnJoin()) {
+                giveCompass(player);
+            }
+            if (plugin.getConfigManager().isGiveSocialOnJoin()) {
+                plugin.getSocialItem().giveSocialItem(player);
+            }
         }, 5L);
     }
 
@@ -67,8 +71,12 @@ public class HubListener implements Listener {
 
         if (newWorld.equalsIgnoreCase(hubWorld)) {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                giveCompass(player);
-                plugin.getSocialItem().giveSocialItem(player);
+                if (plugin.getConfigManager().isGiveCompassOnJoin()) {
+                    giveCompass(player);
+                }
+                if (plugin.getConfigManager().isGiveSocialOnJoin()) {
+                    plugin.getSocialItem().giveSocialItem(player);
+                }
             }, 1L);
         } else if (oldWorld.equalsIgnoreCase(hubWorld)) {
             boolean removeOnLeave = plugin.getConfig().getBoolean("compass.remove-on-leave-hub", true);

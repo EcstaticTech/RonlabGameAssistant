@@ -4,7 +4,7 @@
 
 # The name of the hub world. Players receive the
 # navigator compass when entering this world.
-hub-world: "Hub"
+hub-world: "hub"
 
 minigames:
   countdown:
@@ -37,6 +37,7 @@ strict-world-name-validation: false
 
 # Compass item settings
 compass:
+  give-on-join: true
   material: COMPASS
   name: "&6World Navigator"
   lore:
@@ -49,6 +50,7 @@ compass:
 # The item is always a player head — material is fixed.
 # slot should differ from compass.slot.
 social-item:
+  give-on-join: true
   name: "&bSocial"
   lore:
     - "&7Right-click to browse open parties"

@@ -38,11 +38,11 @@ public class ConfigManager {
     // ── Convenience getters ──────────────────────────────────────
 
     public String getHubWorld() {
-        String hub = plugin.getConfig().getString("hub-world");
+        String hub = plugin.getConfig().getString("hub-world", "hub");
         if (hub == null || hub.isBlank()) {
-            plugin.getLogger().warning("[RGA] No hub-world configured. Falling back to 'world'. "
+            plugin.getLogger().warning("[RGA] No hub-world configured. Falling back to 'hub'. "
                     + "Verify this world exists on your server or set hub-world in config.yml.");
-            return "world";
+            return "hub";
         }
         return hub;
     }
@@ -53,6 +53,14 @@ public class ConfigManager {
 
     public boolean isRestoreInventoryOnHubReturn() {
         return plugin.getConfig().getBoolean("hub-entry.restore-inventory-on-return", false);
+    }
+
+    public boolean isGiveCompassOnJoin() {
+        return plugin.getConfig().getBoolean("compass.give-on-join", true);
+    }
+
+    public boolean isGiveSocialOnJoin() {
+        return plugin.getConfig().getBoolean("social-item.give-on-join", true);
     }
 
     public boolean isPartyGracePeriodEnabled() {
