@@ -117,6 +117,21 @@ class RGACommandTest {
         assertTrue(completions.contains("reload"), "Tab completions should contain reload alias");
     }
 
+    @Test
+    void testTabComplete_EmptyOrNullArgs_ReturnsSubcommandsWithoutException() {
+        permissions.add("rga.reload");
+
+        assertDoesNotThrow(() -> {
+            Collection<String> emptyArgsCompletions = rgaCommand.suggest(stackMock, new String[0]);
+            assertNotNull(emptyArgsCompletions);
+            assertTrue(emptyArgsCompletions.contains("reloadconfig"));
+
+            Collection<String> nullArgsCompletions = rgaCommand.suggest(stackMock, null);
+            assertNotNull(nullArgsCompletions);
+            assertTrue(nullArgsCompletions.contains("reloadconfig"));
+        });
+    }
+
     private static class TestRGA extends RGA {
         boolean reloaded = false;
         ConfigManager configManager;

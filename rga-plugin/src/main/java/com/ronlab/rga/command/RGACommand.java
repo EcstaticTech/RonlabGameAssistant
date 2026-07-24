@@ -502,6 +502,11 @@ public class RGACommand implements BasicCommand {
     public Collection<String> suggest(CommandSourceStack stack, String[] args) {
         CommandSender sender = stack.getSender();
         if (!hasAnyRGAPermission(sender)) return Collections.emptyList();
+
+        if (args == null || args.length == 0) {
+            args = new String[]{ "" };
+        }
+
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
@@ -529,19 +534,42 @@ public class RGACommand implements BasicCommand {
                 case "compass", "tp" ->
                     Bukkit.getOnlinePlayers().forEach(p -> completions.add(p.getName()));
                 case "importworld", "loadworld" -> {
-                    File serverDir = Bukkit.getWorldContainer();
-                    File[] dirs = serverDir.listFiles(File::isDirectory);
-                    if (dirs != null) {
-                        Set<String> loaded = Bukkit.getWorlds().stream()
-                                .map(World::getName).collect(Collectors.toSet());
+                    // Resolve level-name from server.properties (falls back to "world")
+                    String levelName = "world";
+                    try {
+                        File propsFile = new File(Bukkit.getWorldContainer(), "server.properties");
+                        if (propsFile.isFile()) {
+                            java.util.Properties props = new java.util.Properties();
+                            try (java.io.FileReader reader = new java.io.FileReader(propsFile, java.nio.charset.StandardCharsets.UTF_8)) {
+                                props.load(reader);
+                                String v = props.getProperty("level-name");
+                                if (v != null && !v.isBlank()) levelName = v.trim();
+                            }
+                        }
+                    } catch (java.io.IOException ignored) { }
+
+                    Set<String> loaded = Bukkit.getWorlds().stream()
+                            .map(World::getName).collect(Collectors.toSet());
+
+                    // Scan all candidate paths: Paper 26.x, container-root dims, server root
+                    List<File> scanDirs = List.of(
+                            new File(Bukkit.getWorldContainer(), levelName + "/dimensions/minecraft"),
+                            new File(Bukkit.getWorldContainer(), "dimensions/minecraft"),
+                            Bukkit.getWorldContainer()
+                    );
+
+                    Set<String> seen = new HashSet<>();
+                    for (File scanDir : scanDirs) {
+                        File[] dirs = scanDir.isDirectory() ? scanDir.listFiles(File::isDirectory) : null;
+                        if (dirs == null) continue;
                         for (File dir : dirs) {
                             String name = dir.getName();
-                            if (name.equalsIgnoreCase("world") || name.equalsIgnoreCase("world_nether") || name.equalsIgnoreCase("world_the_end")) {
-                                continue;
-                            }
-                            if (name.equalsIgnoreCase(com.ronlab.rga.world.WorldManager.BACKUP_DIR_NAME)) {
-                                continue;
-                            }
+                            if (!seen.add(name.toLowerCase(java.util.Locale.ROOT))) continue;
+                            // Skip the primary level folder itself and vanilla dims
+                            if (name.equalsIgnoreCase(levelName)) continue;
+                            if (name.equalsIgnoreCase("world_nether") || name.equalsIgnoreCase("world_the_end")
+                                    || name.equalsIgnoreCase("the_nether") || name.equalsIgnoreCase("the_end")) continue;
+                            if (name.equalsIgnoreCase(com.ronlab.rga.world.WorldManager.BACKUP_DIR_NAME)) continue;
                             if (!loaded.contains(name) && WorldNameValidator.isValid(name)) {
                                 completions.add(name);
                             }
