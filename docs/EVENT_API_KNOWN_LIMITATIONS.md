@@ -24,7 +24,7 @@ Companion plugins are strongly recommended to declare a **`softdepend`** on RGA 
 name: Block-Shuffle
 version: '1.0.0'
 main: com.ronlab.blockshuffle.BlockShuffle
-api-version: '26.1'
+api-version: '26.2'
 softdepend:
   - RonlabGameAssistant
 ```

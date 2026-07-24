@@ -10,7 +10,7 @@
 Ronlab Game Assistant (RGA) is an enterprise-grade Minecraft Paper 26.1 plugin and orchestration API for dynamic minigame instances, world lifecycle management, and party management.
 
 ### Key Architectural Pillars:
-* **Paper 26.1 Plugin Platform**: Built using `paper-plugin.yml` with `api-version: '26.1'`, leverage Kyori Adventure API for native rich component messaging.
+* **Paper 26.2 Plugin Platform**: Built using `paper-plugin.yml` with `api-version: '26.2'`, leverage Kyori Adventure API for native rich component messaging.
 * **Nested Dimension Storage**: Fully compliant with Paper 26.1 dimension directory layout (`dimensions/minecraft/the_nether`, `dimensions/minecraft/the_end`), featuring template world cloning with datapack stripping.
 * **Write-Ahead Session Persistence**: Persistent state engine (`SessionManager`) tracking active minigame worlds on disk with automatic orphan detection on startup and clean runtime recovery.
 * **Thread-Safe Orchestration**: `WorldCopyManager` uses key-level template concurrency locks (`ConcurrentHashMap<String, ReentrantLock>`) preventing I/O collisions during parallel world copying.
