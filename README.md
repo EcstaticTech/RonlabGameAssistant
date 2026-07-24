@@ -55,6 +55,7 @@ The plugin manages both persistent and temporary worlds:
   - Defined in `worlds.yml`
   - Loaded at startup with configured settings (gamemode, difficulty, PvP, time-lock, weather-lock)
   - Player locations automatically tracked and restored when returning
+  - Optional `first-visit-spawn` coordinates per world for players visiting without prior location data
 
 - **Minigame Worlds**: Temporary instances created for game sessions
   - Generated on-demand with isolated copies of template worlds (for custom maps)
@@ -85,6 +86,8 @@ Parties are groups of 2-8 players who join a minigame together through a lobby i
 - Leader-only start button
 - Automatic leader transfer on disconnect
 - Automatic party cleanup if all members leave
+- **Party Persistence Grace Period**: When party members visit the Hub temporarily, a grace-period timer prevents premature party disbanding during transient transitions
+- **Minigame Queueing & Auto-Start**: Full minigames support queueing waiting parties, automatically launching the next party when a session concludes
 
 #### 3. **Inventory Management**
 
@@ -92,7 +95,7 @@ Prevents inventory overlap when multiple worlds exist:
 
 - **Grouped Worlds**: Worlds in the same inventory group share items (e.g., SMP overworld/nether/end)
 - **Isolated Worlds**: Each world gets its own inventory container if not grouped
-- **Hub**: Always clears inventory on entry to prevent gear pollution
+- **Hub Entry Behavior**: Configurable hub inventory-clearing confirmation and optional restore-on-return behavior (`config.yml`)
 - **Minigames**: Isolated per-session inventory; restored after game ends
 
 #### 4. **Advancement Persistence**
@@ -122,9 +125,9 @@ Prevents minigame achievements from polluting permanent advancement data:
 - Support for left/right-click actions
 - Action commands execute with customizable behavior
 
-#### 6. **Game Session Command Execution**
+#### 6. **Game Session Command Execution & Role-Based Context**
 
-Minigames can define custom commands to run at specific lifecycle points:
+Minigames can define custom commands to run at specific lifecycle points with role-based execution contexts:
 
 **Start Commands** (after all players teleported in):
 - Support for role-based execution: `console:`, `player-each:`, `leader:`
@@ -141,6 +144,17 @@ Minigames can define custom commands to run at specific lifecycle points:
 - Same format as start commands
 - Useful for stopping game plugins cleanly
 - Example: `console: manhunt stop %world%`
+
+#### 7. **Companion Plugin Event-Driven Integration API**
+
+RGA exposes an event-driven Java API (`rga-api` module) under `com.ronlab.rga.api.event` for companion plugins (such as Block-Shuffle) to integrate natively without relying solely on console command hooks:
+
+- **`MinigameStartEvent`**: Fired post world-load and pre-teleport. Cancellable by companion listeners to abort session launch cleanly.
+- **`MinigameConcludeEvent`**: Fired when a game session concludes. Cancellable, and includes a **mutable scores map** (`getScores()`) allowing companion plugins to record winner scores and game stats.
+- **`GameSessionRequestConcludeEvent`**: Allows companion plugins to trigger session conclusions directly via Java event dispatch with execution feedback.
+
+For complete integration contracts, event ordering rules, and reload behavior, refer to [EVENT_API_KNOWN_LIMITATIONS.md](EVENT_API_KNOWN_LIMITATIONS.md).
+
 
 ---
 
@@ -242,11 +256,12 @@ All plugin behavior is customizable through YAML files:
 
 ### Architectural Constraints
 
-- **Configuration Reload**: `/rga reloadconfig` reloads configs, GUI menus, and world definitions (alias: `/rga reload`); live config changes not supported
+- **Configuration Reload**: `/rga reloadconfig` reloads configuration files, GUI menus, and world definitions (alias: `/rga reload`). Note: Changes apply to future sessions; active minigames will continue using their original settings until they conclude.
 - **World Deletion**: Old minigame worlds must be manually cleaned if deletion fails
-- **Session Persistence**: Write-ahead session snapshots survive server restarts; crash-recovered players get inventory, advancements, and location restored. Active parties and in-progress game sessions remain in-memory only.
-- **Synchronous World Operations**: World copying blocks the main thread (I/O intensive)
-- **Single CommandSender**: Commands routed through console; no player-specific command context
+- **Session Persistence**: Write-ahead session snapshots (`session_recovery.yml`) survive server restarts. Crashed/restarted servers automatically detect active persistence states on boot, flagging missing companion hooks as `ORPHANED` while keeping explicit deletion triggered by `/rga cleanupsession <world>`.
+- **Asynchronous World Operations**: Template world copying is offloaded asynchronously with active progress countdown feedback before teleportation.
+- **Role-Based Command Execution**: Support for role-specific execution scopes (`console:`, `player-each:`, `leader:`) with interpolation placeholders (`%world%`, `%leader%`, `%players%`, `%player%`).
+
 
 ### Performance Considerations
 
@@ -261,7 +276,7 @@ All plugin behavior is customizable through YAML files:
 
 ### Admin Commands
 ```
-/rga reloadconfig       - Reload configuration files and world definitions (alias: /rga reload)
+/rga reloadconfig       - Reloads configuration files, GUI menus, and world definitions. Note: Changes apply to future sessions; active minigames will continue using their original settings until they conclude. (alias: /rga reload)
 /rga tp <world>         - Teleport to a world
 /rga conclude <world>   - Conclude a minigame session in a world
 /rga createworld <name> - Create a new world
@@ -379,7 +394,7 @@ inventory-groups:
 
 ## Development Status
 
-### Current Version: 1.10.0
+### Current Version: 1.12.0
 
 **Core Functionality**: ✓ Complete and usable
 - All major systems functional and tested
@@ -396,13 +411,12 @@ inventory-groups:
 2. **Better Minigame Integration**
    - Built-in score tracking and leaderboards
    - Win condition detection and automatic conclude
-   - Minigame plugin API for standardized integration
    - Replay/highlight system
 
 3. **World Improvements**
-   - Asynchronous world copying to prevent lag
    - Incremental world backups instead of full copies
    - World preloading/caching
+
 
 4. **Inventory System Enhancements**
    - Partial inventory sync between worlds
@@ -437,26 +451,45 @@ inventory-groups:
 
 ---
 
+---
+
 ## Building from Source
 
-**Requirements**: Java 25, Maven
+**Requirements**: Java 25+, Maven 3.9+
 
+RGA uses a multi-module Maven build structure:
+- `rga-api` — Companion plugin integration API (`com.ronlab:rga-api`)
+- `rga-plugin` — PaperMC server plugin (`com.ronlab:rga-plugin`)
+
+To build all artifacts from the repository root:
 ```bash
 mvn clean package
 ```
 
-Output JAR: `target/RonlabGameAssistant-1.9.0.jar`
+Artifacts produced:
+- **API JAR**: `rga-api/target/rga-api-1.12.0.jar` (dependency artifact for companion plugins)
+- **Plugin JAR**: `rga-plugin/target/rga-plugin-1.12.0.jar` (deploy this JAR to `plugins/`)
+
+---
+
+## Architectural Documentation
+
+For in-depth architectural design decisions, event contracts, and system constraints:
+
+- **[EVENT_API_KNOWN_LIMITATIONS.md](EVENT_API_KNOWN_LIMITATIONS.md)**: Details event dispatch ordering, state mutation contracts, failure path behaviors, and companion plugin migration guides.
+- **[ADR-0002 — Datapack Isolation Strategy](docs/adr/ADR-0002-datapack-isolation.md)**: Architectural decision record evaluating isolated minigame instance datapacks vs global server datapacks.
 
 ---
 
 ## Support & Development
 
-Developed for small friend servers running PaperMC. The plugin prioritizes configurability and extensibility through YAML files and command hooks. External minigame plugins integrate via start/conclude command execution with placeholders.
+Developed for small friend servers running PaperMC. The plugin prioritizes configurability and extensibility through YAML files, event listeners, and command hooks. External minigame plugins integrate via the `rga-api` event model or start/conclude command execution.
 
-For issues, enhancements, or questions about the plugin architecture, refer to the source code comments and configuration examples.
+For issues, enhancements, or questions about the plugin architecture, refer to the source code comments, architectural docs, and configuration examples.
 
 ---
 
 ## License
 
 See LICENSE file in repository.
+

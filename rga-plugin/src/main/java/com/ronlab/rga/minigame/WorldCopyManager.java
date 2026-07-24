@@ -10,13 +10,23 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class WorldCopyManager {
 
     private final RGA plugin;
+    private final ConcurrentHashMap<String, ReentrantLock> templateLocks = new ConcurrentHashMap<>();
 
     public WorldCopyManager(RGA plugin) {
         this.plugin = plugin;
+    }
+
+    /**
+     * Helper accessor for testing/inspecting template locks.
+     */
+    public ReentrantLock getTemplateLock(String templateWorldName) {
+        return templateLocks.computeIfAbsent(templateWorldName, k -> new ReentrantLock());
     }
 
     /**
@@ -80,6 +90,9 @@ public class WorldCopyManager {
      * This ensures datapacks, level.dat, and all other level-root assets are
      * included in the copy.
      *
+     * Key-based concurrency locking is enforced on templateWorldName to ensure
+     * concurrent async session starts targeting the same template copy safely.
+     *
      * Returns the new world name, or null on failure.
      */
     public CompletableFuture<String> copyTemplateWorld(Minigame minigame) {
@@ -102,20 +115,24 @@ public class WorldCopyManager {
         boolean disableNether = minigame.isDisableNether();
         boolean disableEnd = minigame.isDisableEnd();
 
+        ReentrantLock templateLock = getTemplateLock(templateWorldName);
+
         return CompletableFuture.supplyAsync(() -> {
+            templateLock.lock();
             try {
                 copyFolder(templateFolder.toPath(), destination.toPath(), disableNether, disableEnd);
+                // Remove identity files so Paper treats this as a fresh world.
+                // We do NOT delete level.dat — it carries the map's spawn point,
+                // world settings, and datapack load list, all of which the map needs.
+                deleteDuplicateFiles(destination);
+                return newWorldName;
             } catch (IOException e) {
                 plugin.getLogger().severe("Failed to copy template world: " + e.getMessage());
                 deleteFolder(destination);
                 return null;
+            } finally {
+                templateLock.unlock();
             }
-
-            // Remove identity files so Paper treats this as a fresh world.
-            // We do NOT delete level.dat — it carries the map's spawn point,
-            // world settings, and datapack load list, all of which the map needs.
-            deleteDuplicateFiles(destination);
-            return newWorldName;
         }).thenCompose(worldName -> {
             if (worldName == null) {
                 return CompletableFuture.completedFuture(null);
