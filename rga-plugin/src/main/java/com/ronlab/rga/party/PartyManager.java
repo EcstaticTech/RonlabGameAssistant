@@ -7,6 +7,7 @@ import com.ronlab.rga.api.event.MinigameStartEvent;
 import com.ronlab.rga.api.event.RGAGameRequestConcludeEvent;
 import com.ronlab.rga.minigame.Minigame;
 import com.ronlab.rga.minigame.WorldCopyManager;
+import com.ronlab.rga.session.SpectatorSnapshot;
 import com.ronlab.rga.util.AdventureUtil;
 import com.ronlab.rga.util.PlaceholderSanitizer;
 import net.kyori.adventure.key.Key;
@@ -51,6 +52,11 @@ public class PartyManager implements Listener {
     // Players whose game has concluded but may still need to respawn
     private final Set<UUID> concludedPlayers = new HashSet<>();
 
+    // ── Spectator Snapshots ───────────────────────────────────────
+    // In-memory inventory/stats snapshots taken when a player enters spectator mode.
+    // Consumed on setSpectator(player, false) or concludeGame() spectator flush.
+    private final Map<UUID, SpectatorSnapshot> spectatorSnapshots = new java.util.concurrent.ConcurrentHashMap<>();
+
     public PartyManager(RGA plugin) {
         this.plugin = plugin;
         this.worldCopyManager = new WorldCopyManager(plugin);
@@ -62,9 +68,162 @@ public class PartyManager implements Listener {
     // ═══════════════════════════════════════════════════════════════
 
     /**
+     * JIT Spectator API — places or removes a player from spectator mode.
+     * <p>
+     * When {@code isSpectator=true}: captures a {@link SpectatorSnapshot} of the player's
+     * full inventory and vital stats, clears the player, sets SPECTATOR game mode, and
+     * revokes advancements. The player's party association is updated.
+     * <p>
+     * When {@code isSpectator=false}: restores the captured snapshot, restores advancements,
+     * sets SURVIVAL game mode, teleports the player to hub, and removes all spectator tracking.
+     * <p>
+     * This method is a no-op if the player is not in a valid state for the requested transition.
+     *
+     * @param player      the target player
+     * @param isSpectator {@code true} to enter spectator, {@code false} to leave
+     */
+    public void setSpectator(Player player, boolean isSpectator) {
+        UUID uuid = player.getUniqueId();
+
+        if (isSpectator) {
+            // ── Enter spectator ────────────────────────────────────
+            Party party = playerParties.get(uuid);
+            if (party == null) {
+                // Try finding via minigame name lookup in case the caller is joining fresh
+                party = findPartyForSpectator(uuid);
+            }
+            if (party == null || party.getState() != Party.State.IN_GAME) {
+                plugin.getLogger().warning("[RGA] setSpectator(true) called for " + player.getName()
+                        + " but player has no active IN_GAME party association.");
+                return;
+            }
+            if (party.isSpectator(uuid)) {
+                // Already spectating — idempotent, just ensure game mode is correct
+                player.setGameMode(GameMode.SPECTATOR);
+                return;
+            }
+            if (!party.getMinigame().isAllowSpectators()) {
+                plugin.getLogger().warning("[RGA] setSpectator(true) rejected for " + player.getName()
+                        + " — minigame '" + party.getMinigame().getId() + "' has allow-spectators: false.");
+                return;
+            }
+
+            // 1. Capture SpectatorSnapshot before any mutation
+            org.bukkit.inventory.PlayerInventory inv = player.getInventory();
+            SpectatorSnapshot snapshot = new SpectatorSnapshot(
+                    inv.getContents().clone(),
+                    inv.getArmorContents().clone(),
+                    inv.getItemInOffHand() != null ? inv.getItemInOffHand().clone() : null,
+                    inv.getHeldItemSlot(),
+                    player.getExp(),
+                    player.getLevel(),
+                    player.getTotalExperience(),
+                    player.getHealth(),
+                    player.getFoodLevel(),
+                    player.getSaturation()
+            );
+            spectatorSnapshots.put(uuid, snapshot);
+
+            // 2. Save pre-game group and advancements for restoration on exit
+            String preGroup = plugin.getInventoryManager().getGroup(player.getWorld().getName());
+            party.setSpectatorPreGameGroup(uuid, preGroup);
+            party.setSpectatorPreGameAdvancements(uuid, plugin.getAdvancementManager().captureCompleted(player));
+
+            // 3. Clear player state and register as spectator
+            plugin.getInventoryManager().clearPlayer(player);
+            party.addSpectator(uuid);
+
+            // 4. Apply SPECTATOR game mode (Paper automatically hides spectators from participants)
+            player.setGameMode(GameMode.SPECTATOR);
+
+            // 5. Teleport into game world if not already there
+            World gameWorld = party.getActiveWorldName() != null
+                    ? Bukkit.getWorld(party.getActiveWorldName()) : null;
+            if (gameWorld != null && !player.getWorld().getName().equals(party.getActiveWorldName())) {
+                player.teleport(gameWorld.getSpawnLocation());
+            }
+
+            // 6. Revoke advancements so spectator cannot trigger game achievements
+            plugin.getAdvancementManager().revokeAll(player);
+
+            plugin.getLogger().info("[RGA] " + player.getName() + " entered spectator mode for '"
+                    + party.getMinigame().getName() + "' via setSpectator API.");
+
+        } else {
+            // ── Leave spectator ────────────────────────────────────
+            Party party = findPartyForSpectator(uuid);
+            if (party == null) {
+                plugin.getLogger().warning("[RGA] setSpectator(false) called for " + player.getName()
+                        + " but no spectator party found.");
+                return;
+            }
+
+            // 1. Restore SpectatorSnapshot if present
+            SpectatorSnapshot snapshot = spectatorSnapshots.remove(uuid);
+            if (snapshot != null) {
+                restoreSpectatorSnapshot(player, snapshot);
+            }
+
+            // 2. Restore pre-game advancements
+            Map<String, List<String>> preAdvs = party.getSpectatorPreGameAdvancements(uuid);
+            if (preAdvs != null && !preAdvs.isEmpty()) {
+                plugin.getAdvancementManager().restoreCompleted(player, preAdvs);
+            }
+
+            // 3. Set SURVIVAL game mode and teleport to hub
+            player.setGameMode(GameMode.SURVIVAL);
+            World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
+            if (hub != null) {
+                player.teleport(hub.getSpawnLocation());
+            }
+
+            // 4. Clean up all spectator tracking
+            party.removeSpectator(uuid);
+            playerParties.remove(uuid);
+
+            player.sendMessage(Component.text("You are no longer spectating.", NamedTextColor.YELLOW));
+            plugin.getLogger().info("[RGA] " + player.getName() + " left spectator mode for '"
+                    + party.getMinigame().getName() + "' via setSpectator API.");
+        }
+    }
+
+    /**
+     * Returns {@code true} if the given player UUID is currently registered as a spectator
+     * in any active minigame session. Suitable for use by {@link RGA#isSpectator(Player)}.
+     *
+     * @param uuid the player's unique ID
+     * @return {@code true} if spectating
+     */
+    public boolean isPlayerSpectating(UUID uuid) {
+        return isSpectator(uuid);
+    }
+
+    /**
+     * Restores all fields from a {@link SpectatorSnapshot} onto the player.
+     * Called by both {@link #setSpectator(Player, boolean)} and the conclude-path spectator flush.
+     */
+    private void restoreSpectatorSnapshot(Player player, SpectatorSnapshot snapshot) {
+        plugin.getInventoryManager().clearPlayer(player);
+        player.getInventory().setContents(snapshot.contents());
+        player.getInventory().setArmorContents(snapshot.armor());
+        if (snapshot.offhand() != null) {
+            player.getInventory().setItemInOffHand(snapshot.offhand());
+        }
+        player.getInventory().setHeldItemSlot(snapshot.heldSlot());
+        player.setExp(snapshot.exp());
+        player.setLevel(snapshot.level());
+        player.setTotalExperience(snapshot.totalExp());
+        player.setHealth(Math.min(snapshot.health(), player.getMaxHealth()));
+        player.setFoodLevel(snapshot.foodLevel());
+        player.setSaturation(snapshot.saturation());
+    }
+
+    /**
      * Allows a player to join an active minigame as a spectator.
      * The player is teleported into the game world in SPECTATOR mode.
      * Their pre-game inventory group and advancements are saved for restoration on exit.
+     * <p>
+     * For programmatic JIT spectating, prefer {@link #setSpectator(Player, boolean)}.
      */
     public void joinAsSpectator(Player player, String minigameId) {
         Minigame minigame = plugin.getMinigameManager().getMinigame(minigameId);
@@ -1489,22 +1648,34 @@ public class PartyManager implements Listener {
         }
         String allSpectators = String.join(",", spectatorNames);
 
-        // ── Handle spectators before conclusion commands ────────────
-        // Spectators are excluded from conclusion commands and game logic.
-        // Restore their advancements and teleport them to hub.
-        for (UUID uuid : party.getSpectators()) {
+        // ── Flush all spectators before conclusion commands ──────────
+        // Restore SpectatorSnapshots (inventory + stats), advancements, and teleport to hub.
+        // Snapshot iteration uses a copy of the set to avoid ConcurrentModificationException
+        // since restoring state may trigger world-change events.
+        List<UUID> spectatorsCopy = new ArrayList<>(party.getSpectators());
+        for (UUID uuid : spectatorsCopy) {
             Player spectator = Bukkit.getPlayer(uuid);
             if (spectator != null) {
+                // Restore explicit SpectatorSnapshot if one was captured via setSpectator API
+                SpectatorSnapshot snapshot = spectatorSnapshots.remove(uuid);
+                if (snapshot != null) {
+                    restoreSpectatorSnapshot(spectator, snapshot);
+                }
                 // Restore pre-game advancements
                 Map<String, List<String>> preAdvs = party.getSpectatorPreGameAdvancements(uuid);
                 if (preAdvs != null && !preAdvs.isEmpty()) {
                     plugin.getAdvancementManager().restoreCompleted(spectator, preAdvs);
                 }
+                // Set game mode back to survival before teleport
+                spectator.setGameMode(GameMode.SURVIVAL);
                 // Teleport to hub
                 if (hub != null) {
                     spectator.teleport(hub.getSpawnLocation());
                 }
                 spectator.sendMessage(Component.text("The game has ended. You have been returned to Hub.", NamedTextColor.GOLD));
+            } else {
+                // Player offline — discard snapshot to avoid memory leak
+                spectatorSnapshots.remove(uuid);
             }
         }
         // Clean up spectator data
@@ -1564,12 +1735,12 @@ public class PartyManager implements Listener {
             playerParties.remove(uuid);
         }
 
-        // Also remove spectator party associations
-        for (UUID uuid : party.getSpectators()) {
+        // Also remove spectator party associations (iterate copy to avoid CME)
+        List<UUID> remainingSpectators = new ArrayList<>(party.getSpectators());
+        for (UUID uuid : remainingSpectators) {
             playerParties.remove(uuid);
+            party.removeSpectator(uuid);
         }
-        // Remove spectator references from the party
-        party.getSpectators().forEach(party::removeSpectator);
 
         activeParties.remove(party.getMinigameId());
         party.clearPreGameData();

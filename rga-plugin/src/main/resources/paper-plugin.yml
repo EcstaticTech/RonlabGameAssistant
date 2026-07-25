@@ -1,5 +1,5 @@
 name: RonlabGameAssistant
-version: '1.12.1'
+version: '1.13.0-SNAPSHOT'
 main: com.ronlab.rga.RGA
 api-version: '26.2'
 description: All-in-one game assistant plugin for Ronlab server.

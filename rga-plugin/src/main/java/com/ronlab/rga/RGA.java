@@ -27,12 +27,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 import com.ronlab.rga.util.VersionGuard;
 
 import com.ronlab.rga.api.event.ConcludeResult;
+import com.ronlab.rga.api.RGASessionControl;
 import java.io.File;
 import java.util.Map;
 import java.util.UUID;
 import com.ronlab.rga.session.SessionManager;
 
-public class RGA extends JavaPlugin {
+public class RGA extends JavaPlugin implements RGASessionControl {
 
     private static RGA instance;
 
@@ -147,6 +148,31 @@ public class RGA extends JavaPlugin {
     public ConcludeResult requestSessionConclude(String worldName, String reason, Map<UUID, ? extends Number> scores) {
         if (partyManager == null) return ConcludeResult.ERROR;
         return partyManager.requestSessionConclude(worldName, reason, scores);
+    }
+
+    // ── RGASessionControl (JIT Spectator API) ────────────────────
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Delegates to {@link com.ronlab.rga.party.PartyManager#setSpectator(Player, boolean)}.
+     * Must be called from the primary server thread.
+     */
+    @Override
+    public void setSpectator(org.bukkit.entity.Player player, boolean isSpectator) {
+        if (partyManager == null) return;
+        partyManager.setSpectator(player, isSpectator);
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Delegates to {@link com.ronlab.rga.party.PartyManager#isPlayerSpectating(UUID)}.
+     */
+    @Override
+    public boolean isSpectator(org.bukkit.entity.Player player) {
+        if (partyManager == null) return false;
+        return partyManager.isPlayerSpectating(player.getUniqueId());
     }
 
     public void saveResourceIfNotExists(String resourcePath) {
