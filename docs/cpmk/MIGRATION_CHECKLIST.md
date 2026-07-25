@@ -73,3 +73,9 @@ public void onMinigameConclude(MinigameConcludeEvent event) {
     cleanUpSessionState(event.getWorldName());
 }
 ```
+
+---
+
+### Step 6: Spatial Mapping Standard (Admin-Configurable Absolute Coordinates)
+Companion plugins must accept absolute platform coordinates in `config.yml` (or `settings.yml`) and calculate boundary thresholds dynamically relative to $Y_{\text{spawn}}$ ($\text{Elimination } Y = Y_{\text{spawn}} - \text{fall-threshold-offset}$). Operators can import template maps built at any world coordinates without needing to modify schematics or origin points.
+
