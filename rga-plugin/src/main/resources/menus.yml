@@ -71,9 +71,9 @@ menus:
         show-player-count: true
         player-count-world: "ParkourMap1,ParkourMap2,ParkourMap3"
         left_click:
-          - "rga:open_menu parkour"
+          - "rga:join_queue parkour"
         right_click:
-          - "rga:open_menu parkour"
+          - "rga:join_queue parkour"
       option5:
         material: NETHER_STAR
         name: "&6&lMinigames"

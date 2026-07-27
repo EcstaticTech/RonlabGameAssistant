@@ -42,6 +42,23 @@
 
 minigames:
 
+  parkour:
+    name: "Parkour Race"
+    display-item: LEATHER_BOOTS
+    display-lore:
+      - "&7Race through the procedural parkour course."
+      - "&7Be the first to hit the finish plate!"
+    max-players: 8
+    min-players: 1
+    world-type: TEMPLATE
+    template-world: "ParkourMap1"
+    give-compass-on-join: false
+    queue-enabled: true
+    auto-start: true
+    allow-spectators: true
+    start-commands: []
+    conclude-commands: []
+
   manhunt:
     name: "Manhunt"
     display-item: COMPASS

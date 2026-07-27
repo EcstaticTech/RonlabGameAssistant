@@ -95,39 +95,3 @@ worlds:
     template: false
     time-lock: -1
     weather-lock: false
-
-  ParkourMap1:
-    load-on-startup: true
-    environment: NORMAL
-    gamemode: ADVENTURE
-    pvp: false
-    difficulty: PEACEFUL
-    announce-join: false
-    alias: "Parkour Map 1"
-    template: false
-    time-lock: 6000
-    weather-lock: true
-
-  ParkourMap2:
-    load-on-startup: true
-    environment: NORMAL
-    gamemode: ADVENTURE
-    pvp: false
-    difficulty: PEACEFUL
-    announce-join: false
-    alias: "Parkour Map 2"
-    template: false
-    time-lock: 6000
-    weather-lock: true
-
-  ParkourMap3:
-    load-on-startup: true
-    environment: NORMAL
-    gamemode: ADVENTURE
-    pvp: false
-    difficulty: PEACEFUL
-    announce-join: false
-    alias: "Parkour Map 3"
-    template: false
-    time-lock: 6000
-    weather-lock: true
