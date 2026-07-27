@@ -59,7 +59,12 @@ public class RGA extends JavaPlugin implements RGASessionControl {
 
         instance = this;
 
-        saveDefaultConfig();
+        File dataFolder = getDataFolder();
+        if (!dataFolder.exists()) {
+            dataFolder.mkdirs();
+        }
+
+        saveResourceIfNotExists("config.yml");
         saveResourceIfNotExists("worlds.yml");
         saveResourceIfNotExists("menus.yml");
         saveResourceIfNotExists("minigames.yml");
@@ -176,9 +181,14 @@ public class RGA extends JavaPlugin implements RGASessionControl {
     }
 
     public void saveResourceIfNotExists(String resourcePath) {
-        File file = new File(getDataFolder(), resourcePath);
+        File dataFolder = getDataFolder();
+        if (!dataFolder.exists()) {
+            dataFolder.mkdirs();
+        }
+        File file = new File(dataFolder, resourcePath);
         if (!file.exists()) {
             saveResource(resourcePath, false);
+            getLogger().info("Generated default configuration: " + resourcePath);
         }
     }
 
