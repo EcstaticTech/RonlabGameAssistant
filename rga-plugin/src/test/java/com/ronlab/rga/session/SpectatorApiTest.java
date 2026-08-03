@@ -34,7 +34,7 @@ import java.util.logging.Logger;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for the JIT Spectator API introduced in Sprint 3 (1.13.0-SNAPSHOT).
+ * Tests for the JIT Spectator API introduced in Sprint 3 (1.13.0).
  * Verifies that setSpectator(true) stashes state, setSpectator(false) restores it,
  * and that edge-cases (idempotency, disallowed mode, wrong state) are guarded correctly.
  *

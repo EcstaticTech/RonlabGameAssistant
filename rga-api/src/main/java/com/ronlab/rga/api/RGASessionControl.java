@@ -55,4 +55,15 @@ public interface RGASessionControl {
      * @return {@code true} if the player is an active spectator, {@code false} otherwise
      */
     boolean isSpectator(Player player);
+
+    /**
+     * Programmatically requests session conclusion for an active minigame world session.
+     *
+     * @param worldName the name of the session world
+     * @param reason    the conclusion message/reason
+     * @param scores    map of player UUIDs to final scores
+     * @return ConcludeResult indicating success, cancellation, or error status
+     */
+    com.ronlab.rga.api.event.ConcludeResult requestSessionConclude(String worldName, String reason, java.util.Map<java.util.UUID, ? extends Number> scores);
 }
+

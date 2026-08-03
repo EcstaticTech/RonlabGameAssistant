@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-08-03
+
+### Added
+- **JIT Spectator Management API (`RGASessionControl.setSpectator`):** Public programmatic interface for companion plugins to manage spectator mode JIT state (inventory capture/restore, advancement toggling, hub routing) without direct inventory management.
+- **Typed Companion Bridge Protocol:** Fully supported companion bridges (e.g. `rga-turfwars`, `rga-announcer`, `Block-Shuffle`) using typed `RGASessionControl` interface contracts instead of Java reflection.
+- **Data Folder & Resource Guards:** Strictly guarded default YAML extraction routines in `RGA.saveResourceIfNotExists` and `ConfigManager` to prevent console log warnings when configuration files exist.
+
+### Changed
+- **Version Lock (`1.13.0`):** Locked release version `1.13.0` across `rga-parent`, `rga-api`, `rga-plugin` POMs, and `paper-plugin.yml`.
+- **Companion Ecosystem Compatibility:** Aligned companion plugins (`rga-turfwars`, `rga-announcer`, `rgaParkour`, `Block-Shuffle`) against the `1.13.0` API release baseline.
+
+---
+
 ## [1.12.1] - 2026-07-24
 
 ### Changed

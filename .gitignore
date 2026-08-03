@@ -131,3 +131,5 @@ GITHUB_ISSUE_ROADMAP.md
 *.swp
 *~.nib
 local.properties
+session.lock
+**/session.lock

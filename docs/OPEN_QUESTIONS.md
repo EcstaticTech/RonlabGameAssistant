@@ -30,3 +30,18 @@
 * **Question**: Will RGA remain a single-instance Paper plugin orchestrating local world instances, or need Redis/Bungee/Velocity messaging for proxy-wide party routing?
 * **Current Status**: Architecture is optimized for single-instance Paper 26.1 servers with multi-world session isolation.
 * **Target Resolution**: Post-Sprint 3 evaluation.
+
+---
+
+## 3. Companion Plugin Alignment & CPMK Migration Audit (August 2026)
+
+### Q3.1: Version Constraint Standardization Across Companions
+* **Question**: Should companion plugin `pom.xml` dependencies be locked to explicit release version `<version>1.13.0</version>` (matching `rga-turfwars`, `rga-announcer`, `rgaParkour`) or maintain version ranges like `[1.12.0, 1.14.0-SNAPSHOT)` (as in `Block-Shuffle`)?
+* **Current Status**: Core RGA locked at `1.13.0`. Companion `rga-turfwars` uses typed `RGASessionControl` API bridge.
+* **Delegation Note**: Recommend standardizing all companion `pom.xml` dependencies to `1.13.0` during their next maintenance cycle.
+
+### Q3.2: Legacy Direct Reflection Audit
+* **Question**: Are any unmigrated companion plugins still attempting direct Java reflection calls (`getMethod("requestSessionConclude", ...)` or `saveResource("config.yml", false)`)?
+* **Current Status**: `rga-turfwars` refactored to typed `RGASessionControl` interface in `RgaBridge.java`. Core RGA log hygiene enforced.
+* **Delegation Note**: Recommend verifying other legacy plugins (`Block-Shuffle`, `InfectedManhunt`, `DeathRace`, `heatWave`) to ensure no lingering reflection methods exist.
+
