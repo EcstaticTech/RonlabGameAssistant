@@ -1268,7 +1268,11 @@ public class PartyManager implements Listener {
             Player player = Bukkit.getPlayer(uuid);
             if (player == null) continue;
 
-            player.teleport(world.getSpawnLocation());
+            // Only teleport to world spawn if player is not already in the game world.
+            // Companion plugins subscribing to MinigameStartEvent hold 100% authority over spatial coordinates.
+            if (!player.getWorld().getName().equalsIgnoreCase(world.getName())) {
+                player.teleport(world.getSpawnLocation());
+            }
             player.setGameMode(org.bukkit.GameMode.SURVIVAL);
             player.sendMessage(Component.text("The game has started! Good luck!", NamedTextColor.GREEN));
             if (plugin.getConfig().getBoolean("minigames.countdown.sound-enabled", true)) {

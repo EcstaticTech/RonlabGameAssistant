@@ -176,9 +176,19 @@ public class SessionManager {
         if (isSmpGroup && plugin.getLocationTracker().hasLocation(player)) {
             plugin.getLocationTracker().teleportToLastLocation(player);
         } else {
-            World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
+            String hubWorldName = plugin.getConfigManager().getHubWorld();
+            World hub = Bukkit.getWorld(hubWorldName);
             if (hub != null) {
                 player.teleport(hub.getSpawnLocation());
+            }
+            com.ronlab.rga.world.WorldSettings hubSettings = plugin.getWorldManager().getSettings(hubWorldName);
+            if (hubSettings != null) {
+                player.setGameMode(hubSettings.getGamemode());
+            } else {
+                player.setGameMode(org.bukkit.GameMode.ADVENTURE);
+            }
+            if (plugin.getHubListener() != null) {
+                plugin.getHubListener().giveHubItems(player);
             }
         }
 

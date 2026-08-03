@@ -54,12 +54,7 @@ public class HubListener implements Listener {
             if (plugin.getConfigManager().isClearInventoryOnHubEntry()) {
                 plugin.getInventoryManager().clearPlayer(player);
             }
-            if (plugin.getConfigManager().isGiveCompassOnJoin()) {
-                giveCompass(player);
-            }
-            if (plugin.getConfigManager().isGiveSocialOnJoin()) {
-                plugin.getSocialItem().giveSocialItem(player);
-            }
+            giveHubItems(player);
         }, 5L);
     }
 
@@ -73,12 +68,7 @@ public class HubListener implements Listener {
         if (newWorld.equalsIgnoreCase(hubWorld)) {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (!player.isOnline()) return;
-                if (plugin.getConfigManager().isGiveCompassOnJoin()) {
-                    giveCompass(player);
-                }
-                if (plugin.getConfigManager().isGiveSocialOnJoin()) {
-                    plugin.getSocialItem().giveSocialItem(player);
-                }
+                giveHubItems(player);
             }, 1L);
         } else if (oldWorld.equalsIgnoreCase(hubWorld)) {
             boolean removeOnLeave = plugin.getConfig().getBoolean("compass.remove-on-leave-hub", true);
@@ -141,6 +131,15 @@ public class HubListener implements Listener {
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 if (player.isOnline()) player.teleport(hub.getSpawnLocation());
             }, 2L);
+        }
+    }
+
+    public void giveHubItems(Player player) {
+        if (plugin.getConfigManager().isGiveCompassOnJoin()) {
+            giveCompass(player);
+        }
+        if (plugin.getConfigManager().isGiveSocialOnJoin()) {
+            plugin.getSocialItem().giveSocialItem(player);
         }
     }
 
