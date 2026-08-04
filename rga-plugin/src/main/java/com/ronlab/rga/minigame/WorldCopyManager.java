@@ -43,6 +43,10 @@ public class WorldCopyManager {
         String netherName    = baseName + "_the_nether";
         String endName       = baseName + "_the_end";
 
+        File worldContainer = Bukkit.getWorldContainer();
+        ensurePaperWorldDefaults(new File(worldContainer, overworldName));
+        ensurePaperWorldDefaults(new File(worldContainer, netherName));
+        ensurePaperWorldDefaults(new File(worldContainer, endName));
 
         WorldCreator overworldCreator = new WorldCreator(overworldName);
         overworldCreator.environment(World.Environment.NORMAL);
@@ -125,6 +129,7 @@ public class WorldCopyManager {
                 // We do NOT delete level.dat — it carries the map's spawn point,
                 // world settings, and datapack load list, all of which the map needs.
                 deleteDuplicateFiles(destination);
+                ensurePaperWorldDefaults(destination);
                 return newWorldName;
             } catch (IOException e) {
                 plugin.getLogger().severe("Failed to copy template world: " + e.getMessage());
@@ -317,6 +322,18 @@ public class WorldCopyManager {
         boolean deleted = FileUtils.deleteDirectoryWithRetry(folder, 3, 250);
         if (!deleted) {
             plugin.getLogger().severe("Failed to recursively delete " + folder);
+        }
+    }
+
+    private void ensurePaperWorldDefaults(File worldDir) {
+        if (worldDir == null) return;
+        File paperWorldFile = new File(worldDir, "paper-world.yml");
+        if (!paperWorldFile.exists()) {
+            try {
+                if (!worldDir.exists()) worldDir.mkdirs();
+                String content = "unsupported-settings:\n  suppress-feature-cross-chunk-loads: true\n";
+                Files.writeString(paperWorldFile.toPath(), content);
+            } catch (IOException ignored) {}
         }
     }
 }

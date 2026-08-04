@@ -1,0 +1,8 @@
+# -----------------------------------------------
+# Ronlab Game Assistant - Paper World Defaults
+# -----------------------------------------------
+# Suppresses cross-chunk feature decoration warnings (e.g. sculk_patch_deep_dark)
+# during procedural vanilla world copies.
+
+unsupported-settings:
+  suppress-feature-cross-chunk-loads: true

@@ -86,6 +86,62 @@ minigames:
         doImmediateRespawn: false
         naturalRegeneration: true
 
+  deathrace:
+    name: "DeathRace"
+    display-item: MINECART
+    display-lore:
+      - "&7Fast-paced obstacle race."
+    max-players: 8
+    min-players: 2
+    world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
+    allow-spectators: true
+    start-commands: []
+    conclude-commands: []
+
+  ultimate_tag:
+    name: "Ultimate Tag"
+    display-item: NAME_TAG
+    display-lore:
+      - "&7High-octane tag minigame."
+    max-players: 8
+    min-players: 2
+    world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
+    allow-spectators: true
+    start-commands: []
+    conclude-commands: []
+
+  block_shuffle:
+    name: "Block Shuffle"
+    display-item: GRASS_BLOCK
+    display-lore:
+      - "&7Find and stand on your assigned block."
+    max-players: 8
+    min-players: 2
+    world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
+    allow-spectators: true
+    start-commands: []
+    conclude-commands: []
+
+  turfwars:
+    name: "Turf Wars"
+    display-item: BOW
+    display-lore:
+      - "&7Capture territory with wool and arrows."
+    max-players: 8
+    min-players: 2
+    world-type: VANILLA
+    queue-enabled: true
+    auto-start: true
+    allow-spectators: true
+    start-commands: []
+    conclude-commands: []
+
   game2:
     name: "Minigame 2"
     display-item: STONE

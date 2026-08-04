@@ -72,6 +72,7 @@ public class RGA extends JavaPlugin implements RGASessionControl {
         saveResourceIfNotExists("worlds.yml");
         saveResourceIfNotExists("menus.yml");
         saveResourceIfNotExists("minigames.yml");
+        saveResourceIfNotExists("paper-world-defaults.yml");
 
         configManager = new ConfigManager(this);
         locationTracker = new LocationTracker(this);
@@ -113,6 +114,7 @@ public class RGA extends JavaPlugin implements RGASessionControl {
         getServer().getPluginManager().registerEvents(new PortalBlockListener(this), this);
         getServer().getPluginManager().registerEvents(new MinigameWorldListener(this), this);
         getServer().getPluginManager().registerEvents(new SocialListener(this), this);
+        getServer().getPluginManager().registerEvents(new com.ronlab.rga.listener.CorePlayerDeathListener(sessionManager), this);
 
         RGACommand rgaCommand = new RGACommand(this);
         HubCommand hubCommand = new HubCommand(this);

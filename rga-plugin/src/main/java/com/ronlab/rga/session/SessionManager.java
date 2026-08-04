@@ -178,6 +178,17 @@ public class SessionManager {
         return orphanedSessionWorlds.contains(worldName);
     }
 
+    public boolean isPlayerInActiveSession(UUID playerUuid) {
+        if (playerUuid == null) return false;
+        if (plugin != null && plugin.getPartyManager() != null) {
+            com.ronlab.rga.party.Party party = plugin.getPartyManager().getPartyForPlayer(playerUuid);
+            if (party != null && party.getState() == com.ronlab.rga.party.Party.State.IN_GAME) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     public boolean isPendingRecovery(UUID playerUuid) {
         return pendingRecoveries.containsKey(playerUuid);
