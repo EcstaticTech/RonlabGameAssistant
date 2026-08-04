@@ -107,16 +107,28 @@ public class MinigameManager {
 
             if (mg.isSet("disable-nether")) {
                 disableNether = mg.getBoolean("disable-nether");
+            } else if (mg.isSet("allow-nether")) {
+                disableNether = !mg.getBoolean("allow-nether");
             }
-            if (ws != null && ws.isSet("disable-nether")) {
-                disableNether = ws.getBoolean("disable-nether");
+            if (ws != null) {
+                if (ws.isSet("disable-nether")) {
+                    disableNether = ws.getBoolean("disable-nether");
+                } else if (ws.isSet("allow-nether")) {
+                    disableNether = !ws.getBoolean("allow-nether");
+                }
             }
 
             if (mg.isSet("disable-end")) {
                 disableEnd = mg.getBoolean("disable-end");
+            } else if (mg.isSet("allow-end")) {
+                disableEnd = !mg.getBoolean("allow-end");
             }
-            if (ws != null && ws.isSet("disable-end")) {
-                disableEnd = ws.getBoolean("disable-end");
+            if (ws != null) {
+                if (ws.isSet("disable-end")) {
+                    disableEnd = ws.getBoolean("disable-end");
+                } else if (ws.isSet("allow-end")) {
+                    disableEnd = !ws.getBoolean("allow-end");
+                }
             }
 
             if (ws != null) {

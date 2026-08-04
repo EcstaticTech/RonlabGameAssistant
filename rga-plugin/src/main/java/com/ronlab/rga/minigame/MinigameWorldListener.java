@@ -26,7 +26,7 @@ public class MinigameWorldListener implements Listener {
 
     // ── Portal routing ───────────────────────────────────────────
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPortal(PlayerPortalEvent event) {
         Player player = event.getPlayer();
         String currentWorld = player.getWorld().getName();
@@ -137,7 +137,7 @@ public class MinigameWorldListener implements Listener {
 
         // World is gone (conclude fired before respawn) or not a minigame world
         // Check if the world name looks like a minigame world that was just deleted
-        if (currentWorld.startsWith("minigame_")) {
+        if (currentWorld.startsWith("minigame_") || currentWorld.startsWith("session_")) {
             // Redirect to Hub since the world no longer exists
             World hub = Bukkit.getWorld(plugin.getConfigManager().getHubWorld());
             if (hub != null) {
@@ -149,7 +149,7 @@ public class MinigameWorldListener implements Listener {
     // ── Helpers ──────────────────────────────────────────────────
 
     private boolean isMinigameWorld(String worldName) {
-        if (!worldName.startsWith("minigame_")) return false;
+        if (!worldName.startsWith("minigame_") && !worldName.startsWith("session_")) return false;
         for (Party party : plugin.getPartyManager().getActiveParties().values()) {
             String active = party.getActiveWorldName();
             if (active == null) continue;
