@@ -40,12 +40,22 @@ class WorldCopyManagerDatapackStripTest {
         dummyWorld = (World) Proxy.newProxyInstance(
                 World.class.getClassLoader(),
                 new Class<?>[] { World.class },
-                (proxy, method, args) -> switch (method.getName()) {
-                    case "getName" -> "test_world";
-                    case "getPlayers" -> Collections.emptyList();
-                    case "getSpawnLocation" -> new Location(null, 0, 64, 0);
-                    case "setPVP", "setDifficulty", "setGameRule" -> null;
-                    default -> null;
+                (proxy, method, args) -> {
+                    switch (method.getName()) {
+                        case "getName": return "test_world";
+                        case "getPlayers": return Collections.emptyList();
+                        case "getSpawnLocation": return new Location(null, 0, 64, 0);
+                        case "setSpawnLocation": return true;
+                        case "setPVP": case "setDifficulty": case "setGameRule": return null;
+                        default:
+                            Class<?> returnType = method.getReturnType();
+                            if (returnType.equals(boolean.class)) return Boolean.FALSE;
+                            if (returnType.equals(int.class)) return 0;
+                            if (returnType.equals(long.class)) return 0L;
+                            if (returnType.equals(double.class)) return 0.0;
+                            if (returnType.equals(float.class)) return 0.0f;
+                            return null;
+                    }
                 }
         );
 

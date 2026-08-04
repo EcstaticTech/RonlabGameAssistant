@@ -56,6 +56,7 @@ public class WorldCopyManager {
             plugin.getLogger().severe("Failed to create overworld for minigame: " + minigame.getId());
             return null;
         }
+        applyDeterministicSpawn(overworld, overworldName);
         applyMinigameSettings(overworld, minigame);
 
         WorldCreator netherCreator = new WorldCreator(netherName);
@@ -67,6 +68,7 @@ public class WorldCopyManager {
             Bukkit.unloadWorld(overworld, false);
             return null;
         }
+        applyDeterministicSpawn(nether, netherName);
         applyMinigameSettings(nether, minigame);
 
         WorldCreator endCreator = new WorldCreator(endName);
@@ -79,6 +81,7 @@ public class WorldCopyManager {
             Bukkit.unloadWorld(nether, false);
             return null;
         }
+        applyDeterministicSpawn(end, endName);
         applyMinigameSettings(end, minigame);
 
         plugin.getLogger().info("Created vanilla minigame worlds: "
@@ -155,6 +158,7 @@ public class WorldCopyManager {
                     return;
                 }
 
+                applyDeterministicSpawn(world, templateWorldName);
                 applyMinigameSettings(world, minigame);
                 plugin.getLogger().info("Copied template '" + templateWorldName
                         + "' to '" + worldName + "'.");
@@ -162,6 +166,52 @@ public class WorldCopyManager {
             });
             return loadFuture;
         });
+    }
+
+    /**
+     * Injects an explicit, deterministic spawn location into a world immediately after creation
+     * to eliminate PaperMC 26.2 PlayerSpawnFinder main-thread chunk searching watchdog hangs.
+     *
+     * @param world the newly created/loaded World instance; must not be null
+     * @param templateWorldName the associated template world name or world identifier
+     */
+    public void applyDeterministicSpawn(World world, String templateWorldName) {
+        if (world == null) return;
+
+        Location spawnLoc = null;
+        if (plugin != null && plugin.getWorldManager() != null && templateWorldName != null) {
+            com.ronlab.rga.world.WorldSettings settings = plugin.getWorldManager().getSettings(templateWorldName);
+            if (settings != null && settings.getFirstVisitSpawn() != null) {
+                spawnLoc = settings.getFirstVisitSpawn().toLocation(world);
+            }
+        }
+
+        if (spawnLoc == null && templateWorldName != null) {
+            World templateWorld = Bukkit.getWorld(templateWorldName);
+            if (templateWorld != null) {
+                Location tSpawn = templateWorld.getSpawnLocation();
+                spawnLoc = new Location(world, tSpawn.getX(), tSpawn.getY(), tSpawn.getZ(), tSpawn.getYaw(), tSpawn.getPitch());
+            }
+        }
+
+        if (spawnLoc != null) {
+            world.setSpawnLocation(spawnLoc);
+            if (plugin != null) {
+                plugin.getLogger().info("Applied explicit template spawn location to world '" + world.getName()
+                        + "': (" + spawnLoc.getX() + ", " + spawnLoc.getY() + ", " + spawnLoc.getZ() + ")");
+            }
+        } else {
+            Location defaultSpawn = new Location(world, 0.5, 100.0, 0.5);
+            world.setSpawnLocation(defaultSpawn);
+            String displayWorldName = templateWorldName != null ? templateWorldName : world.getName();
+            String warningMsg = "[rga-core] WARNING: No template spawn defined for world " + displayWorldName
+                    + ". Defaulting spawn to (0.5, 100.0, 0.5). Run /rga setspawn in the template world to suppress.";
+            if (plugin != null) {
+                plugin.getLogger().warning(warningMsg);
+            } else {
+                java.util.logging.Logger.getLogger("rga-core").warning(warningMsg);
+            }
+        }
     }
 
     /**
