@@ -29,8 +29,6 @@ public class FileUtils {
             if (deleteDirectory(directory)) {
                 return true;
             }
-            // Suggest garbage collection to prompt release of native unclosed file handles on Windows
-            System.gc();
             try {
                 Thread.sleep(delayMillis);
             } catch (InterruptedException ignored) {

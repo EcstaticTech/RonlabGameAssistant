@@ -8,12 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.13.0] - 2026-08-03
 
 ### Added
+- **Async Directory Deleter Engine (`AsyncDirectoryDeleter`, Sprint 1.1):** Implemented non-blocking background directory purges using Java `ScheduledExecutorService` and Java NIO (`Files.walkFileTree`) with exponential backoff retries (500 ms to 4s) to eliminate Windows OS `.mca` file lock TPS spikes.
+- **Session Naming Isolation (Sprint 1.1):** Dynamic world folder generation in `WorldCopyManager` updated to format `session_[minigame]_[timestamp]_[shortUUID]` to prevent path collisions during concurrent session lifecycle operations.
+- **Immutable Session Snapshot Model (`SessionSnapshot`, Sprint 1.2):** Introduced `SessionSnapshot` record and `SessionPhase` enum for point-in-time thread boundary safety without memory race conditions.
+- **Write-Ahead Logging Engine (`SessionStateWALWriter`, Sprint 1.2):** Non-blocking WAL writer executing state transitions to `sessions/<session_id>.wal` asynchronously on a dedicated executor ($0\text{ ms}$ main thread tick overhead).
+- **Runtime Session Auditor (`RuntimeSessionAuditor`, Sprint 1.2):** Periodic background auditing task running every 30 seconds (600 ticks) to detect phantom session directories on disk, offload purges to `AsyncDirectoryDeleter`, and auto-purge corrupted log folders older than 7 days from `/sessions/corrupted/`.
+- **Power-Loss Recovery Handler (`PowerLossRecoveryHandler`, Sprint 1.2):** Startup recovery procedure in `onEnable()` that replays valid `.wal` entries and quarantines corrupted session directories into `/sessions/corrupted/` to ensure engine stability after abrupt server terminations.
 - **JIT Spectator Management API (`RGASessionControl.setSpectator`):** Public programmatic interface for companion plugins to manage spectator mode JIT state (inventory capture/restore, advancement toggling, hub routing) without direct inventory management.
 - **Typed Companion Bridge Protocol:** Fully supported companion bridges (e.g. `rga-turfwars`, `rga-announcer`, `Block-Shuffle`) using typed `RGASessionControl` interface contracts instead of Java reflection.
 - **Data Folder & Resource Guards:** Strictly guarded default YAML extraction routines in `RGA.saveResourceIfNotExists` and `ConfigManager` to prevent console log warnings when configuration files exist.
 
 ### Changed
-- **Version Lock (`1.13.0`):** Locked release version `1.13.0` across `rga-parent`, `rga-api`, `rga-plugin` POMs, and `paper-plugin.yml`.
+- **System.gc() Elimination (Sprint 1.1):** Removed all `System.gc()` invocations from `FileUtils.deleteDirectoryWithRetry()` and delegated disk teardowns to `AsyncDirectoryDeleter`.
+- **Orphan Log Management (Sprint 1.1):** Updated `WorldManager.purgeOrphanedSessionFolders()` to clear and truncate `orphaned_sessions.log` to 0 bytes after reading and purging orphaned paths.
+- **Version Lock (`1.13.0`):** Kept version `1.13.0` locked across `rga-parent`, `rga-api`, `rga-plugin` POMs, and `paper-plugin.yml` while companion plugins target development.
 - **Companion Ecosystem Compatibility:** Aligned companion plugins (`rga-turfwars`, `rga-announcer`, `rgaParkour`, `Block-Shuffle`) against the `1.13.0` API release baseline.
 
 ---

@@ -99,8 +99,9 @@ public class WorldCopyManager {
     public CompletableFuture<String> copyTemplateWorld(Minigame minigame) {
         String templateWorldName = minigame.getTemplateWorld();
         String cleanId = com.ronlab.rga.util.WorldNameValidator.sanitizeForFilesystem(minigame.getId());
-        String newWorldName = "minigame_" + cleanId + "_"
-                + UUID.randomUUID().toString().substring(0, 8);
+        long timestamp = System.currentTimeMillis();
+        String shortUuid = UUID.randomUUID().toString().substring(0, 8);
+        String newWorldName = "session_" + cleanId + "_" + timestamp + "_" + shortUuid;
 
 
         File templateFolder = resolveWorldFolder(templateWorldName);

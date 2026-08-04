@@ -477,7 +477,7 @@ Artifacts produced:
 
 For in-depth architectural design decisions, event contracts, and system constraints:
 
-- **[EVENT_API_KNOWN_LIMITATIONS.md](EVENT_API_KNOWN_LIMITATIONS.md)**: Details event dispatch ordering, state mutation contracts, failure path behaviors, and companion plugin migration guides.
+- **[docs/EVENT_API_KNOWN_LIMITATIONS.md](docs/EVENT_API_KNOWN_LIMITATIONS.md)**: Details event dispatch ordering, state mutation contracts, failure path behaviors, and companion plugin migration guides.
 - **[ADR-0002 — Datapack Isolation Strategy](docs/adr/ADR-0002-datapack-isolation.md)**: Architectural decision record evaluating isolated minigame instance datapacks vs global server datapacks.
 
 ---

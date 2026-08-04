@@ -32,6 +32,8 @@ import java.io.File;
 import java.util.Map;
 import java.util.UUID;
 import com.ronlab.rga.session.SessionManager;
+import com.ronlab.rga.session.audit.PowerLossRecoveryHandler;
+import com.ronlab.rga.session.audit.RuntimeSessionAuditor;
 
 public class RGA extends JavaPlugin implements RGASessionControl {
 
@@ -50,6 +52,8 @@ public class RGA extends JavaPlugin implements RGASessionControl {
     private HubListener hubListener;
     private SocialItem socialItem;
     private BrowsePartiesGui browsePartiesGui;
+    private RuntimeSessionAuditor runtimeSessionAuditor;
+    private PowerLossRecoveryHandler powerLossRecoveryHandler;
 
     @Override
     public void onEnable() {
@@ -74,9 +78,21 @@ public class RGA extends JavaPlugin implements RGASessionControl {
         inventoryManager = new InventoryManager(this);
         advancementManager = new AdvancementManager(this);
         sessionManager = new SessionManager(this);
+
+        File sessionsDir = new File(getDataFolder(), "sessions");
+        powerLossRecoveryHandler = new PowerLossRecoveryHandler(sessionsDir);
+        powerLossRecoveryHandler.processPowerLossRecovery(sessionManager);
+
         sessionManager.loadOrphanedSessions();
 
         worldManager = new WorldManager(this);
+        runtimeSessionAuditor = new RuntimeSessionAuditor(
+                sessionManager,
+                worldManager.getAsyncDirectoryDeleter(),
+                sessionsDir
+        );
+        runtimeSessionAuditor.startAuditing(30);
+
         menuManager = new MenuManager(this);
         minigameManager = new MinigameManager(this);
         lobbyGui = new LobbyGui(this);
@@ -110,6 +126,10 @@ public class RGA extends JavaPlugin implements RGASessionControl {
 
     @Override
     public void onDisable() {
+        if (runtimeSessionAuditor != null) {
+            runtimeSessionAuditor.stopAuditing();
+        }
+
         if (locationTracker != null) locationTracker.saveAll();
 
         // Clean up active game sessions - preserve session files for player recovery
@@ -135,6 +155,14 @@ public class RGA extends JavaPlugin implements RGASessionControl {
                 getLogger().warning("Plugin shutdown with " + preservedCount + " player(s) in " + activeSessions
                         + " active session(s). Recovery data preserved for next startup.");
             }
+        }
+
+        if (sessionManager != null) {
+            sessionManager.shutdown();
+        }
+
+        if (worldManager != null) {
+            worldManager.shutdown();
         }
 
         getLogger().info("Ronlab Game Assistant disabled.");
@@ -206,4 +234,6 @@ public class RGA extends JavaPlugin implements RGASessionControl {
     public HubListener getHubListener() { return hubListener; }
     public SocialItem getSocialItem() { return socialItem; }
     public BrowsePartiesGui getBrowsePartiesGui() { return browsePartiesGui; }
+    public RuntimeSessionAuditor getRuntimeSessionAuditor() { return runtimeSessionAuditor; }
+    public PowerLossRecoveryHandler getPowerLossRecoveryHandler() { return powerLossRecoveryHandler; }
 }

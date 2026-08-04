@@ -12,7 +12,7 @@ Companion plugins should depend on `rga-api` via Maven or JitPack:
 <dependency>
     <groupId>com.ronlab</groupId>
     <artifactId>rga-api</artifactId>
-    <version>1.11.0</version>
+    <version>1.13.0</version>
     <scope>provided</scope>
 </dependency>
 ```

@@ -47,11 +47,26 @@ public class SessionManager {
         public Map<String, List<String>> getSavedAdvancements() { return savedAdvancements; }
     }
 
+    private final SessionStateWALWriter walWriter;
+
     public SessionManager(RGA plugin) {
         this.plugin = plugin;
-        this.sessionsDir = new File(plugin.getDataFolder(), "sessions");
+        this.sessionsDir = (plugin != null && plugin.getDataFolder() != null)
+                ? new File(plugin.getDataFolder(), "sessions")
+                : new File("sessions");
         if (!sessionsDir.exists()) {
             sessionsDir.mkdirs();
+        }
+        this.walWriter = new SessionStateWALWriter(sessionsDir);
+    }
+
+    public SessionStateWALWriter getWalWriter() {
+        return walWriter;
+    }
+
+    public void shutdown() {
+        if (walWriter != null) {
+            walWriter.shutdown();
         }
     }
 
@@ -87,6 +102,15 @@ public class SessionManager {
         } catch (IOException e) {
             plugin.getLogger().severe("Failed to save session snapshot for " + worldName + ": " + e.getMessage());
         }
+
+        SessionSnapshot snapshot = new SessionSnapshot(
+                UUID.nameUUIDFromBytes(worldName.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                party.getMinigameId(),
+                new ArrayList<>(party.getMembers()),
+                SessionPhase.IN_GAME,
+                System.currentTimeMillis()
+        );
+        walWriter.appendTransitionAsync(worldName, snapshot);
     }
 
     public synchronized void deleteSession(String worldName) {
@@ -98,6 +122,16 @@ public class SessionManager {
                 plugin.getLogger().warning("Could not delete session file: " + sessionFile.getName());
             }
         }
+
+        SessionSnapshot snapshot = new SessionSnapshot(
+                UUID.nameUUIDFromBytes(worldName.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                "unknown",
+                List.of(),
+                SessionPhase.TEARDOWN,
+                System.currentTimeMillis()
+        );
+        walWriter.appendTransitionAsync(worldName, snapshot);
+
         orphanedSessionWorlds.remove(worldName);
         pendingRecoveries.values().removeIf(data -> data.getWorldName().equalsIgnoreCase(worldName));
     }
