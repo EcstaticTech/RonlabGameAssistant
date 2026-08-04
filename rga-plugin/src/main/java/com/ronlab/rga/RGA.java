@@ -87,6 +87,7 @@ public class RGA extends JavaPlugin implements RGASessionControl {
 
         worldManager = new WorldManager(this);
         runtimeSessionAuditor = new RuntimeSessionAuditor(
+                this,
                 sessionManager,
                 worldManager.getAsyncDirectoryDeleter(),
                 sessionsDir

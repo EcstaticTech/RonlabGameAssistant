@@ -1,7 +1,9 @@
 package com.ronlab.rga.session.audit;
 
+import com.ronlab.rga.RGA;
 import com.ronlab.rga.session.SessionManager;
 import net.ronlab.rga.core.utils.io.AsyncDirectoryDeleter;
+import org.bukkit.Bukkit;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,15 +29,26 @@ public class RuntimeSessionAuditor {
 
     private static final Logger LOGGER = Logger.getLogger(RuntimeSessionAuditor.class.getName());
     private static final long SEVEN_DAYS_MS = 7L * 24L * 60L * 60L * 1000L;
+    private static final long GRACE_PERIOD_MS = 60_000L; // 60-second grace window
 
+    private final RGA plugin;
     private final SessionManager sessionManager;
     private final AsyncDirectoryDeleter directoryDeleter;
     private final File sessionsDir;
     private final ScheduledExecutorService scheduler;
     private ScheduledFuture<?> auditTaskFuture;
 
+    public RuntimeSessionAuditor(RGA plugin, AsyncDirectoryDeleter directoryDeleter, File sessionsDir) {
+        this(plugin, plugin != null ? plugin.getSessionManager() : null, directoryDeleter, sessionsDir);
+    }
+
     public RuntimeSessionAuditor(SessionManager sessionManager, AsyncDirectoryDeleter directoryDeleter, File sessionsDir) {
-        this.sessionManager = Objects.requireNonNull(sessionManager, "sessionManager cannot be null");
+        this(null, sessionManager, directoryDeleter, sessionsDir);
+    }
+
+    public RuntimeSessionAuditor(RGA plugin, SessionManager sessionManager, AsyncDirectoryDeleter directoryDeleter, File sessionsDir) {
+        this.plugin = plugin;
+        this.sessionManager = sessionManager != null ? sessionManager : (plugin != null ? plugin.getSessionManager() : null);
         this.directoryDeleter = Objects.requireNonNull(directoryDeleter, "directoryDeleter cannot be null");
         this.sessionsDir = Objects.requireNonNull(sessionsDir, "sessionsDir cannot be null");
         this.scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -67,25 +80,74 @@ public class RuntimeSessionAuditor {
             return;
         }
 
-        Set<String> activeOrphanWorlds = sessionManager.getOrphanedSessionWorlds();
-
         File[] files = sessionsDir.listFiles();
         if (files == null) return;
 
+        long now = System.currentTimeMillis();
+
         for (File file : files) {
-            if (file.getName().equals("corrupted")) {
+            if (file.getName().equalsIgnoreCase("corrupted")) {
                 continue;
             }
 
-            String worldName = extractWorldName(file);
-            if (worldName == null) continue;
+            // 60-Second Grace Window Buffer: Skip files/folders modified within the last 60 seconds
+            long lastModified = file.lastModified();
+            if (now - lastModified < GRACE_PERIOD_MS) {
+                continue;
+            }
 
-            // If session directory on disk is not in active or orphaned recovery lists, it's a phantom folder
-            if (!activeOrphanWorlds.contains(worldName)) {
-                LOGGER.info("[RGA AUDITOR] Detected phantom session directory on disk: " + file.getName() + " — Queueing async purge");
-                directoryDeleter.queueForDeletion(file.toPath());
+            String sessionId = extractSessionId(file);
+            if (sessionId == null || sessionId.isBlank()) continue;
+
+            // Triple-Lock Active Memory Verification: Skip active sessions
+            if (isSessionActiveInMemory(sessionId)) {
+                continue;
+            }
+
+            // Phantom session detected — queue async deletion
+            LOGGER.info("[RGA AUDITOR] Detected phantom session file/directory on disk: " + file.getName() + " — Queueing async purge");
+            directoryDeleter.queueForDeletion(file.toPath());
+        }
+    }
+
+    public boolean isSessionActiveInMemory(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return true;
+
+        // Check 1: SessionManager orphaned recovery / registered session worlds
+        if (sessionManager != null) {
+            Set<String> orphanWorlds = sessionManager.getOrphanedSessionWorlds();
+            if (orphanWorlds != null && orphanWorlds.stream().anyMatch(w -> w.equalsIgnoreCase(sessionId))) {
+                return true;
             }
         }
+
+        // Check 2: Bukkit loaded world instances
+        try {
+            if (Bukkit.getWorld(sessionId) != null
+                    || Bukkit.getWorld(sessionId + "_the_nether") != null
+                    || Bukkit.getWorld(sessionId + "_the_end") != null) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+            // Uninitialized Bukkit server in unit test environment
+        }
+
+        // Check 3: PartyManager active in-game sessions
+        if (plugin != null && plugin.getPartyManager() != null) {
+            boolean activeInParty = plugin.getPartyManager().getActiveParties().values().stream().anyMatch(party -> {
+                String activeWorld = party.getActiveWorldName();
+                return activeWorld != null && (
+                        activeWorld.equalsIgnoreCase(sessionId) ||
+                        activeWorld.equalsIgnoreCase(sessionId + "_the_nether") ||
+                        activeWorld.equalsIgnoreCase(sessionId + "_the_end")
+                );
+            });
+            if (activeInParty) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void cleanCorruptedDirectory() {
@@ -113,16 +175,19 @@ public class RuntimeSessionAuditor {
         }
     }
 
-    private String extractWorldName(File file) {
+    public String extractSessionId(Path path) {
+        if (path == null) return null;
+        return extractSessionId(path.toFile());
+    }
+
+    public String extractSessionId(File file) {
+        if (file == null) return null;
         String name = file.getName();
-        if (name.endsWith(".yml")) {
-            return name.substring(0, name.length() - 4);
-        } else if (name.endsWith(".wal")) {
-            return name.substring(0, name.length() - 4);
-        } else if (file.isDirectory()) {
-            return name;
+        if (name.endsWith(".yml") || name.endsWith(".wal") || name.endsWith(".json")) {
+            int lastDot = name.lastIndexOf('.');
+            return name.substring(0, lastDot);
         }
-        return null;
+        return name;
     }
 
     public void stopAuditing() {
