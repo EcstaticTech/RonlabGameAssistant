@@ -5,9 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.13.0] - 2026-08-03
+## [1.13.0] - 2026-08-04
 
 ### Added
+- **Session Occupancy Guard (`CorePlayerDeathListener`, Feature 3.1):** Created `CorePlayerDeathListener` executing at `EventPriority.LOWEST`. Yields 100% control of `PlayerDeathEvent` handling to companion plugin listeners whenever a player is in an active minigame session (`isPlayerInActiveSession(UUID)`).
+- **Runtime Session Auditor Active Session Protection (Hotfix Bug 3.1):** Added `extractSessionId()` helper to strip `.wal`, `.yml`, and `.json` file extensions before memory lookups. Added a 60-second file age protection buffer (`GRACE_PERIOD_MS = 60_000L`) and Triple-Lock active state verification (`SessionManager`, `Bukkit` loaded worlds, `PartyManager` active sessions) to eliminate false-positive active session file deletions during live gameplay.
+- **Portal Listener Priority & World Settings Hardening (Layer 2):** Elevated `PortalBlockListener` and `MinigameWorldListener` to `EventPriority.HIGHEST` with `ignoreCancelled = false`. Updated listeners to recognize `session_` world prefixes alongside `minigame_`. Added `allow-nether: false` and `allow-end: false` configuration fallback parsing in `WorldManager` and `MinigameManager`.
+- **Default Resources & World Generator Settings:** Added CPMK companion minigame definitions (`deathrace`, `ultimate_tag`, `block_shuffle`, `turfwars`) to `minigames.yml` with clean `start-commands: []` and `conclude-commands: []` arrays. Created `paper-world-defaults.yml` resource and injected `paper-world.yml` (`unsupported-settings.suppress-feature-cross-chunk-loads: true`) into dynamic session world directories to suppress cross-chunk feature decoration console warnings.
 - **Async Directory Deleter Engine (`AsyncDirectoryDeleter`, Sprint 1.1):** Implemented non-blocking background directory purges using Java `ScheduledExecutorService` and Java NIO (`Files.walkFileTree`) with exponential backoff retries (500 ms to 4s) to eliminate Windows OS `.mca` file lock TPS spikes.
 - **Session Naming Isolation (Sprint 1.1):** Dynamic world folder generation in `WorldCopyManager` updated to format `session_[minigame]_[timestamp]_[shortUUID]` to prevent path collisions during concurrent session lifecycle operations.
 - **Immutable Session Snapshot Model (`SessionSnapshot`, Sprint 1.2):** Introduced `SessionSnapshot` record and `SessionPhase` enum for point-in-time thread boundary safety without memory race conditions.

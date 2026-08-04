@@ -13,7 +13,10 @@ import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SessionManager {
@@ -114,13 +117,22 @@ public class SessionManager {
     }
 
     public synchronized void deleteSession(String worldName) {
+        if (worldName == null || worldName.isBlank()) return;
+
         File sessionFile = new File(sessionsDir, worldName + ".yml");
         if (sessionFile.exists()) {
-            if (sessionFile.delete()) {
-                plugin.getLogger().info("Deleted session file: " + sessionFile.getName());
-            } else {
-                plugin.getLogger().warning("Could not delete session file: " + sessionFile.getName());
-            }
+            CompletableFuture.runAsync(() -> {
+                try {
+                    boolean deleted = Files.deleteIfExists(sessionFile.toPath());
+                    if (deleted && plugin != null) {
+                        plugin.getLogger().info("[RGA SESSION] Deleted session snapshot file: " + sessionFile.getName());
+                    }
+                } catch (IOException e) {
+                    if (plugin != null) {
+                        plugin.getLogger().warning("[RGA SESSION] Could not delete session file " + sessionFile.getName() + ": " + e.getMessage());
+                    }
+                }
+            });
         }
 
         SessionSnapshot snapshot = new SessionSnapshot(
@@ -131,9 +143,13 @@ public class SessionManager {
                 System.currentTimeMillis()
         );
         walWriter.appendTransitionAsync(worldName, snapshot);
+        walWriter.deleteWalFileAsync(worldName);
 
         orphanedSessionWorlds.remove(worldName);
         pendingRecoveries.values().removeIf(data -> data.getWorldName().equalsIgnoreCase(worldName));
+        if (plugin != null) {
+            plugin.getLogger().info("[RGA SESSION] Released session memory handles for world: " + worldName);
+        }
     }
 
     public synchronized void loadOrphanedSessions() {

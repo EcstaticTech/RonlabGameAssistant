@@ -1541,6 +1541,32 @@ public class PartyManager implements Listener {
         return null;
     }
 
+    public Optional<Party> findPartyByWorld(String worldName) {
+        return Optional.ofNullable(getPartyByWorld(worldName));
+    }
+
+    public synchronized void dissociatePartyFromWorld(String worldName) {
+        Party party = getPartyByWorld(worldName);
+        if (party == null) {
+            return;
+        }
+
+        for (UUID uuid : party.getMembers()) {
+            playerParties.remove(uuid);
+        }
+
+        List<UUID> remainingSpectators = new ArrayList<>(party.getSpectators());
+        for (UUID uuid : remainingSpectators) {
+            playerParties.remove(uuid);
+            party.removeSpectator(uuid);
+        }
+
+        activeParties.remove(party.getMinigameId());
+        party.clearPreGameData();
+        plugin.getLogger().info("[RGA PARTY] Dissociated party for minigame '"
+                + party.getMinigameId() + "' from world '" + worldName + "'.");
+    }
+
     private int safeConvertScore(Number value) {
         if (value == null) return 0;
         long longVal = value.longValue();
@@ -1612,11 +1638,12 @@ public class PartyManager implements Listener {
     }
 
     public ConcludeResult concludeGame(String worldName, Map<UUID, ? extends Number> scores) {
-        Party party = getPartyByWorld(worldName);
-        if (party == null) {
+        Optional<Party> partyOpt = findPartyByWorld(worldName);
+        if (partyOpt.isEmpty()) {
             plugin.getLogger().warning("No party found for world: " + worldName);
             return ConcludeResult.NOT_FOUND;
         }
+        Party party = partyOpt.get();
 
         if (party.getActiveWorldName() != null) {
             worldName = party.getActiveWorldName();
@@ -1735,20 +1762,6 @@ public class PartyManager implements Listener {
             }
         }
 
-        for (UUID uuid : party.getMembers()) {
-            playerParties.remove(uuid);
-        }
-
-        // Also remove spectator party associations (iterate copy to avoid CME)
-        List<UUID> remainingSpectators = new ArrayList<>(party.getSpectators());
-        for (UUID uuid : remainingSpectators) {
-            playerParties.remove(uuid);
-            party.removeSpectator(uuid);
-        }
-
-        activeParties.remove(party.getMinigameId());
-        party.clearPreGameData();
-
         // Capture values for the deferred cleanup lambda
         List<UUID> finalMembers = new ArrayList<>(party.getMembers());
         String finalWorldName = worldName;
@@ -1763,6 +1776,7 @@ public class PartyManager implements Listener {
             }
             worldCopyManager.cleanupWorld(finalWorldName, isVanilla);
             plugin.getSessionManager().deleteSession(finalWorldName);
+            dissociatePartyFromWorld(finalWorldName);
 
             // ── Auto-start: promote next queued party ───────────────
             if (finalMinigame.isAutoStart()) {

@@ -84,6 +84,28 @@ public class SessionStateWALWriter {
         return new File(sessionsDir, worldName + ".wal").toPath();
     }
 
+    public CompletableFuture<Void> deleteWalFileAsync(String worldName) {
+        if (worldName == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        return CompletableFuture.runAsync(() -> {
+            try {
+                Path walFile = resolveWalFilePath(worldName);
+                if (Files.exists(walFile)) {
+                    boolean deleted = Files.deleteIfExists(walFile);
+                    if (deleted) {
+                        LOGGER.info("[RGA WAL] Successfully deleted WAL file: " + walFile.getFileName());
+                    } else {
+                        LOGGER.warning("[RGA WAL] Files.deleteIfExists returned false for WAL file: " + walFile.getFileName());
+                    }
+                }
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Failed to delete WAL file for world " + worldName + ": " + e.getMessage(), e);
+            }
+        }, walExecutor);
+    }
+
     public void shutdown() {
         walExecutor.shutdown();
         try {
