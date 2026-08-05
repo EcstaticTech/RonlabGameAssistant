@@ -28,6 +28,8 @@ Small friend servers (2-32 players) running PaperMC who want a structured miniga
 
 ### Architecture Overview
 
+`rga-core` serves as the foundation of the **Micro-Companion Architecture (CPMK standard)**, acting as the primary orchestration engine for the minigame server environment. It handles ephemeral world duplication, party lobby routing, inventory isolation, advancement backup/restore, and non-blocking state snapshotting (`.yml` / `.wal` write-ahead session logs). Companion plugins (e.g. `rga-sumo`, `rga-bingo`, `rga-deathrace`, `rga-turfwars`) interact with `rga-core` via the typed Java API (`rga-api`) and CPMK event bus.
+
 RGA uses a modular manager-based architecture where each subsystem handles a distinct responsibility:
 
 ```
@@ -64,10 +66,16 @@ The plugin manages both persistent and temporary worlds:
   - Full multiverse support (overworld, nether, end dimensions)
 
 **Technical Implementation**: 
-- Uses PaperMC's `WorldCreator` API
+- Uses PaperMC's `WorldCreator` API (Java 25 / PaperMC 26.2 target)
 - Handles world environment setup (NORMAL, NETHER, THE_END)
+- **Deterministic Spawn Injection**: `WorldCopyManager.applyDeterministicSpawn()` injects saved template spawn vectors directly after world creation/copying, falling back gracefully to `(0.5, 100.0, 0.5)` (yaw: 0.0, pitch: 0.0) if unconfigured. This bypasses Paper's costly main-thread heightmap scans (`PlayerSpawnFinder`) and resolves 15-second watchdog server hangs during `Bukkit.createWorld()`.
 - Applies per-world gamerules and settings
 - Manages portal routing between dimensions
+
+#### Template Spawn Mechanism & `WorldCopyManager`
+The `/rga setspawn [world]` command persists precise spawn vectors (`x, y, z, yaw, pitch`) to configuration (`worlds.yml` / template state). During dynamic session world creation, `WorldCopyManager.applyDeterministicSpawn()` reads these saved vectors and explicitly sets the world spawn point. If no custom spawn vector is configured, `WorldCopyManager` gracefully defaults to `(0.5, 100.0, 0.5)` with `0.0` pitch and yaw.
+
+By applying deterministic spawn injection immediately post-copy, `rga-core` completely avoids PaperMC's synchronous `PlayerSpawnFinder` heightmap search algorithm, eliminating main-thread server freezes and 15-second watchdog crashes during session generation.
 
 #### 2. **Party & Minigame System**
 
@@ -276,17 +284,19 @@ All plugin behavior is customizable through YAML files:
 
 ### Admin Commands
 ```
-/rga reloadconfig       - Reloads configuration files, GUI menus, and world definitions. Note: Changes apply to future sessions; active minigames will continue using their original settings until they conclude. (alias: /rga reload)
+/rga start <minigame>   - Start/launch a minigame session for a party or test environment
+/rga conclude <world>   - Conclude an active minigame session in a world
+/rga setspawn [world]   - Set and save spawn point vector for a world or template
+/rga listworlds         - List all loaded worlds and active session instances
+/rga reload             - Alias for /rga reloadconfig (reloads configuration, menus, and worlds)
+/rga reloadconfig       - Reloads configuration files, GUI menus, and world definitions. Note: Active minigames retain launch configuration.
 /rga tp <world>         - Teleport to a world
-/rga conclude <world>   - Conclude a minigame session in a world
 /rga createworld <name> - Create a new world
 /rga compass            - Get the navigation compass item
-/rga listworlds         - List all loaded worlds
 /rga importworld <name> - Import an existing world folder
 /rga loadworld <name>   - Load an existing world
 /rga unloadworld <name> - Unload a world
 /rga deleteworld <name> - Delete a world permanently
-/rga setspawn [world]   - Set spawn point
 /rga setworldgamemode <world> <mode>
 /rga setworldpvp <world> <true|false>
 /rga setworlddifficulty <world> <difficulty>

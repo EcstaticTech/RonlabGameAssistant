@@ -2,6 +2,22 @@
 # Ronlab Game Assistant - General Configuration
 # -----------------------------------------------
 
+# -----------------------------------------------
+# Ephemeral World Copy & Dynamic Sessions:
+# Temporary minigame sessions create isolated world folders on disk named
+# 'sessions/session_<minigame>_<timestamp>_<uuid>'. Source template worlds
+# are copied asynchronously from top-level server template directories.
+#
+# Deterministic Spawn Injection:
+# To prevent main-thread server watchdog hangs (15-second heightmap scans),
+# WorldCopyManager injects saved template spawn vectors via applyDeterministicSpawn()
+# or falls back gracefully to (0.5, 100.0, 0.5) immediately after world creation/copying.
+#
+# Write-Ahead Logging (WAL) & State Snapshotting:
+# Non-blocking WAL state transitions flush to 'sessions/<session_id>.wal'.
+# An auditor task audits, flushes, and cleans active session state every 30 seconds (600 ticks).
+# -----------------------------------------------
+
 # The name of the hub world. Players receive the
 # navigator compass when entering this world.
 hub-world: "hub"
