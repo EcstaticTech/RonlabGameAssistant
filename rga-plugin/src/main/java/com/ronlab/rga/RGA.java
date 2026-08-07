@@ -34,6 +34,9 @@ import java.util.UUID;
 import com.ronlab.rga.session.SessionManager;
 import com.ronlab.rga.session.audit.PowerLossRecoveryHandler;
 import com.ronlab.rga.session.audit.RuntimeSessionAuditor;
+import com.ronlab.rga.api.stats.RGAStatsProvider;
+import com.ronlab.rga.persistence.SQLiteStatsProvider;
+import org.bukkit.plugin.ServicePriority;
 
 public class RGA extends JavaPlugin implements RGASessionControl {
 
@@ -54,6 +57,8 @@ public class RGA extends JavaPlugin implements RGASessionControl {
     private BrowsePartiesGui browsePartiesGui;
     private RuntimeSessionAuditor runtimeSessionAuditor;
     private PowerLossRecoveryHandler powerLossRecoveryHandler;
+    private SQLiteStatsProvider sqliteStatsProvider;
+    private RGAStatsProvider statsProvider;
 
     @Override
     public void onEnable() {
@@ -85,6 +90,16 @@ public class RGA extends JavaPlugin implements RGASessionControl {
         powerLossRecoveryHandler.processPowerLossRecovery(sessionManager);
 
         sessionManager.loadOrphanedSessions();
+
+        File dbFile = new File(new File(getDataFolder(), "data"), "rga.db");
+        sqliteStatsProvider = new SQLiteStatsProvider(dbFile, getLogger());
+        try {
+            sqliteStatsProvider.initialize();
+            statsProvider = sqliteStatsProvider;
+            getServer().getServicesManager().register(RGAStatsProvider.class, statsProvider, this, ServicePriority.Normal);
+        } catch (Exception e) {
+            getLogger().severe("Failed to initialize SQLite persistence engine: " + e.getMessage());
+        }
 
         worldManager = new WorldManager(this);
         runtimeSessionAuditor = new RuntimeSessionAuditor(
@@ -168,6 +183,10 @@ public class RGA extends JavaPlugin implements RGASessionControl {
             worldManager.shutdown();
         }
 
+        if (sqliteStatsProvider != null) {
+            sqliteStatsProvider.shutdown();
+        }
+
         getLogger().info("Ronlab Game Assistant disabled.");
     }
 
@@ -239,4 +258,5 @@ public class RGA extends JavaPlugin implements RGASessionControl {
     public BrowsePartiesGui getBrowsePartiesGui() { return browsePartiesGui; }
     public RuntimeSessionAuditor getRuntimeSessionAuditor() { return runtimeSessionAuditor; }
     public PowerLossRecoveryHandler getPowerLossRecoveryHandler() { return powerLossRecoveryHandler; }
+    public RGAStatsProvider getStatsProvider() { return statsProvider; }
 }

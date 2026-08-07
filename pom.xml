@@ -14,6 +14,7 @@
 
     <modules>
         <module>rga-api</module>
+        <module>rga-persistence</module>
         <module>rga-plugin</module>
     </modules>
 

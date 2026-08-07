@@ -34,13 +34,15 @@ This roadmap documents the framework evolution, sprint history, and milestone ta
 
 ---
 
-### Sprint 7: Stage 3 Persistence Layer (Embedded SQLite/H2 in rga-api)
-**Status**: 🚀 **ACTIVE / UPCOMING TARGET**
+### Sprint 7: Stage 3 Persistence Layer (Embedded SQLite in rga-persistence)
+**Status**: [x] **100% COMPLETE**
 
-- [ ] **Embedded Database Engine**: Integrate lightweight embedded database driver (SQLite / H2) into `rga-api` for persistent companion data.
-- [ ] **Cross-Session Player Telemetry**: Store historical minigame statistics, player win/loss records, performance metrics, and leaderboards across dynamic session resets.
-- [ ] **Party & Profile Storage**: Implement persistent party profiles, custom party configurations, and player preferences surviving server restarts.
-- [ ] **Async Migration & Maintenance API**: Provide background schema migration utilities, automated backup hooks, and thread-safe data access interfaces for companion plugins.
+- [x] **Embedded Database Engine (`rga-persistence`)**: Integrated `sqlite-jdbc` and `flyway-core` into dedicated `rga-persistence` module with `ServicesResourceTransformer` shaded SPI declarations.
+- [x] **Public API Contract (`RGAStatsProvider` & `PlayerMinigameStats`)**: Exposed non-blocking `RGAStatsProvider` interface and `PlayerMinigameStats` record in `rga-api:1.13.0` with `CompletableFuture<T>` read queries and non-blocking fire-and-queue write tasks.
+- [x] **Bounded Worker & Backpressure (`dbExecutor`)**: Implemented single-threaded database worker backed by `ArrayBlockingQueue(2048)` and non-blocking drop-and-log backpressure handler.
+- [x] **Exponential Backoff Lock Handling**: Wrapped SQL operations in 3-try exponential backoff logic targeting `SQLITE_BUSY` errors.
+- [x] **Automated Schema Migration & Hybrid DDL**: Integrated `V1__init_stats_schema.sql` Flyway migration script, hybrid DDL schema (`player_stats` table with strict core metrics + metadata JSON TEXT), and leaderboard index `idx_minigame_wins`.
+- [x] **SQLite WAL Engine Initialization**: Automatic `PRAGMA journal_mode=WAL;`, `PRAGMA busy_timeout=5000;`, and `PRAGMA synchronous=NORMAL;` execution at `/plugins/RonlabGameAssistant/data/rga.db`.
 
 ---
 

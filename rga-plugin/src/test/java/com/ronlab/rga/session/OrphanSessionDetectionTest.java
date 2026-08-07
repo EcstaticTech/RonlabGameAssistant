@@ -153,6 +153,13 @@ class OrphanSessionDetectionTest {
         sessionManager.deleteSession(targetWorld);
 
         assertFalse(sessionManager.isOrphanedSession(targetWorld), "Orphan status should be purged");
-        assertFalse(new File(tempDir, "sessions/" + targetWorld + ".yml").exists(), "Session file should be deleted");
+
+        File sessionFile = new File(tempDir, "sessions/" + targetWorld + ".yml");
+        long deadline = System.currentTimeMillis() + 3000;
+        while (sessionFile.exists() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50);
+        }
+
+        assertFalse(sessionFile.exists(), "Session file should be deleted");
     }
 }

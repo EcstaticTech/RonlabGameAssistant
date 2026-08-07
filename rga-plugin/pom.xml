@@ -24,6 +24,12 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
+            <groupId>com.ronlab</groupId>
+            <artifactId>rga-persistence</artifactId>
+            <version>1.13.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
             <version>[26.2.build,)</version>
@@ -73,8 +79,14 @@
                             <artifactSet>
                                 <includes>
                                     <include>com.ronlab:rga-api</include>
+                                    <include>com.ronlab:rga-persistence</include>
+                                    <include>org.xerial:sqlite-jdbc</include>
+                                    <include>org.flywaydb:flyway-core</include>
                                 </includes>
                             </artifactSet>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
                         </configuration>
                     </execution>
                 </executions>
