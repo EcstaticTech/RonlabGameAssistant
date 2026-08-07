@@ -105,6 +105,21 @@ public class MinigameWorldListener implements Listener {
                 }
             }
         }
+
+        if (!event.isCancelled() && event.getTo() != null && event.getTo().getWorld() != null
+                && player.getWorld() != null
+                && !event.getTo().getWorld().getName().equals(player.getWorld().getName())) {
+            com.ronlab.rga.api.event.PlayerRGANavigateEvent navEvent = new com.ronlab.rga.api.event.PlayerRGANavigateEvent(
+                    player,
+                    player.getWorld(),
+                    event.getTo().getWorld(),
+                    com.ronlab.rga.api.event.PlayerRGANavigateEvent.NavigationType.PORTAL
+            );
+            Bukkit.getPluginManager().callEvent(navEvent);
+            if (navEvent.isCancelled()) {
+                event.setCancelled(true);
+            }
+        }
     }
 
     // ── Respawn routing ──────────────────────────────────────────

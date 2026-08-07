@@ -6,7 +6,7 @@
 
     <groupId>com.ronlab</groupId>
     <artifactId>rga-parent</artifactId>
-    <version>1.13.0</version>
+    <version>1.13.1</version>
     <packaging>pom</packaging>
 
     <name>rga-parent</name>
@@ -19,6 +19,7 @@
     </modules>
 
     <properties>
+        <rga.api.version>1.13.1</rga.api.version>
         <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>

@@ -79,7 +79,7 @@ public class ActionHandler {
             }
             player.closeInventory();
             plugin.getServer().getScheduler().runTaskLater(plugin,
-                    () -> plugin.getWorldManager().teleportToWorld(player, worldName), 1L);
+                    () -> plugin.getWorldManager().teleportToWorld(player, worldName, com.ronlab.rga.api.event.PlayerRGANavigateEvent.NavigationType.COMPASS_MENU), 1L);
 
         } else if (action.startsWith("join_minigame ")) {
             String minigameId = action.substring(14).trim();

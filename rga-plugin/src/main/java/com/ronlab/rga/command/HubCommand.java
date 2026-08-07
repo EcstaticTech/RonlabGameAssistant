@@ -53,6 +53,6 @@ public class HubCommand implements BasicCommand {
         }
 
         // Teleport to Hub
-        plugin.getWorldManager().teleportToWorld(player, hubWorld);
+        plugin.getWorldManager().teleportToWorld(player, hubWorld, com.ronlab.rga.api.event.PlayerRGANavigateEvent.NavigationType.COMMAND_HUB);
     }
 }

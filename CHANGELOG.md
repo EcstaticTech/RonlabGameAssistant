@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-08-07
+
+### Added
+- **Navigation Notification Event (`PlayerRGANavigateEvent`, Task 1.1):** Created cancellable `PlayerRGANavigateEvent` in `com.ronlab.rga.api.event` dispatched synchronously on the main thread prior to executing any navigation teleport (`COMPASS_MENU`, `COMMAND_HUB`, `COMMAND_TP`, `PORTAL`).
+- **Core Navigation Dispatch Integration (Task 2.1 & 2.2):** Integrated `PlayerRGANavigateEvent` dispatches into `WorldManager.teleportToWorld`, `/hub` (`HubCommand`), `/rga tp` (`RGACommand`), GUI compass clicks (`ActionHandler`), and portal routing listeners (`PortalBlockListener`, `MinigameWorldListener`).
+- **Companion Scoreboard Initialization Mandate (Task 1.2 & 4.1):** Updated `MinigameStartEvent` JavaDoc and companion integration documentation mandating baseline score line initialization before calling `player.setScoreboard()` to prevent client-side blank sidebar rendering.
+
+### Changed
+- **Version Bump (`1.13.1`):** Bumped framework version to `1.13.1` across `rga-parent`, `rga-api`, `rga-persistence`, `rga-plugin` POMs, and `paper-plugin.yml`.
+
+---
+
 ## [1.13.0] - 2026-08-04
 
 ### Added

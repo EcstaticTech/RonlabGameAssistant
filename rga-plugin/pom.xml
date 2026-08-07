@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.ronlab</groupId>
         <artifactId>rga-parent</artifactId>
-        <version>1.13.0</version>
+        <version>1.13.1</version>
     </parent>
 
     <artifactId>RonlabGameAssistant</artifactId>
@@ -20,13 +20,19 @@
         <dependency>
             <groupId>com.ronlab</groupId>
             <artifactId>rga-api</artifactId>
-            <version>1.13.0</version>
+            <version>1.13.1</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.ronlab</groupId>
             <artifactId>rga-persistence</artifactId>
-            <version>1.13.0</version>
+            <version>1.13.1</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -82,6 +88,9 @@
                                     <include>com.ronlab:rga-persistence</include>
                                     <include>org.xerial:sqlite-jdbc</include>
                                     <include>org.flywaydb:flyway-core</include>
+                                    <include>com.fasterxml.jackson.core:jackson-databind</include>
+                                    <include>com.fasterxml.jackson.core:jackson-core</include>
+                                    <include>com.fasterxml.jackson.core:jackson-annotations</include>
                                 </includes>
                             </artifactSet>
                             <transformers>

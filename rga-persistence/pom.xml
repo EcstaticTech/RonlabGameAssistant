@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.ronlab</groupId>
         <artifactId>rga-parent</artifactId>
-        <version>1.13.0</version>
+        <version>1.13.1</version>
     </parent>
 
     <artifactId>rga-persistence</artifactId>
@@ -20,7 +20,7 @@
         <dependency>
             <groupId>com.ronlab</groupId>
             <artifactId>rga-api</artifactId>
-            <version>1.13.0</version>
+            <version>1.13.1</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -33,6 +33,12 @@
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
             <version>10.10.0</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>

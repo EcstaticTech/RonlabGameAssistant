@@ -78,3 +78,61 @@ public void onRequestConclude(RGAGameRequestConcludeEvent event) {
 | `NOT_FOUND` | Target world name does not match an active RGA session. |
 | `ALREADY_CONCLUDING` | Session is already undergoing teardown (`Party.State.CONCLUDING`). |
 | `ERROR` | An internal exception occurred during teardown. |
+
+---
+
+## 3. Navigation Notification Interface (`PlayerRGANavigateEvent`)
+
+Introduced in `v1.13.1`, `PlayerRGANavigateEvent` is fired synchronously on the main thread immediately prior to executing any navigation teleport (`COMPASS_MENU`, `COMMAND_HUB`, `COMMAND_TP`, `PORTAL`).
+
+```java
+@EventHandler
+public void onPlayerNavigate(PlayerRGANavigateEvent event) {
+    Player player = event.getPlayer();
+    World origin = event.getOriginWorld();
+    World target = event.getTargetWorld();
+    PlayerRGANavigateEvent.NavigationType type = event.getNavigationType();
+
+    // Advance notice for announcers/companions before client chunk map updates
+    plugin.getLogger().info(player.getName() + " navigating via " + type + " from " + origin.getName() + " to " + target.getName());
+}
+```
+
+---
+
+## 4. Companion Scoreboard Initialization Mandate (`MinigameStartEvent`)
+
+To prevent client-side blank scoreboard rendering glitches, companion plugins handling `MinigameStartEvent` **MUST** populate at least 1 baseline score line on their sidebar objective before assigning `player.setScoreboard()`.
+
+```java
+/**
+ * MANDATORY PATTERN: CPMK Companion MinigameStartEvent Handler
+ * Prevents client-side blank scoreboard rendering by injecting baseline 
+ * score lines BEFORE mounting the board to the player.
+ */
+@EventHandler(priority = EventPriority.NORMAL)
+public void onMinigameStart(MinigameStartEvent event) {
+    Scoreboard board = Bukkit.getScoreboardManager().getNewScoreboard();
+    Objective obj = board.registerNewObjective("minigame_session", Criteria.DUMMY, Component.text("GAME NAME", NamedTextColor.GOLD));
+    
+    // 1. Apply display slot
+    obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+    
+    // 2. Suppress legacy red numbers (Sprint 8 Mandate)
+    obj.numberFormat(NumberFormat.blank());
+    
+    // 3. CRITICAL: Inject baseline frame IMMEDIATELY
+    // Do not wait for round start or player movement ticks
+    obj.getScore(Component.text("Round: 1", NamedTextColor.WHITE)).setScore(3);
+    obj.getScore(Component.text("Players: " + event.getPlayerUuids().size(), NamedTextColor.GREEN)).setScore(2);
+    obj.getScore(Component.text(" ", NamedTextColor.WHITE)).setScore(1); // Spacer line
+
+    // 4. Mount populated board to players
+    for (UUID uuid : event.getPlayerUuids()) {
+        Player player = Bukkit.getPlayer(uuid);
+        if (player != null) {
+            player.setScoreboard(board);
+        }
+    }
+}
+```
