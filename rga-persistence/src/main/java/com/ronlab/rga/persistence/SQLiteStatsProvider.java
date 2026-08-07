@@ -275,9 +275,41 @@ public class SQLiteStatsProvider implements RGAStatsProvider {
         return future;
     }
 
+    @Override
+    public CompletableFuture<Boolean> playerExists(UUID playerUuid) {
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        if (playerUuid == null) {
+            future.complete(false);
+            return future;
+        }
+
+        dbExecutor.execute(() -> {
+            try {
+                boolean exists = executeWithRetry(() -> {
+                    String sql = "SELECT 1 FROM player_stats WHERE player_uuid = ? LIMIT 1";
+                    try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                        pstmt.setString(1, playerUuid.toString());
+                        try (ResultSet rs = pstmt.executeQuery()) {
+                            return rs.next();
+                        }
+                    }
+                });
+                future.complete(exists);
+            } catch (Exception e) {
+                if (logger != null) {
+                    logger.warning("[rga-persistence] playerExists query error for player " + playerUuid + ": " + e.getMessage());
+                }
+                future.complete(false);
+            }
+        });
+
+        return future;
+    }
+
     /**
      * Closes the connection cleanly and stops the dbExecutor worker.
      */
+
     public void shutdown() {
         if (!dbExecutor.isShutdown()) {
             CompletableFuture<Void> closeFuture = new CompletableFuture<>();

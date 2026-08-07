@@ -39,4 +39,18 @@ public interface RGAStatsProvider {
      * @return a CompletableFuture containing the list of top player stats
      */
     CompletableFuture<List<PlayerMinigameStats>> getTopPlayers(String minigameId, int limit);
+
+    /**
+     * Asynchronously checks if a player has any recorded stats in the system.
+     *
+     * @param playerUuid the player's unique identifier
+     * @return a CompletableFuture containing true if the player exists, false otherwise
+     */
+    default CompletableFuture<Boolean> playerExists(UUID playerUuid) {
+        if (playerUuid == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return getPlayerStats(playerUuid, "%").thenApply(Optional::isPresent);
+    }
 }
+
