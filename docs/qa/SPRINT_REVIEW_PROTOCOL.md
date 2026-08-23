@@ -27,7 +27,7 @@ If any field disagrees: **stop, report the exact mismatch, make no version chang
 3. Close the corresponding GitHub issue **only after the PR has been merged AND CI is green**:
 
 ```bash
-gh issue close <N> --repo EcstaticTech641/RonlabGameAssistant
+gh issue close <N> --repo EcstaticTech/RonlabGameAssistant
 ```
 
 > [!WARNING]
@@ -78,7 +78,7 @@ pom.xml                                         (<version>)
 
 Quick GitHub check:
 ```bash
-gh issue list --repo EcstaticTech641/RonlabGameAssistant --state open
+gh issue list --repo EcstaticTech/RonlabGameAssistant --state open
 ```
 
 ---
@@ -92,7 +92,7 @@ These apply specifically when an autonomous agent is executing a sprint:
 1. **Verify issue numbering live** — do not trust cross-reference numbers baked into
    planning documents. Run:
    ```bash
-   gh issue list --repo EcstaticTech641/RonlabGameAssistant --state all \
+   gh issue list --repo EcstaticTech/RonlabGameAssistant --state all \
      --limit 5 --json number | jq '.[0].number'
    ```
    If the highest issue number has drifted from what the plan expected, re-derive

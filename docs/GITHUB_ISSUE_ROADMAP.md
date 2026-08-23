@@ -171,7 +171,7 @@ Use it to create issues, assign labels, and track milestone progress.
   - Milestone: `RGA gameplay polish`
   - Description: JitPack, building from a tagged release of an extracted
     rga-api Maven module (`com.ronlab:rga-api`). Softdepend + plugin presence guard
-    adopted for EcstaticTech641/Block-Shuffle fork. Multi-module extraction
+    adopted for EcstaticTech/Block-Shuffle fork. Multi-module extraction
     and JitPack validation is a hard blocker before Gate 1 work begins.
   - **Resolved: v1.11.0**
 
