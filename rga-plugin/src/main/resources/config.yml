@@ -44,8 +44,6 @@ default-template:
     doWeatherCycle: "false"
     keepInventory: "true"
 
-
-
 # The SMP worlds. Last locations are tracked and
 # restored for any world listed here.
 smp-worlds:
@@ -54,14 +52,10 @@ smp-worlds:
   - "world_the_end"
 
 # Console command allowlist for lifecycle hooks and menu actions.
-# Leave empty to allow all console commands, or define specific prefixes like
-# "say" or "whitelist add" to restrict them.
 console-command-allowlist: []
 
 # Strict world name validation for command entry points.
-# Defaults to false in v1.11.x to allow legacy world name support with warnings.
 strict-world-name-validation: false
-
 
 # Compass item settings
 compass:
@@ -75,8 +69,6 @@ compass:
   remove-on-leave-hub: true
 
 # Social item settings
-# The item is always a player head — material is fixed.
-# slot should differ from compass.slot.
 social-item:
   give-on-join: true
   name: "&bSocial"
@@ -86,22 +78,14 @@ social-item:
   slot: 7
 
 # Hub entry behaviour
-# clear-inventory-on-entry: if true (default), the player's inventory is cleared
-#   when they enter the hub world (on join or teleport).
-# restore-inventory-on-return: if true, inventory cleared upon entering the hub
-#   will be saved and restored when the player leaves the hub, ONLY IF returning
-#   to the same world group they arrived from.
 hub-entry:
   clear-inventory-on-entry: true
   restore-inventory-on-return: false
 
 # -----------------------------------------------
 # Inventory Groups
-# -----------------------------------------------
-# Worlds in the same group share an inventory.
-# Worlds not listed here get their own isolated
-# inventory automatically.
-# Do not add the Hub world to any group.
+# Persistent worlds retain their shared inventory groups.
+# Ephemeral minigame template worlds get isolated inventories automatically.
 # -----------------------------------------------
 inventory-groups:
   smp:
@@ -115,11 +99,6 @@ inventory-groups:
   adventure:
     worlds:
       - "Adventure"
-  parkour:
-    worlds:
-      - "ParkourMap1"
-      - "ParkourMap2"
-      - "ParkourMap3"
 
 # Messages sent to players (supports & color codes)
 messages:

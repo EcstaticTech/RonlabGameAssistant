@@ -56,6 +56,8 @@ This roadmap documents the framework evolution, sprint history, and milestone ta
 - [x] **Dynamic Paginated Inventory GUI (`PaginatedMapMenu`, Task CORE-3)**: Implemented 54-slot dynamic paginated menu provider with border injection, inner grid mapping (21 items/page), title parser `parseTitle`, and bottom-row navigation.
 - [x] **Navigator & Category Menu Normalization (Task CORE-4)**: Implemented `DefaultRGACommandRouter` and updated `menus.yml` category options to open dynamic paginated views directly.
 - [x] **Dynamic Map Key Persistence (`VARCHAR(64)` Schema, Task PERSIST-1)**: Added `V2__expand_minigame_id_length.sql` and updated `player_stats` DDL column definition to `VARCHAR(64)` for untruncated dynamic map key persistence.
+- [x] **Map Metadata Deployment (`map.yml`, Task MAPS-1)**: Deployed production `map.yml` descriptors with Minecraft world difficulties (`PEACEFUL` for parkour maps as peaceful adventure maps) to server staging ground (`projects/rga26servercopy/templates/`). Retained clean example template layout (`templates/minigames/sumo/map.yml` and `rga-companion-skeleton/`) in codebase repository.
+- [x] **Config & Navigator Menu Alignment (Task MAPS-2)**: Deprecated hardcoded static map filler lists in `config.yml`, retaining core toggles, persistent inventory groups, and `default-template` configuration block. Updated production `menus.yml` category options to dispatch `rga:open_category`.
 
 ---
 

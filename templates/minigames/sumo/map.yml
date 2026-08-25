@@ -1,0 +1,15 @@
+id: sumo
+category: minigames
+display-name: "&cSumo Arena"
+icon: SLIME_BLOCK
+lore:
+  - "&7Knock your opponent off the platform!"
+  - "&7Last player standing wins."
+  - "&eCategory: &fMinigames"
+difficulty: PEACEFUL
+min-players: 2
+max-players: 8
+fall-threshold-y: 50.0
+spawn-vectors:
+  - "2.5, 100.0, 0.5"
+  - "-1.5, 100.0, 0.5"

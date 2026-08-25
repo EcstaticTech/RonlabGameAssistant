@@ -217,10 +217,27 @@ For complete integration contracts, event ordering rules, and reload behavior, r
 
 All plugin behavior is customizable through YAML files:
 
-- **`config.yml`** - Hub world, SMP worlds, compass/social item settings, inventory groups
+- **`config.yml`** - Hub world, SMP worlds, compass/social item settings, inventory groups, and default template settings
 - **`worlds.yml`** - World definitions with environment, gamemode, difficulty, time/weather locks, and optional `first-visit-spawn` coordinates
 - **`menus.yml`** - Custom GUI menus with items and click actions
 - **`minigames.yml`** - Minigame definitions with world types, player limits, commands
+- **`templates/<category>/<map_id>/map.yml`** - Map metadata descriptor for dynamic NIO discovery:
+  ```yaml
+  id: sumo
+  category: minigames
+  display-name: "&cSumo Arena"
+  icon: SLIME_BLOCK
+  lore:
+    - "&7Knock your opponent off the platform!"
+    - "&7Last player standing wins."
+  difficulty: PEACEFUL
+  min-players: 2
+  max-players: 8
+  fall-threshold-y: 50.0
+  spawn-vectors:
+    - "2.5, 100.0, 0.5"
+    - "-1.5, 100.0, 0.5"
+  ```
 
 ---
 

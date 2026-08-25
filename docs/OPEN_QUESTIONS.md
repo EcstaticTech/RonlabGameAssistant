@@ -58,4 +58,7 @@
 ### Q4.3: Permission Nodes & Admin Bypass Resolution
 * **Decision**: Central command router enforces permission node `rga.user.join` for minigame dispatches and `rga.tp` for world teleports. Permission `rga.admin` bypasses all permission checks.
 
+### Q4.4: World Difficulty & Repository Template Layout
+* **Decision**: `map.yml` difficulty setting represents standard Bukkit `Difficulty` enum (`PEACEFUL`, `EASY`, `NORMAL`, `HARD`). All parkour maps use `PEACEFUL` (peaceful adventure maps). Repository retains `templates/` in git tracking with clean example layout (`rga-companion-skeleton/` and example `minigames/sumo/map.yml`), while full production descriptors are deployed to server staging ground (`rga26servercopy`).
+
 
