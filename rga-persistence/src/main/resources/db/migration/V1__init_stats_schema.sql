@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS player_stats (
     player_uuid VARCHAR(36) NOT NULL,
-    minigame_id VARCHAR(32) NOT NULL,
+    minigame_id VARCHAR(64) NOT NULL,
     wins INTEGER DEFAULT 0,
     losses INTEGER DEFAULT 0,
     kills INTEGER DEFAULT 0,

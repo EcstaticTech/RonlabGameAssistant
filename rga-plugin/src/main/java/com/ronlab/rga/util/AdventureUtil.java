@@ -61,8 +61,17 @@ public final class AdventureUtil {
      */
     public static Material safeMaterial(String name, Material fallback) {
         if (name == null || name.isBlank()) return fallback;
-        NamespacedKey key = NamespacedKey.minecraft(name.toLowerCase().trim());
-        Material material = Registry.MATERIAL.get(key);
-        return material != null ? material : fallback;
+        String clean = name.trim().toUpperCase(java.util.Locale.ROOT);
+        try {
+            return Material.valueOf(clean);
+        } catch (IllegalArgumentException ignored) {}
+
+        try {
+            NamespacedKey key = NamespacedKey.minecraft(clean.toLowerCase(java.util.Locale.ROOT));
+            Material material = Registry.MATERIAL.get(key);
+            return material != null ? material : fallback;
+        } catch (Throwable ignored) {
+            return fallback;
+        }
     }
 }

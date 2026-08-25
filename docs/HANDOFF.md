@@ -39,6 +39,9 @@ Ronlab Game Assistant (RGA) is an enterprise-grade Minecraft Paper 26.1 plugin a
 | **ADR-0033** | Teleport | Multi-stage teleportation sequence ensuring target world chunks are loaded before player transfer. |
 | **ADR-0034** | Hardening | World load failure boundary catching `WorldInitException` cleanly. |
 | **ADR-0035** | Testing | Comprehensive mock-based testing harness and multi-client QA test suite protocol. |
+| **ADR-0036** | Template Discovery | Defined immutable `MapTemplateMetadata` record and NIO `TemplateDiscoveryService` scanning server root `/templates`. |
+| **ADR-0037** | Command Routing | Defined `RGACommandRouter` interface and dynamic `PaginatedMapMenu` 54-slot GUI provider. |
+| **ADR-0038** | Configuration & DDL | Standardized `default-template` settings parser and expanded `minigame_id` DDL column to `VARCHAR(64)`. |
 | **Converged-1** | Log Hygiene | Elimination of `saveResource` log spam by enforcing explicit file existence pre-checks. |
 | **Converged-2** | Slot Safety | Guaranteed non-destructive hub item slotting for compass (slot 8) and social head (slot 7). |
 | **Converged-3** | Handoff | Single source-of-truth documentation consolidation (`HANDOFF.md` & `OPEN_QUESTIONS.md`). |

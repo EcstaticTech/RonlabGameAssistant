@@ -33,6 +33,18 @@ minigames:
     duration-seconds: 60
     allow-in-game: true
 
+# Standardized default settings applied automatically to cloned template worlds
+default-template:
+  difficulty: PEACEFUL
+  weather-lock: true
+  time-lock: 6000
+  gamerules:
+    doMobSpawning: "false"
+    doDaylightCycle: "false"
+    doWeatherCycle: "false"
+    keepInventory: "true"
+
+
 
 # The SMP worlds. Last locations are tracked and
 # restored for any world listed here.

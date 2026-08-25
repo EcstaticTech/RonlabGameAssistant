@@ -98,4 +98,32 @@ class SQLiteStatsProviderTest {
         assertEquals(p3, top.get(2).playerUuid());
         assertEquals(0, top.get(2).wins());
     }
+
+    @Test
+    @DisplayName("PERSIST-1: Dynamic map key validation accepts long map identifiers without truncation")
+    void testDynamicMapKeyValidation() throws ExecutionException, InterruptedException {
+        UUID playerUuid = UUID.randomUUID();
+        // Dynamic map template ID exceeding 32 characters (46 chars)
+        String longDynamicMapId = "parkour_alpha_super_extended_challenge_stage_99";
+
+        provider.recordMatchResult(playerUuid, longDynamicMapId, true, 12, 2, "{\"map\":\"parkour_alpha_v99\"}");
+
+        // Query stats for dynamic map key
+        Optional<PlayerMinigameStats> statsOpt = provider.getPlayerStats(playerUuid, longDynamicMapId).get();
+        assertTrue(statsOpt.isPresent(), "Match result for dynamic map ID must be recorded and retrievable");
+
+        PlayerMinigameStats stats = statsOpt.get();
+        assertEquals(playerUuid, stats.playerUuid());
+        assertEquals(longDynamicMapId, stats.minigameId(), "Dynamic minigameId must match full string without truncation");
+        assertEquals(1, stats.wins());
+        assertEquals(0, stats.losses());
+        assertEquals(12, stats.kills());
+        assertEquals(2, stats.deaths());
+        assertEquals("{\"map\":\"parkour_alpha_v99\"}", stats.metadata());
+
+        // Verify top players for dynamic map key
+        List<PlayerMinigameStats> topList = provider.getTopPlayers(longDynamicMapId, 5).get();
+        assertEquals(1, topList.size());
+        assertEquals(longDynamicMapId, topList.get(0).minigameId());
+    }
 }

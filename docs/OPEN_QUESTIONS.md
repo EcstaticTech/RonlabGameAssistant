@@ -45,3 +45,17 @@
 * **Current Status**: `rga-turfwars` refactored to typed `RGASessionControl` interface in `RgaBridge.java`. Core RGA log hygiene enforced.
 * **Delegation Note**: Recommend verifying other legacy plugins (`Block-Shuffle`, `InfectedManhunt`, `DeathRace`, `heatWave`) to ensure no lingering reflection methods exist.
 
+---
+
+## 4. Resolved Sprint 1.13.1 Architectural Decisions (August 2026)
+
+### Q4.1: Template Pathing Resolution
+* **Decision**: `TemplateDiscoveryService` scans `templates/` folder at server root first (`<server_root>/templates`). If missing/invalid, falls back to plugin data folder (`plugins/RonlabGameAssistant/templates`).
+
+### Q4.2: Category GUI Routing Resolution
+* **Decision**: Category navigator options (e.g. Parkour, Minigames) dispatch `rga:open_category <name>` and open dynamic 54-slot `PaginatedMapMenu` instances filtered by matching category string.
+
+### Q4.3: Permission Nodes & Admin Bypass Resolution
+* **Decision**: Central command router enforces permission node `rga.user.join` for minigame dispatches and `rga.tp` for world teleports. Permission `rga.admin` bypasses all permission checks.
+
+

@@ -219,8 +219,15 @@ public class WorldCopyManager {
      */
     @SuppressWarnings("unchecked")
     public void applyMinigameSettings(World world, Minigame minigame) {
+        if (plugin != null && plugin.getWorldConfigManager() != null) {
+            plugin.getWorldConfigManager().applyDefaultTemplateSettings(world);
+        }
+
+        if (minigame == null) return;
+
         world.setPVP(minigame.isPvp());
         world.setDifficulty(minigame.getDifficulty());
+
 
         for (Map.Entry<String, String> entry : minigame.getGamerules().entrySet()) {
             GameRule<?> rule = GameRule.getByName(entry.getKey());

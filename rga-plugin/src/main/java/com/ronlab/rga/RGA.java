@@ -1,12 +1,16 @@
 package com.ronlab.rga;
 
+import com.ronlab.rga.api.command.RGACommandRouter;
+import com.ronlab.rga.command.DefaultRGACommandRouter;
 import com.ronlab.rga.command.HubCommand;
 import com.ronlab.rga.command.RGACommand;
 import com.ronlab.rga.compass.CompassListener;
 import com.ronlab.rga.compass.HubListener;
 import com.ronlab.rga.config.ConfigManager;
+import com.ronlab.rga.core.template.TemplateDiscoveryService;
 import com.ronlab.rga.gui.MenuListener;
 import com.ronlab.rga.gui.MenuManager;
+import com.ronlab.rga.gui.PaginatedMapMenu;
 import com.ronlab.rga.minigame.MinigameManager;
 import com.ronlab.rga.minigame.MinigameWorldListener;
 import com.ronlab.rga.party.LobbyGui;
@@ -16,6 +20,7 @@ import com.ronlab.rga.player.AdvancementManager;
 import com.ronlab.rga.player.InventoryManager;
 import com.ronlab.rga.player.LocationTracker;
 import com.ronlab.rga.world.PortalBlockListener;
+import com.ronlab.rga.world.WorldConfigManager;
 import com.ronlab.rga.world.WorldEnforcementListener;
 import com.ronlab.rga.world.WorldManager;
 import com.ronlab.rga.social.BrowsePartiesGui;
@@ -43,8 +48,12 @@ public class RGA extends JavaPlugin implements RGASessionControl {
     private static RGA instance;
 
     private ConfigManager configManager;
+    private WorldConfigManager worldConfigManager;
     private WorldManager worldManager;
     private MenuManager menuManager;
+    private PaginatedMapMenu paginatedMapMenu;
+    private TemplateDiscoveryService templateDiscoveryService;
+    private RGACommandRouter commandRouter;
     private LocationTracker locationTracker;
     private InventoryManager inventoryManager;
     private AdvancementManager advancementManager;
@@ -80,6 +89,7 @@ public class RGA extends JavaPlugin implements RGASessionControl {
         saveResourceIfNotExists("paper-world-defaults.yml");
 
         configManager = new ConfigManager(this);
+        worldConfigManager = new WorldConfigManager(this);
         locationTracker = new LocationTracker(this);
         inventoryManager = new InventoryManager(this);
         advancementManager = new AdvancementManager(this);
@@ -111,9 +121,15 @@ public class RGA extends JavaPlugin implements RGASessionControl {
         runtimeSessionAuditor.startAuditing(30);
 
         menuManager = new MenuManager(this);
+        paginatedMapMenu = new PaginatedMapMenu(this);
+        templateDiscoveryService = new TemplateDiscoveryService(this);
+        commandRouter = new DefaultRGACommandRouter(this);
         minigameManager = new MinigameManager(this);
         lobbyGui = new LobbyGui(this);
         partyManager = new PartyManager(this);
+
+        // Async template discovery walk on enable
+        templateDiscoveryService.discoverTemplatesAsync();
 
         worldManager.loadConfiguredWorlds();
         worldManager.purgeOrphanedSessionFolders();
@@ -193,9 +209,11 @@ public class RGA extends JavaPlugin implements RGASessionControl {
     public void reload() {
         reloadConfig();
         configManager.reload();
+        if (worldConfigManager != null) worldConfigManager.reload();
         menuManager.reload();
         inventoryManager.reload();
         minigameManager.reload();
+        if (templateDiscoveryService != null) templateDiscoveryService.discoverTemplatesAsync();
         worldManager.loadConfiguredWorlds();
         getLogger().info("Ronlab Game Assistant configuration and world definitions reloaded.");
     }
@@ -207,23 +225,12 @@ public class RGA extends JavaPlugin implements RGASessionControl {
 
     // ── RGASessionControl (JIT Spectator API) ────────────────────
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * Delegates to {@link com.ronlab.rga.party.PartyManager#setSpectator(Player, boolean)}.
-     * Must be called from the primary server thread.
-     */
     @Override
     public void setSpectator(org.bukkit.entity.Player player, boolean isSpectator) {
         if (partyManager == null) return;
         partyManager.setSpectator(player, isSpectator);
     }
 
-    /**
-     * {@inheritDoc}
-     * <p>
-     * Delegates to {@link com.ronlab.rga.party.PartyManager#isPlayerSpectating(UUID)}.
-     */
     @Override
     public boolean isSpectator(org.bukkit.entity.Player player) {
         if (partyManager == null) return false;
@@ -244,8 +251,12 @@ public class RGA extends JavaPlugin implements RGASessionControl {
 
     public static RGA getInstance() { return instance; }
     public ConfigManager getConfigManager() { return configManager; }
+    public WorldConfigManager getWorldConfigManager() { return worldConfigManager; }
     public WorldManager getWorldManager() { return worldManager; }
     public MenuManager getMenuManager() { return menuManager; }
+    public PaginatedMapMenu getPaginatedMapMenu() { return paginatedMapMenu; }
+    public TemplateDiscoveryService getTemplateDiscoveryService() { return templateDiscoveryService; }
+    public RGACommandRouter getCommandRouter() { return commandRouter; }
     public LocationTracker getLocationTracker() { return locationTracker; }
     public InventoryManager getInventoryManager() { return inventoryManager; }
     public AdvancementManager getAdvancementManager() { return advancementManager; }

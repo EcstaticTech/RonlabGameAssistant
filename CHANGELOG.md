@@ -5,15 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.13.1] - 2026-08-07
+## [1.13.1] - 2026-08-25
 
 ### Added
-- **Navigation Notification Event (`PlayerRGANavigateEvent`, Task 1.1):** Created cancellable `PlayerRGANavigateEvent` in `com.ronlab.rga.api.event` dispatched synchronously on the main thread prior to executing any navigation teleport (`COMPASS_MENU`, `COMMAND_HUB`, `COMMAND_TP`, `PORTAL`).
-- **Core Navigation Dispatch Integration (Task 2.1 & 2.2):** Integrated `PlayerRGANavigateEvent` dispatches into `WorldManager.teleportToWorld`, `/hub` (`HubCommand`), `/rga tp` (`RGACommand`), GUI compass clicks (`ActionHandler`), and portal routing listeners (`PortalBlockListener`, `MinigameWorldListener`).
-- **Companion Scoreboard Initialization Mandate (Task 1.2 & 4.1):** Updated `MinigameStartEvent` JavaDoc and companion integration documentation mandating baseline score line initialization before calling `player.setScoreboard()` to prevent client-side blank sidebar rendering.
+- **Template Metadata Record (`MapTemplateMetadata`, Task API-1):** Introduced immutable record `MapTemplateMetadata` in `com.ronlab.rga.api.template` with compact constructor validation, defensive `List.copyOf` collections, and a fluent `.builder()` pattern.
+- **Central Command Router Contract (`RGACommandRouter`, Task API-2):** Defined `RGACommandRouter` interface in `com.ronlab.rga.api.command` to sanitize dynamic menu action dispatches and enforce permission checks (`rga.user.join`, `rga.tp`, `rga.admin`) and spectator party state checks.
+- **Async Template Discovery Service (`TemplateDiscoveryService`, Task CORE-1):** Implemented non-blocking NIO directory walker (`Files.walkFileTree`) scanning `/templates` root (with fallback to plugin data folder) during `onEnable()`. Maintains a concurrent registry and registers fallback `Material.BARRIER` items on corrupt/missing `map.yml` descriptors.
+- **Default Template World Settings Parser (`WorldConfigManager`, Task CORE-2):** Created `WorldConfigManager` to parse root `default-template` node from `config.yml` (peaceful difficulty, weather-locks, time-locks, default gamerules) and automatically apply defaults to cloned template worlds in `WorldCopyManager`.
+- **Paginated Dynamic Menu Provider (`PaginatedMapMenu`, Task CORE-3):** Implemented dynamic 54-slot GUI inventory system supporting auto-border injection (`GRAY_STAINED_GLASS_PANE`), inner grid mapping (21 items/page), title parser `parseTitle`, and bottom-row page navigation buttons.
+- **Hub & Navigator Action Normalization (`DefaultRGACommandRouter`, Task CORE-4):** Implemented `DefaultRGACommandRouter` and updated `menus.yml`, `ActionHandler`, and `MenuListener` to retain static navigator options (SMP, Creative, Adventure) while routing category entries (Parkour, Minigames) directly to dynamic paginated category views.
+- **Dynamic Map Key Persistence (`SQLiteStatsProvider`, Task PERSIST-1):** Verified `RGAStatsProvider` dynamic map ID handling. Added Flyway migration `V2__expand_minigame_id_length.sql` and updated `V1__init_stats_schema.sql` `minigame_id` DDL column definition to `VARCHAR(64)` for untruncated dynamic map key storage.
+- **Navigation Notification Event (`PlayerRGANavigateEvent`):** Created cancellable `PlayerRGANavigateEvent` in `com.ronlab.rga.api.event` dispatched synchronously on main thread prior to executing navigation teleports.
+- **Companion Scoreboard Initialization Mandate:** Updated `MinigameStartEvent` JavaDoc mandating baseline score line initialization before calling `player.setScoreboard()`.
 
 ### Changed
-- **Version Bump (`1.13.1`):** Bumped framework version to `1.13.1` across `rga-parent`, `rga-api`, `rga-persistence`, `rga-plugin` POMs, and `paper-plugin.yml`.
+- **Version Lock (`1.13.1`):** Synchronized framework version to `1.13.1` across `rga-parent`, `rga-api`, `rga-persistence`, `rga-plugin` POMs, and `paper-plugin.yml`.
 
 ---
 

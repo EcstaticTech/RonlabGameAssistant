@@ -6,10 +6,10 @@ This roadmap documents the framework evolution, sprint history, and milestone ta
 
 ## Executive Status
 
-- **Framework Version**: `1.13.0-SNAPSHOT` / `2.0.0`
+- **Framework Version**: `1.13.1`
 - **Target Platform**: Java 25 | PaperMC 26.2 (`api-version: '26.2'`)
 - **Architecture**: Micro-Companion Architecture (CPMK)
-- **Active Target**: **Sprint 7: Stage 3 Persistence Layer (Embedded SQLite/H2 in `rga-api`)**
+- **Active Target**: **Sprint 1.13.1: Template Discovery, Dynamic GUI & Central Command Routing**
 
 ---
 
@@ -43,6 +43,19 @@ This roadmap documents the framework evolution, sprint history, and milestone ta
 - [x] **Exponential Backoff Lock Handling**: Wrapped SQL operations in 3-try exponential backoff logic targeting `SQLITE_BUSY` errors.
 - [x] **Automated Schema Migration & Hybrid DDL**: Integrated `V1__init_stats_schema.sql` Flyway migration script, hybrid DDL schema (`player_stats` table with strict core metrics + metadata JSON TEXT), and leaderboard index `idx_minigame_wins`.
 - [x] **SQLite WAL Engine Initialization**: Automatic `PRAGMA journal_mode=WAL;`, `PRAGMA busy_timeout=5000;`, and `PRAGMA synchronous=NORMAL;` execution at `/plugins/RonlabGameAssistant/data/rga.db`.
+
+---
+
+### Sprint 1.13.1: Template Discovery, Dynamic GUI & Central Command Routing
+**Status**: [x] **100% COMPLETE**
+
+- [x] **Immutable Record Contract (`MapTemplateMetadata`, Task API-1)**: Defined `MapTemplateMetadata` record in `rga-api` with compact validation, defensive copies, and builder pattern.
+- [x] **Central Command Router API (`RGACommandRouter`, Task API-2)**: Defined `RGACommandRouter` contract in `rga-api` for action sanitization, permission enforcement (`rga.user.join`, `rga.tp`, `rga.admin`), and spectator party state validation.
+- [x] **Async Template Discovery Engine (`TemplateDiscoveryService`, Task CORE-1)**: Implemented `Files.walkFileTree` NIO walker scanning server root `/templates` (with plugin data folder fallback), populating dynamic concurrent registry, and registering fallback `Material.BARRIER` dummy items.
+- [x] **Default Template Settings Applicator (`WorldConfigManager`, Task CORE-2)**: Parsed `default-template` node from `config.yml` and integrated with `WorldCopyManager` to enforce peaceful difficulty, weather-locks, time-locks, and default gamerules on template world creation.
+- [x] **Dynamic Paginated Inventory GUI (`PaginatedMapMenu`, Task CORE-3)**: Implemented 54-slot dynamic paginated menu provider with border injection, inner grid mapping (21 items/page), title parser `parseTitle`, and bottom-row navigation.
+- [x] **Navigator & Category Menu Normalization (Task CORE-4)**: Implemented `DefaultRGACommandRouter` and updated `menus.yml` category options to open dynamic paginated views directly.
+- [x] **Dynamic Map Key Persistence (`VARCHAR(64)` Schema, Task PERSIST-1)**: Added `V2__expand_minigame_id_length.sql` and updated `player_stats` DDL column definition to `VARCHAR(64)` for untruncated dynamic map key persistence.
 
 ---
 
