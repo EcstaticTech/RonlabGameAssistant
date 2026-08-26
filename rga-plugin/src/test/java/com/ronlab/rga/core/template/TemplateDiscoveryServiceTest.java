@@ -21,10 +21,16 @@ class TemplateDiscoveryServiceTest {
 
     private static class TestRGA extends RGA {
         Logger logger = Logger.getLogger("TemplateDiscoveryServiceTest");
+        com.ronlab.rga.config.ConfigManager configManager;
 
         @Override
         public Logger getLogger() {
             return logger;
+        }
+
+        @Override
+        public com.ronlab.rga.config.ConfigManager getConfigManager() {
+            return configManager;
         }
     }
 
@@ -156,5 +162,59 @@ class TemplateDiscoveryServiceTest {
         assertEquals("minigames", meta.category());
         assertEquals(Material.FILLED_MAP, meta.icon());
         assertEquals("EASY", meta.difficulty());
+    }
+
+    @Test
+    void testRegisterMinigamesWithMenusYmlFallback() throws Exception {
+        Field theUnsafe = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+        theUnsafe.setAccessible(true);
+        sun.misc.Unsafe unsafe = (sun.misc.Unsafe) theUnsafe.get(null);
+        com.ronlab.rga.config.ConfigManager configManager =
+                (com.ronlab.rga.config.ConfigManager) unsafe.allocateInstance(com.ronlab.rga.config.ConfigManager.class);
+
+        org.bukkit.configuration.file.YamlConfiguration menusConfig = new org.bukkit.configuration.file.YamlConfiguration();
+        menusConfig.set("menus.minigames.items.manhunt.material", "COMPASS");
+        menusConfig.set("menus.minigames.items.manhunt.name", "&c&lSpeedrunner Manhunt");
+        menusConfig.set("menus.minigames.items.manhunt.lore", List.of("&7Runners vs Hunters"));
+
+        Field menusConfigField = com.ronlab.rga.config.ConfigManager.class.getDeclaredField("menusConfig");
+        menusConfigField.setAccessible(true);
+        menusConfigField.set(configManager, menusConfig);
+
+        plugin.configManager = configManager;
+
+        TemplateDiscoveryService service = new TemplateDiscoveryService(plugin);
+        com.ronlab.rga.minigame.Minigame manhunt = new com.ronlab.rga.minigame.Minigame(
+                "manhunt", "Manhunt", Material.STONE, List.of(),
+                8, 2, com.ronlab.rga.minigame.Minigame.WorldType.VANILLA, null,
+                List.of(), List.of(), org.bukkit.GameMode.SURVIVAL, true,
+                org.bukkit.Difficulty.HARD, Map.of(), false, false, true, true, true, 4
+        );
+
+        service.registerMinigames(List.of(manhunt));
+
+        MapTemplateMetadata meta = service.getTemplate("manhunt");
+        assertNotNull(meta, "Manhunt must be registered");
+        assertEquals(Material.COMPASS, meta.icon(), "Should resolve COMPASS icon from menus.yml rather than STONE");
+        assertEquals("HARD", meta.difficulty());
+        assertFalse(meta.lore().isEmpty(), "Should resolve lore from menus.yml");
+    }
+
+    @Test
+    void testRegisterMinigamesDefaultFallback() {
+        plugin.configManager = null;
+        TemplateDiscoveryService service = new TemplateDiscoveryService(plugin);
+        com.ronlab.rga.minigame.Minigame tag = new com.ronlab.rga.minigame.Minigame(
+                "tag", "Tag", Material.STONE, List.of(),
+                8, 2, com.ronlab.rga.minigame.Minigame.WorldType.VANILLA, null,
+                List.of(), List.of(), org.bukkit.GameMode.SURVIVAL, true,
+                org.bukkit.Difficulty.NORMAL, Map.of(), false, false, true, true, true, 4
+        );
+
+        service.registerMinigames(List.of(tag));
+
+        MapTemplateMetadata meta = service.getTemplate("tag");
+        assertNotNull(meta);
+        assertEquals(Material.COMPASS, meta.icon(), "Without map.yml or menus.yml, should fallback to COMPASS rather than raw STONE");
     }
 }

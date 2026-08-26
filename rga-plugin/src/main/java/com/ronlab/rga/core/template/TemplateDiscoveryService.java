@@ -6,6 +6,7 @@ import com.ronlab.rga.util.AdventureUtil;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.util.Vector;
 
@@ -157,15 +158,15 @@ public class TemplateDiscoveryService {
                 }
             }
             if (!registry.containsKey(mg.getId())) {
-                List<Component> loreComponents = new ArrayList<>();
-                for (String l : mg.getDisplayLore()) {
-                    loreComponents.add(AdventureUtil.color(l));
-                }
+                Component displayName = resolveMinigameDisplayName(mg);
+                Material icon = resolveMinigameIcon(mg);
+                List<Component> loreComponents = resolveMinigameLore(mg);
+
                 MapTemplateMetadata meta = MapTemplateMetadata.builder()
                         .id(mg.getId())
                         .category("minigames")
-                        .displayName(AdventureUtil.color("&a&l" + mg.getName()))
-                        .icon(mg.getDisplayItem() != null ? mg.getDisplayItem() : Material.STONE)
+                        .displayName(displayName)
+                        .icon(icon)
                         .lore(loreComponents)
                         .difficulty(mg.getDifficulty() != null ? mg.getDifficulty().name() : "EASY")
                         .minPlayers(mg.getMinPlayers())
@@ -177,6 +178,104 @@ public class TemplateDiscoveryService {
                 registry.put(mg.getId(), meta);
             }
         }
+    }
+
+    private Material resolveMinigameIcon(com.ronlab.rga.minigame.Minigame mg) {
+        // 1. Check explicit minigame config if not null and not generic default STONE
+        if (mg.getDisplayItem() != null && mg.getDisplayItem() != Material.STONE) {
+            return mg.getDisplayItem();
+        }
+
+        // 2. Check menus.yml configuration definition for matching key or minigame-id
+        if (plugin != null && plugin.getConfigManager() != null && plugin.getConfigManager().getMenusConfig() != null) {
+            ConfigurationSection menus = plugin.getConfigManager().getMenusConfig().getConfigurationSection("menus");
+            if (menus != null) {
+                for (String menuKey : List.of("minigames", "navigator", "parkour")) {
+                    ConfigurationSection itemsSec = menus.getConfigurationSection(menuKey + ".items");
+                    if (itemsSec == null) continue;
+                    for (String itemKey : itemsSec.getKeys(false)) {
+                        ConfigurationSection itemSec = itemsSec.getConfigurationSection(itemKey);
+                        if (itemSec == null) continue;
+                        String targetId = itemSec.getString("minigame-id", itemKey);
+                        if (targetId.equalsIgnoreCase(mg.getId())) {
+                            String matName = itemSec.getString("material");
+                            if (matName != null && !matName.isBlank()) {
+                                Material mat = AdventureUtil.safeMaterial(matName.toUpperCase(Locale.ROOT), null);
+                                if (mat != null) return mat;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback default: minigame displayItem, or COMPASS if null/STONE
+        if (mg.getDisplayItem() != null && mg.getDisplayItem() != Material.STONE) {
+            return mg.getDisplayItem();
+        }
+        return Material.COMPASS;
+    }
+
+    private Component resolveMinigameDisplayName(com.ronlab.rga.minigame.Minigame mg) {
+        // 1. Check menus.yml configuration definition
+        if (plugin != null && plugin.getConfigManager() != null && plugin.getConfigManager().getMenusConfig() != null) {
+            ConfigurationSection menus = plugin.getConfigManager().getMenusConfig().getConfigurationSection("menus");
+            if (menus != null) {
+                for (String menuKey : List.of("minigames", "navigator", "parkour")) {
+                    ConfigurationSection itemsSec = menus.getConfigurationSection(menuKey + ".items");
+                    if (itemsSec == null) continue;
+                    for (String itemKey : itemsSec.getKeys(false)) {
+                        ConfigurationSection itemSec = itemsSec.getConfigurationSection(itemKey);
+                        if (itemSec == null) continue;
+                        String targetId = itemSec.getString("minigame-id", itemKey);
+                        if (targetId.equalsIgnoreCase(mg.getId())) {
+                            String rawName = itemSec.getString("name");
+                            if (rawName != null && !rawName.isBlank()) {
+                                return AdventureUtil.color(rawName);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return AdventureUtil.color("&a&l" + mg.getName());
+    }
+
+    private List<Component> resolveMinigameLore(com.ronlab.rga.minigame.Minigame mg) {
+        if (mg.getDisplayLore() != null && !mg.getDisplayLore().isEmpty()) {
+            List<Component> lore = new ArrayList<>();
+            for (String l : mg.getDisplayLore()) {
+                lore.add(AdventureUtil.color(l));
+            }
+            return lore;
+        }
+
+        // Check menus.yml
+        if (plugin != null && plugin.getConfigManager() != null && plugin.getConfigManager().getMenusConfig() != null) {
+            ConfigurationSection menus = plugin.getConfigManager().getMenusConfig().getConfigurationSection("menus");
+            if (menus != null) {
+                for (String menuKey : List.of("minigames", "navigator", "parkour")) {
+                    ConfigurationSection itemsSec = menus.getConfigurationSection(menuKey + ".items");
+                    if (itemsSec == null) continue;
+                    for (String itemKey : itemsSec.getKeys(false)) {
+                        ConfigurationSection itemSec = itemsSec.getConfigurationSection(itemKey);
+                        if (itemSec == null) continue;
+                        String targetId = itemSec.getString("minigame-id", itemKey);
+                        if (targetId.equalsIgnoreCase(mg.getId())) {
+                            List<String> rawLore = itemSec.getStringList("lore");
+                            if (!rawLore.isEmpty()) {
+                                List<Component> lore = new ArrayList<>();
+                                for (String l : rawLore) {
+                                    lore.add(AdventureUtil.color(l));
+                                }
+                                return lore;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return List.of();
     }
 
     private void processTemplateFolder(Path folder) {
