@@ -106,7 +106,12 @@ public class MenuListener implements Listener {
 
         if (templateId != null) {
             MapTemplateMetadata template = plugin.getTemplateDiscoveryService().getTemplate(templateId);
+            if (template == null) {
+                template = plugin.getTemplateDiscoveryService().get(templateId);
+            }
             if (template != null) {
+                plugin.getCommandRouter().executeJoinMinigame(player, template.resolveEngineId(), template.id());
+            } else {
                 plugin.getCommandRouter().executeJoinMinigame(player, templateId);
             }
         }

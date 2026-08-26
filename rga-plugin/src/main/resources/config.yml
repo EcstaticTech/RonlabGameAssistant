@@ -98,7 +98,7 @@ inventory-groups:
       - "Creative"
   adventure:
     worlds:
-      - "Adventure"
+      - "ProjectZearth"
 
 # Messages sent to players (supports & color codes)
 messages:

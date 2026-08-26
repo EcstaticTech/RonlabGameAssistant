@@ -678,6 +678,11 @@ class PartyManagerTest {
 
         @Override
         public CompletableFuture<String> copyTemplateWorld(Minigame minigame) {
+            return copyTemplateWorld(minigame, minigame.getTemplateWorld());
+        }
+
+        @Override
+        public CompletableFuture<String> copyTemplateWorld(Minigame minigame, String templateWorldOverride) {
             return CompletableFuture.completedFuture(nextTemplateWorld);
         }
 

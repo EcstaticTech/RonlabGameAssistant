@@ -42,16 +42,53 @@ public class TemplateDiscoveryService {
      * Synchronous discovery method for direct execution or testing.
      */
     public void discoverTemplates() {
-        // 1. Check server container root first: <server_root>/templates
-        Path rootTemplatesDir = Bukkit.getWorldContainer().toPath().resolve("templates");
-        Path targetDir = rootTemplatesDir;
+        registry.clear();
+        Set<Path> scanned = new HashSet<>();
 
-        if (!Files.exists(targetDir) || !Files.isDirectory(targetDir)) {
-            // 2. Fall back to plugin data folder: <data_folder>/templates
-            targetDir = plugin.getDataFolder().toPath().resolve("templates");
+        List<Path> candidateRoots = new ArrayList<>();
+        if (Bukkit.getWorldContainer() != null) {
+            candidateRoots.add(Bukkit.getWorldContainer().toPath().resolve("templates"));
+            candidateRoots.add(Bukkit.getWorldContainer().toPath().resolve("world/dimensions/minecraft/templates"));
+            candidateRoots.add(Bukkit.getWorldContainer().toPath().resolve("dimensions/minecraft/templates"));
+        }
+        if (plugin.getDataFolder() != null) {
+            candidateRoots.add(plugin.getDataFolder().toPath().resolve("templates"));
         }
 
-        discoverTemplates(targetDir);
+        for (Path root : candidateRoots) {
+            if (Files.exists(root) && Files.isDirectory(root) && scanned.add(root.toAbsolutePath().normalize())) {
+                discoverTemplatesInPath(root);
+            }
+        }
+
+        // Also check if any direct world dimension folders contain a map.yml (in-world map declarations)
+        if (Bukkit.getWorldContainer() != null) {
+            List<Path> dimensionDirs = List.of(
+                    Bukkit.getWorldContainer().toPath().resolve("world/dimensions/minecraft"),
+                    Bukkit.getWorldContainer().toPath().resolve("dimensions/minecraft")
+            );
+            for (Path dimRoot : dimensionDirs) {
+                if (Files.exists(dimRoot) && Files.isDirectory(dimRoot) && scanned.add(dimRoot.toAbsolutePath().normalize())) {
+                    try (DirectoryStream<Path> stream = Files.newDirectoryStream(dimRoot, Files::isDirectory)) {
+                        for (Path dir : stream) {
+                            String dirName = dir.getFileName().toString();
+                            if (dirName.equalsIgnoreCase("templates") || dirName.startsWith("session_")) {
+                                continue;
+                            }
+                            if (Files.exists(dir.resolve("map.yml"))) {
+                                processTemplateFolder(dir);
+                            }
+                        }
+                    } catch (IOException ignored) {}
+                }
+            }
+        }
+
+        if (plugin.getMinigameManager() != null) {
+            registerMinigames(plugin.getMinigameManager().getAllMinigames().values());
+        }
+
+        logger.info("[RGA] Template discovery complete. Registered " + registry.size() + " template(s).");
     }
 
     /**
@@ -59,21 +96,17 @@ public class TemplateDiscoveryService {
      */
     public void discoverTemplates(Path targetDir) {
         registry.clear();
-
-        if (targetDir == null) return;
-
-        if (!Files.exists(targetDir)) {
-            try {
-                Files.createDirectories(targetDir);
-                logger.info("[RGA] Created empty templates directory at: " + targetDir.toAbsolutePath());
-            } catch (IOException e) {
-                logger.warning("[RGA] Failed to create templates directory at " + targetDir + ": " + e.getMessage());
-                return;
-            }
+        if (targetDir != null && Files.exists(targetDir) && Files.isDirectory(targetDir)) {
+            discoverTemplatesInPath(targetDir);
         }
+        if (plugin.getMinigameManager() != null) {
+            registerMinigames(plugin.getMinigameManager().getAllMinigames().values());
+        }
+        logger.info("[RGA] Template discovery complete. Registered " + registry.size() + " template(s).");
+    }
 
+    private void discoverTemplatesInPath(Path targetDir) {
         logger.info("[RGA] Scanning template descriptors in: " + targetDir.toAbsolutePath());
-
         final Path templatesRoot = targetDir;
 
         try {
@@ -84,11 +117,25 @@ public class TemplateDiscoveryService {
                         return FileVisitResult.CONTINUE;
                     }
 
-                    // Look for template folders containing map.yml or top-level template subdirectories
-                    Path parent = dir.getParent();
-                    if (parent != null && parent.equals(templatesRoot)) {
+                    String dirName = dir.getFileName().toString();
+                    if (dirName.startsWith("session_")) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+
+                    Path mapYml = dir.resolve("map.yml");
+                    if (Files.exists(mapYml) && Files.isRegularFile(mapYml)) {
                         processTemplateFolder(dir);
-                        // Skip subtrees of a template folder
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+
+                    // Check if dir is a leaf template folder (no subdirectories)
+                    boolean hasSubdirs = false;
+                    try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, Files::isDirectory)) {
+                        hasSubdirs = stream.iterator().hasNext();
+                    } catch (IOException ignored) {}
+
+                    if (!hasSubdirs) {
+                        processTemplateFolder(dir);
                         return FileVisitResult.SKIP_SUBTREE;
                     }
 
@@ -98,8 +145,38 @@ public class TemplateDiscoveryService {
         } catch (IOException e) {
             logger.warning("[RGA] Error during template directory walk: " + e.getMessage());
         }
+    }
 
-        logger.info("[RGA] Template discovery complete. Registered " + registry.size() + " template(s).");
+    public void registerMinigames(Collection<com.ronlab.rga.minigame.Minigame> minigameList) {
+        if (minigameList == null) return;
+        for (com.ronlab.rga.minigame.Minigame mg : minigameList) {
+            if (mg.getWorldType() == com.ronlab.rga.minigame.Minigame.WorldType.TEMPLATE) {
+                List<MapTemplateMetadata> existing = getTemplatesByCategory(mg.getId());
+                if (!existing.isEmpty()) {
+                    continue;
+                }
+            }
+            if (!registry.containsKey(mg.getId())) {
+                List<Component> loreComponents = new ArrayList<>();
+                for (String l : mg.getDisplayLore()) {
+                    loreComponents.add(AdventureUtil.color(l));
+                }
+                MapTemplateMetadata meta = MapTemplateMetadata.builder()
+                        .id(mg.getId())
+                        .category("minigames")
+                        .displayName(AdventureUtil.color("&a&l" + mg.getName()))
+                        .icon(mg.getDisplayItem() != null ? mg.getDisplayItem() : Material.STONE)
+                        .lore(loreComponents)
+                        .difficulty(mg.getDifficulty() != null ? mg.getDifficulty().name() : "EASY")
+                        .minPlayers(mg.getMinPlayers())
+                        .maxPlayers(mg.getMaxPlayers())
+                        .spawnVectors(List.of())
+                        .fallThresholdY(-64.0)
+                        .templatePath(null)
+                        .build();
+                registry.put(mg.getId(), meta);
+            }
+        }
     }
 
     private void processTemplateFolder(Path folder) {
@@ -134,11 +211,21 @@ public class TemplateDiscoveryService {
             int maxPlayers = config.getInt("max-players", 16);
             double fallThresholdY = config.getDouble("fall-threshold-y", 0.0);
 
+            String rawMinigameId = config.getString("minigame");
+            if (rawMinigameId == null || rawMinigameId.isBlank()) {
+                if (category.equalsIgnoreCase("parkour") || folder.toString().replace('\\', '/').contains("/parkour/")) {
+                    rawMinigameId = "parkour";
+                } else {
+                    rawMinigameId = id;
+                }
+            }
+
             List<Vector> spawnVectors = parseSpawnVectors(config);
 
             MapTemplateMetadata metadata = MapTemplateMetadata.builder()
                     .id(id)
                     .category(category)
+                    .minigameId(rawMinigameId)
                     .displayName(displayName)
                     .icon(icon)
                     .lore(lore)
@@ -151,7 +238,7 @@ public class TemplateDiscoveryService {
                     .build();
 
             registry.put(id, metadata);
-            logger.info("[RGA] Registered template descriptor: '" + id + "' [" + category + "] (" + icon + ")");
+            logger.info("[RGA] Registered template descriptor: '" + id + "' [" + category + "] -> engine '" + rawMinigameId + "' (" + icon + ")");
 
         } catch (Exception e) {
             logger.warning("[RGA WARN] Corrupt map.yml in template folder '" + folderName + "': " + e.getMessage() + ". Registering fallback BARRIER item.");
@@ -177,6 +264,12 @@ public class TemplateDiscoveryService {
 
     private List<Vector> parseSpawnVectors(YamlConfiguration config) {
         List<Vector> list = new ArrayList<>();
+        if (config.contains("spawn.x") && config.contains("spawn.y") && config.contains("spawn.z")) {
+            double x = config.getDouble("spawn.x");
+            double y = config.getDouble("spawn.y");
+            double z = config.getDouble("spawn.z");
+            list.add(new Vector(x, y, z));
+        }
         if (config.isList("spawn-vectors")) {
             List<?> rawList = config.getList("spawn-vectors");
             if (rawList != null) {
@@ -217,6 +310,49 @@ public class TemplateDiscoveryService {
 
     public MapTemplateMetadata getTemplate(String id) {
         return registry.get(id);
+    }
+
+    /**
+     * Look up template metadata by id or folder name with case-insensitive fallback.
+     */
+    public MapTemplateMetadata get(String id) {
+        if (id == null || id.isBlank()) return null;
+        MapTemplateMetadata exact = registry.get(id);
+        if (exact != null) return exact;
+
+        // Fallback: Case-insensitive ID match
+        for (MapTemplateMetadata meta : registry.values()) {
+            if (meta.id().equalsIgnoreCase(id)) {
+                return meta;
+            }
+        }
+
+        // Fallback: World folder name match
+        for (MapTemplateMetadata meta : registry.values()) {
+            if (meta.templatePath() != null) {
+                String folderName = meta.templatePath().getFileName().toString();
+                if (folderName.equalsIgnoreCase(id)) {
+                    return meta;
+                }
+            }
+        }
+
+        // Fallback: Normalized alphanumeric match (e.g. parkour_paradise_3 -> ParkourParadise3)
+        String normId = id.replaceAll("[^a-zA-Z0-9]", "").toLowerCase(Locale.ROOT);
+        for (MapTemplateMetadata meta : registry.values()) {
+            String normMetaId = meta.id().replaceAll("[^a-zA-Z0-9]", "").toLowerCase(Locale.ROOT);
+            if (normMetaId.equals(normId)) {
+                return meta;
+            }
+            if (meta.templatePath() != null) {
+                String folderName = meta.templatePath().getFileName().toString();
+                String normFolder = folderName.replaceAll("[^a-zA-Z0-9]", "").toLowerCase(Locale.ROOT);
+                if (normFolder.equals(normId)) {
+                    return meta;
+                }
+            }
+        }
+        return null;
     }
 
     public List<MapTemplateMetadata> getTemplatesByCategory(String category) {

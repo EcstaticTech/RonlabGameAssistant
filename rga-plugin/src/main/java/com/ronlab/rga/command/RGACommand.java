@@ -51,7 +51,8 @@ public class RGACommand implements BasicCommand {
         Map.entry("spectate",         "rga.world.teleport"),
         Map.entry("queue",            "rga.session.status"),
         Map.entry("sessions",         "rga.session.status"),
-        Map.entry("status",           "rga.session.status")
+        Map.entry("status",           "rga.session.status"),
+        Map.entry("template",         "rga.admin.template")
     );
 
     public RGACommand(RGA plugin) {
@@ -67,7 +68,8 @@ public class RGACommand implements BasicCommand {
                 || sender.hasPermission("rga.world.configure")
                 || sender.hasPermission("rga.session.conclude")
                 || sender.hasPermission("rga.session.status")
-                || sender.hasPermission("rga.session.cleanup");
+                || sender.hasPermission("rga.session.cleanup")
+                || sender.hasPermission("rga.admin.template");
     }
 
     @Override
@@ -232,9 +234,48 @@ public class RGACommand implements BasicCommand {
                 if (!(sender instanceof Player player)) { sender.sendMessage(Component.text("Players only.", NamedTextColor.RED)); return; }
                 String worldName = args.length >= 2 ? args[1] : player.getWorld().getName();
                 World world = Bukkit.getWorld(worldName);
-                if (world == null) { sender.sendMessage(Component.text("World not found.", NamedTextColor.RED)); return; }
-                world.setSpawnLocation(player.getLocation());
-                sender.sendMessage(Component.text("Spawn for '" + worldName + "' set to your location.", NamedTextColor.GREEN));
+                if (world == null) { sender.sendMessage(Component.text("World not found: " + worldName, NamedTextColor.RED)); return; }
+                Location loc = player.getLocation();
+                world.setSpawnLocation(loc);
+
+                boolean savedToMapYml = false;
+                if (plugin.getTemplateDiscoveryService() != null) {
+                    com.ronlab.rga.api.template.MapTemplateMetadata meta = plugin.getTemplateDiscoveryService().get(worldName);
+                    if (meta == null && plugin.getTemplateStagingManager() != null && plugin.getTemplateStagingManager().isTemplateEditing(worldName)) {
+                        String editingId = plugin.getTemplateStagingManager().getEditingTemplateId(worldName);
+                        meta = plugin.getTemplateDiscoveryService().get(editingId);
+                    }
+                    if (meta != null && meta.templatePath() != null) {
+                        java.io.File mapFile = meta.templatePath().resolve("map.yml").toFile();
+                        if (!mapFile.exists()) {
+                            java.io.File candidate = new java.io.File(meta.templatePath().toFile(), "map.yml");
+                            if (candidate.exists()) mapFile = candidate;
+                        }
+                        if (mapFile.exists()) {
+                            try {
+                                org.bukkit.configuration.file.YamlConfiguration yaml = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(mapFile);
+                                yaml.set("spawn.x", loc.getX());
+                                yaml.set("spawn.y", loc.getY());
+                                yaml.set("spawn.z", loc.getZ());
+                                yaml.set("spawn.yaw", (double) loc.getYaw());
+                                yaml.set("spawn.pitch", (double) loc.getPitch());
+                                yaml.set("spawn-vectors", java.util.List.of(String.format(java.util.Locale.ROOT, "%.2f, %.2f, %.2f", loc.getX(), loc.getY(), loc.getZ())));
+                                yaml.save(mapFile);
+                                savedToMapYml = true;
+                                plugin.getTemplateDiscoveryService().discoverTemplates();
+                            } catch (Exception e) {
+                                plugin.getLogger().warning("[RGA] Failed to save spawn to " + mapFile + ": " + e.getMessage());
+                            }
+                        }
+                    }
+                }
+
+                if (savedToMapYml) {
+                    sender.sendMessage(Component.text("Spawn for template '" + worldName + "' saved directly into map.yml (" +
+                            String.format(java.util.Locale.ROOT, "%.1f, %.1f, %.1f", loc.getX(), loc.getY(), loc.getZ()) + ") and world level.dat.", NamedTextColor.GREEN));
+                } else {
+                    sender.sendMessage(Component.text("Spawn for '" + worldName + "' set to your location.", NamedTextColor.GREEN));
+                }
             }
 
             case "setworldgamemode" -> {
@@ -477,10 +518,89 @@ public class RGACommand implements BasicCommand {
             }
 
 
+            case "template" -> handleTemplateCommand(sender, args);
+
             default -> sendHelp(sender);
         }
 
         return;
+    }
+
+    private void handleTemplateCommand(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sendTemplateHelp(sender);
+            return;
+        }
+
+        var stagingManager = plugin.getTemplateStagingManager();
+        if (stagingManager == null) {
+            sender.sendMessage(Component.text("Template staging manager is not available.", NamedTextColor.RED));
+            return;
+        }
+
+        String action = args[1].toLowerCase();
+        switch (action) {
+            case "load" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Component.text("Usage: /rga template load <templateId>", NamedTextColor.RED));
+                    return;
+                }
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("Players only for template editing.", NamedTextColor.RED));
+                    return;
+                }
+                stagingManager.loadTemplateForEditing(player, args[2]);
+            }
+            case "tp" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Component.text("Usage: /rga template tp <templateId>", NamedTextColor.RED));
+                    return;
+                }
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(Component.text("Players only.", NamedTextColor.RED));
+                    return;
+                }
+                stagingManager.teleportToTemplate(player, args[2]);
+            }
+            case "save" -> {
+                String templateId = args.length >= 3 ? args[2] : null;
+                stagingManager.saveTemplate(sender, templateId);
+            }
+            case "unload" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Component.text("Usage: /rga template unload <templateId>", NamedTextColor.RED));
+                    return;
+                }
+                stagingManager.unloadTemplate(sender, args[2]);
+            }
+            case "list" -> stagingManager.listTemplates(sender);
+            default -> sendTemplateHelp(sender);
+        }
+    }
+
+    private void sendTemplateHelp(CommandSender sender) {
+        sender.sendMessage(Component.text("======= RGA Template Staging =======", NamedTextColor.GOLD, TextDecoration.BOLD));
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template load <templateId>", NamedTextColor.YELLOW))
+                .append(Component.text(" - Dynamically load template world for editing", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template tp <templateId>", NamedTextColor.YELLOW))
+                .append(Component.text(" - Teleport into loaded template in Creative", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template save [templateId]", NamedTextColor.YELLOW))
+                .append(Component.text(" - Flush chunk changes directly to disk", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template unload <templateId>", NamedTextColor.YELLOW))
+                .append(Component.text(" - Evacuate players to Hub, save and unload", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template list", NamedTextColor.YELLOW))
+                .append(Component.text(" - List all templates and active editing state", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text("====================================", NamedTextColor.GOLD, TextDecoration.BOLD));
     }
 
     // ── Gamerule helper ──────────────────────────────────────────
@@ -516,7 +636,7 @@ public class RGACommand implements BasicCommand {
                 "setspawn", "setworldgamemode", "setworldpvp", "setworlddifficulty",
                 "setworldtime", "setworldweather", "setworldalias", "setworldtemplate",
                 "gamerule", "conclude", "concludeall", "cleanupsession",
-                "spectate", "queue", "sessions", "status"
+                "spectate", "queue", "sessions", "status", "template"
             );
             for (String s : allSubs) {
                 String perm = SUBCOMMAND_PERMISSIONS.get(s);
@@ -526,6 +646,7 @@ public class RGACommand implements BasicCommand {
             }
         } else if (args.length == 2) {
             switch (args[0].toLowerCase()) {
+                case "template" -> completions.addAll(List.of("load", "tp", "save", "unload", "list"));
                 case "unloadworld", "deleteworld", "setspawn",
                      "setworldgamemode", "setworldpvp", "setworlddifficulty",
                      "setworldtime", "setworldweather", "setworldalias",
@@ -609,6 +730,18 @@ public class RGACommand implements BasicCommand {
                 case "tp" -> Bukkit.getWorlds().forEach(w -> completions.add(w.getName()));
                 case "gamerule" -> {
                     for (GameRule<?> rule : GameRule.values()) completions.add(rule.getName());
+                }
+                case "template" -> {
+                    String subAction = args[1].toLowerCase();
+                    if (subAction.equals("load") || subAction.equals("tp")) {
+                        if (plugin.getTemplateDiscoveryService() != null) {
+                            completions.addAll(plugin.getTemplateDiscoveryService().getRegistry().keySet());
+                        }
+                    } else if (subAction.equals("save") || subAction.equals("unload")) {
+                        if (plugin.getTemplateStagingManager() != null) {
+                            completions.addAll(plugin.getTemplateStagingManager().getActiveEditingTemplates());
+                        }
+                    }
                 }
             }
         } else if (args.length == 4) {
@@ -827,6 +960,27 @@ public class RGACommand implements BasicCommand {
         sender.sendMessage(Component.text()
                 .append(Component.text("/rga spectate leave", NamedTextColor.YELLOW))
                 .append(Component.text(" - Leave spectator mode", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text("--- Template Staging ---", NamedTextColor.GOLD));
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template load <templateId>", NamedTextColor.YELLOW))
+                .append(Component.text(" - Load template world for editing", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template tp <templateId>", NamedTextColor.YELLOW))
+                .append(Component.text(" - Teleport to template in Creative", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template save [templateId]", NamedTextColor.YELLOW))
+                .append(Component.text(" - Flush chunk changes to disk", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template unload <templateId>", NamedTextColor.YELLOW))
+                .append(Component.text(" - Evacuate players, save and unload", NamedTextColor.GRAY))
+                .build());
+        sender.sendMessage(Component.text()
+                .append(Component.text("/rga template list", NamedTextColor.YELLOW))
+                .append(Component.text(" - List templates & editing state", NamedTextColor.GRAY))
                 .build());
         sender.sendMessage(Component.text()
                 .append(Component.text("/hub", NamedTextColor.YELLOW))

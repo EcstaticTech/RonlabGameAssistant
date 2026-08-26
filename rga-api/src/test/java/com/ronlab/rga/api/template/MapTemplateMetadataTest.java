@@ -68,6 +68,28 @@ class MapTemplateMetadataTest {
     }
 
     @Test
+    void testResolveEngineId_Defaults() {
+        MapTemplateMetadata parkourMeta = MapTemplateMetadata.builder()
+                .id("1000blocks")
+                .category("parkour")
+                .build();
+        assertEquals("parkour", parkourMeta.resolveEngineId());
+
+        MapTemplateMetadata sumoMeta = MapTemplateMetadata.builder()
+                .id("sumo_map")
+                .category("minigames")
+                .build();
+        assertEquals("sumo_map", sumoMeta.resolveEngineId());
+
+        MapTemplateMetadata explicitMeta = MapTemplateMetadata.builder()
+                .id("custom_map")
+                .category("minigames")
+                .minigameId("custom_engine")
+                .build();
+        assertEquals("custom_engine", explicitMeta.resolveEngineId());
+    }
+
+    @Test
     void testBlankIdThrowsException() {
         assertThrows(IllegalArgumentException.class, () ->
                 new MapTemplateMetadata("", "cat", Component.text("A"), Material.STONE, List.of(), "EASY", 1, 2, List.of(), 0.0, null)

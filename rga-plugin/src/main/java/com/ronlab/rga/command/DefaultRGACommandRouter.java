@@ -119,8 +119,13 @@ public class DefaultRGACommandRouter implements RGACommandRouter {
             return executeTeleport(player, worldName);
 
         } else if (action.startsWith("join_minigame ")) {
-            String minigameId = action.substring(14).trim();
-            return executeJoinMinigame(player, minigameId);
+            String payload = action.substring(14).trim();
+            String[] parts = payload.split("\\s+", 2);
+            if (parts.length >= 2) {
+                return executeJoinMinigame(player, parts[0], parts[1]);
+            } else {
+                return executeJoinMinigame(player, parts[0]);
+            }
 
         } else if (action.equals("close")) {
             player.closeInventory();
@@ -170,11 +175,16 @@ public class DefaultRGACommandRouter implements RGACommandRouter {
 
     @Override
     public boolean executeJoinMinigame(Player player, String minigameId) {
+        return executeJoinMinigame(player, minigameId, null);
+    }
+
+    @Override
+    public boolean executeJoinMinigame(Player player, String minigameId, String templateId) {
         if (!canExecuteJoin(player, minigameId)) return false;
 
         player.closeInventory();
         plugin.getServer().getScheduler().runTaskLater(plugin,
-                () -> plugin.getPartyManager().joinMinigame(player, minigameId), 1L);
+                () -> plugin.getPartyManager().joinMinigame(player, minigameId, templateId), 1L);
         return true;
     }
 

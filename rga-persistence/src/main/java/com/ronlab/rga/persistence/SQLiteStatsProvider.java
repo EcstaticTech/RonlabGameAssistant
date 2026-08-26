@@ -71,6 +71,7 @@ public class SQLiteStatsProvider implements RGAStatsProvider {
                     .locations("classpath:db/migration")
                     .baselineOnMigrate(true)
                     .load();
+            flyway.repair();
             flyway.migrate();
         } catch (Exception e) {
             if (logger != null) {

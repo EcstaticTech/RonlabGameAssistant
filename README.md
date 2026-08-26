@@ -34,24 +34,29 @@ RGA uses a modular manager-based architecture where each subsystem handles a dis
 
 ```
 RGA (Main Plugin)
-├── ConfigManager          → Loads and caches YAML configurations
-├── WorldManager           → Creates, loads, and manages world instances
-├── MenuManager            → Builds and manages GUI menus
-├── LocationTracker        → Persists player positions per world
-├── InventoryManager       → Groups worlds to share inventories
-├── AdvancementManager     → Saves/restores achievements during games
-├── MinigameManager        → Defines and provides minigame configurations
-├── PartyManager           → Manages player groups and game sessions
-├── MenuListener           → Handles GUI interactions
-├── CompassListener        → Handles navigator compass usage
-└── SocialListener         → Handles party browsing and social features
+├── ConfigManager            → Loads and caches YAML configurations
+├── WorldManager             → Creates, loads, and manages world instances
+├── WorldConfigManager       → Applies standardized template rules & environment clock guards
+├── TemplateDiscoveryService → Asynchronous NIO discovery & in-memory template registry
+├── TemplateStagingManager   → Administrative hot-staging (/rga template) & concurrency locking
+├── DefaultRGACommandRouter  → Central action router & permission enforcement
+├── MenuManager              → Builds and manages static GUI menus
+├── PaginatedMapMenu         → Dynamic 54-slot auto-paginated category browser
+├── LocationTracker          → Persists player positions per world
+├── InventoryManager         → Groups worlds to share inventories
+├── AdvancementManager       → Saves/restores achievements during games
+├── MinigameManager          → Defines and provides minigame configurations
+├── PartyManager             → Manages player groups and game sessions
+├── MenuListener             → Handles GUI interactions
+├── CompassListener          → Handles navigator compass usage
+└── SocialListener           → Handles party browsing and social features
 ```
 
 ### Core Systems
 
-#### 1. **World Management**
+#### 1. **World Management & Template Discovery**
 
-The plugin manages both persistent and temporary worlds:
+The plugin manages persistent, administrative staging, and temporary session worlds:
 
 - **Persistent Worlds**: Hub, SMP (Overworld/Nether/End), Creative, Adventure
   - Defined in `worlds.yml`
@@ -59,11 +64,24 @@ The plugin manages both persistent and temporary worlds:
   - Player locations automatically tracked and restored when returning
   - Optional `first-visit-spawn` coordinates per world for players visiting without prior location data
 
+- **Directory-Driven Map Discovery**:
+  - Descriptors (`map.yml`) reside co-located inside respective world containers (e.g. `world/dimensions/minecraft/<course_name>/map.yml` or `templates/<category>/<map_id>/map.yml`) alongside raw level data (`level.dat`, `region/`).
+  - `TemplateDiscoveryService` asynchronously walks directories on startup without main-thread blocking. Corrupted or missing files register `Material.BARRIER` placeholders.
+  - Baseline memory offloading: Discovered templates load strictly on-demand, saving ~500MB+ heap on startup.
+
+- **Administrative Template Staging (`/rga template`)**:
+  - `TemplateStagingManager` governs on-demand staging via `/rga template <load|tp|save|unload|list> <id>`.
+  - Concurrency locking: Rejects template cloning and minigame session starts if an editor holds an active `EDITING` lock.
+  - Auto-purge on disconnect: Intercepts editor disconnects, flushes chunk modifications to disk, and unloads the template world cleanly.
+
+- **Environment & Clock Exception Guards**:
+  - `WorldConfigManager` and `WorldManager` defensively guard against daylight-cycle and weather mutations on `Environment.NETHER` and `Environment.THE_END` instances, eliminating runtime `IllegalArgumentException` / `UnsupportedOperationException` faults during multi-world operations.
+
 - **Minigame Worlds**: Temporary instances created for game sessions
   - Generated on-demand with isolated copies of template worlds (for custom maps)
-  - Or freshly generated vanilla instances (for procedural games)
-  - Destroyed after concluding to save disk space
-  - Full multiverse support (overworld, nether, end dimensions)
+  - Or freshly generated vanilla instances (for procedural games like BlockShuffle or Manhunt)
+  - Destroyed and disk-purged asynchronously via `AsyncDirectoryDeleter` after concluding to save disk space
+  - Portal transitions constrained strictly within session instance clusters (`session_<id>`, `session_<id>_the_nether`, `session_<id>_the_end`)
 
 **Technical Implementation**: 
 - Uses PaperMC's `WorldCreator` API (Java 25 / PaperMC 26.2 target)
@@ -322,6 +340,7 @@ All plugin behavior is customizable through YAML files:
 /rga setworldalias <world> <alias>
 /rga setworldtemplate <world> <true|false>
 /rga gamerule <world> <rule> <value>
+/rga template <load|tp|save|unload|list> [id] - Administrative template staging and hot-editing
 /rga concludeall        - Conclude all active minigames
 /rga cleanupsession <worldname> - Delete orphaned session and world data
 /rga queue              - Show minigame queue status
@@ -334,9 +353,10 @@ All plugin behavior is customizable through YAML files:
 |---|---|---|
 | `rga.admin` | Wildcard — all nodes below | `op` |
 | `rga.reload` | `/rga reloadconfig`, `/rga reload` | `op` |
-| `rga.world.teleport` | `/rga tp`, `/rga compass`, `/rga listworlds` | `op` |
+| `rga.world.teleport` | `/rga tp`, `/rga compass`, `/rga listworlds`, `/rga spectate` | `op` |
 | `rga.world.manage` | `createworld`, `importworld`, `loadworld`, `unloadworld`, `deleteworld` | `op` |
 | `rga.world.configure` | `setspawn`, `setworldgamemode/pvp/difficulty/time/weather/alias/template`, `gamerule` | `op` |
+| `rga.admin.template` | `/rga template <load\|tp\|save\|unload\|list>` | `op` |
 | `rga.session.conclude` | `/rga conclude`, `/rga concludeall` | `op` |
 | `rga.session.status` | `/rga sessions list`, `/rga queue` | `op` |
 | `rga.session.cleanup` | `/rga cleanupsession <worldname>` | `op` |
@@ -486,6 +506,7 @@ inventory-groups:
 
 RGA uses a multi-module Maven build structure:
 - `rga-api` — Companion plugin integration API (`com.ronlab:rga-api`)
+- `rga-persistence` — Embedded SQLite persistence & Flyway schema migrations (`com.ronlab:rga-persistence`)
 - `rga-plugin` — PaperMC server plugin (`com.ronlab:rga-plugin`)
 
 To build all artifacts from the repository root:
@@ -495,7 +516,7 @@ mvn clean package
 
 Artifacts produced:
 - **API JAR**: `rga-api/target/rga-api-1.13.1.jar` (standalone Maven dependency artifact for companion plugin developers)
-- **Plugin JAR**: `rga-plugin/target/RonlabGameAssistant-1.13.1.jar` (shaded plugin bundle including `rga-api`; deploy directly to server `plugins/` directory)
+- **Plugin JAR**: `rga-plugin/target/RonlabGameAssistant-1.13.1.jar` (shaded plugin bundle including `rga-api` and `rga-persistence`; deploy directly to server `plugins/` directory)
 
 
 ---

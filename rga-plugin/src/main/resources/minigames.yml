@@ -1,324 +1,189 @@
 # -----------------------------------------------
 # Ronlab Game Assistant - Minigame Configuration
 # -----------------------------------------------
-# world-type options:
-#   TEMPLATE - copies a premade template world.
-#              Template worlds must be placed as top-level folders in the
-#              server directory (same level as the main 'world' folder).
-#              This ensures datapacks, command blocks, and all map assets
-#              are preserved correctly when the world is copied.
-#              Example server layout:
-#                server/
-#                  world/           <- main world
-#                  MyParkourMap/    <- template world folder
-#                  plugins/
-#   VANILLA  - generates fresh interconnected overworld/nether/end
-#
-# start-commands - run automatically after all players are teleported in
-# conclude-commands - run automatically when /rga conclude is called, BEFORE
-#   players are teleported out. Use to stop the game plugin cleanly.
-#   Supports the same prefixes and placeholders as start-commands.
-#   Prefixes:
-#     console:     - runs as console (default if no prefix)
-#     console:     - runs as console (default if no prefix)
-#     player-each: - runs once per player, %player% = each player's name
-#     leader:      - runs as the party leader player (use for GUI commands)
-#
-#   Placeholders:
-#     %world%      - the generated world name
-#     %leader%     - party leader's name
-#     %players%    - comma-separated list of all player names
-#     %spectators% - comma-separated list of all spectator player names
-#     %player%     - used with player-each prefix only
-#
-# Examples:
-#   start-commands:
-#     - "console: manhunt start %world%"
-#     - "console: team assign runner %leader%"
-# Note on Nether/End Toggles: Enabling disable-nether or disable-end stops RGA from pre-creating or copying dimension folders for game sessions.
-# It does not block Bukkit from auto-generating nether worlds upon portal activation if allow-nether=true in server.properties.
-# To completely block portal traversal, set allow-nether=false globally or use a portal-cancellation plugin.
-# -----------------------------------------------
-
 minigames:
 
-  parkour:
-    name: "Parkour Race"
-    display-item: LEATHER_BOOTS
+  bingo:
+    name: "Bingo"
+    display-item: FILLED_MAP
     display-lore:
-      - "&7Race through the procedural parkour course."
-      - "&7Be the first to hit the finish plate!"
-    max-players: 8
-    min-players: 1
-    world-type: TEMPLATE
-    template-world: "ParkourMap1"
-    give-compass-on-join: false
-    queue-enabled: true
-    auto-start: true
-    allow-spectators: true
-    start-commands: []
-    conclude-commands: []
-
-  manhunt:
-    name: "Manhunt"
-    display-item: COMPASS
-    display-lore:
-      - "&7Runners try to beat the game."
-      - "&7Hunters try to stop them."
-      - "&7First to kill the Ender Dragon wins!"
+      - "&7Gather items to complete"
+      - "&7your bingo board first!"
     max-players: 8
     min-players: 2
     world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    allow-spectators: true
-    max-spectators: 4
-    start-commands: []
-    conclude-commands: []
+    start-commands:
+      - "leader: bingo gui"
+    conclude-commands:
+      - "leader: bingo stop"
     world-settings:
       gamemode: SURVIVAL
       pvp: true
-      difficulty: NORMAL
-      gamerules:
-        showLocatorBar: false
-        keepInventory: false
-        announceAdvancements: false
-        doImmediateRespawn: false
-        naturalRegeneration: true
-
-  deathrace:
-    name: "DeathRace"
-    display-item: MINECART
-    display-lore:
-      - "&7Fast-paced obstacle race."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    allow-spectators: true
-    start-commands: []
-    conclude-commands: []
+      difficulty: EASY
 
   ultimate_tag:
     name: "Ultimate Tag"
-    display-item: NAME_TAG
+    display-item: STICK
     display-lore:
-      - "&7High-octane tag minigame."
+      - "&7Tag enemy players before"
+      - "&7the timer expires!"
+    max-players: 2
+    min-players: 2
+    world-type: VANILLA
+    start-commands:
+      - "leader: tag start %leader% %second%"
+    conclude-commands:
+      - "leader: tag stop"
+    world-settings:
+      gamemode: SURVIVAL
+      pvp: true
+      difficulty: PEACEFUL
+      gamerules:
+        locator_bar: "false"
+
+  infectedmanhunt:
+    name: "Infected Manhunt"
+    display-item: COMPASS
+    display-lore:
+      - "&7Hunters infect runners upon death."
+      - "&7Can the speedrunner beat the Ender Dragon?"
     max-players: 8
     min-players: 2
     world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    allow-spectators: true
-    start-commands: []
-    conclude-commands: []
+    start-commands:
+      - "leader: infectedmanhunt gui"
+    conclude-commands:
+      - "leader: infected stop"
+    world-settings:
+      gamemode: SURVIVAL
+      pvp: true
+      difficulty: EASY
+      gamerules:
+        locator_bar: "false"
 
-  block_shuffle:
+  speedrunnerswap:
+    name: "Speedrunner Swap"
+    display-item: OBSIDIAN
+    display-lore:
+      - "&7Randomly swap locations"
+      - "&7with other speedrunners!"
+    max-players: 8
+    min-players: 2
+    world-type: VANILLA
+    start-commands:
+      - "leader: swap gui"
+    conclude-commands:
+      - "leader: swap stop"
+    world-settings:
+      gamemode: SURVIVAL
+      pvp: true
+      difficulty: EASY
+
+  deathrace:
+    name: "Death Race"
+    display-item: OBSIDIAN
+    display-lore:
+      - "&7Race against time and deadly"
+      - "&7hazards to reach the finish!"
+    max-players: 8
+    min-players: 2
+    world-type: VANILLA
+    start-commands:
+      - "leader: deathrace start"
+    conclude-commands:
+      - "leader: deathrace stop"
+    world-settings:
+      gamemode: SURVIVAL
+      pvp: true
+      difficulty: EASY
+
+  blockshuffle:
     name: "Block Shuffle"
-    display-item: GRASS_BLOCK
+    display-item: OBSIDIAN
     display-lore:
-      - "&7Find and stand on your assigned block."
+      - "&7Stand on your assigned block"
+      - "&7before the timer runs out!"
     max-players: 8
     min-players: 2
     world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    allow-spectators: true
-    start-commands: []
-    conclude-commands: []
+    start-commands:
+      - "leader: blockshuffle"
+    conclude-commands:
+      - "leader: blockshuffle stop"
+    world-settings:
+      gamemode: SURVIVAL
+      pvp: true
+      difficulty: EASY
 
-  turfwars:
-    name: "Turf Wars"
-    display-item: BOW
+  hitmen:
+    name: "Hitmen"
+    display-item: OBSIDIAN
     display-lore:
-      - "&7Capture territory with wool and arrows."
+      - "&7Eliminate your assigned target"
+      - "&7before you become a victim!"
     max-players: 8
     min-players: 2
     world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    allow-spectators: true
-    start-commands: []
-    conclude-commands: []
+    start-commands:
+      - "leader: hitmen"
+    conclude-commands:
+      - "leader: hitmen stop"
+    world-settings:
+      gamemode: SURVIVAL
+      pvp: true
+      difficulty: EASY
+      gamerules:
+        locator_bar: "false"
 
-  game2:
-    name: "Minigame 2"
-    display-item: STONE
+  achievementrace:
+    name: "Achievement Race"
+    display-item: OBSIDIAN
     display-lore:
-      - "&7Coming soon."
+      - "&7Unlock achievements faster"
+      - "&7than rival players!"
     max-players: 8
     min-players: 2
     world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
+    start-commands:
+      - "leader: achievementrace start %second% %third% %fourth% %fifth% %sixth% %seventh% %eighth%"
+    conclude-commands:
+      - "leader: achievementrace stop"
+    world-settings:
+      gamemode: SURVIVAL
+      pvp: true
+      difficulty: EASY
 
-  game3:
-    name: "Minigame 3"
-    display-item: STONE
+  sumo:
+    name: "Sumo"
+    display-item: OBSIDIAN
     display-lore:
-      - "&7Coming soon."
+      - "&7Knock your opponent off the platform!"
+      - "&7Last player standing wins."
     max-players: 8
     min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
+    world-type: TEMPLATE
+    template-world: SumoTemplate
+    start-commands:
+      - "leader: sumo start %leader% %second% %third% %fourth%"
+    conclude-commands:
+      - "leader: sumo stop"
 
-  game4:
-    name: "Minigame 4"
-    display-item: STONE
+  parkour:
+    name: "Parkour"
+    display-item: RABBIT_FOOT
     display-lore:
-      - "&7Coming soon."
+      - "&7Solo and competitive parkour courses."
     max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game5:
-    name: "Minigame 5"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game6:
-    name: "Minigame 6"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game7:
-    name: "Minigame 7"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game8:
-    name: "Minigame 8"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game9:
-    name: "Minigame 9"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game10:
-    name: "Minigame 10"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game11:
-    name: "Minigame 11"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game12:
-    name: "Minigame 12"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game13:
-    name: "Minigame 13"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game14:
-    name: "Minigame 14"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
-    conclude-commands: []
-
-  game15:
-    name: "Minigame 15"
-    display-item: STONE
-    display-lore:
-      - "&7Coming soon."
-    max-players: 8
-    min-players: 2
-    world-type: VANILLA
-    queue-enabled: true
-    auto-start: true
-    start-commands: []
+    min-players: 1
+    world-type: TEMPLATE
+    template-world: "1000blocks"
+    start-commands:
+      - "leader: parkour start %leader% %template%"
+    conclude-commands:
+      - "leader: parkour stop"
+    world-settings:
+      gamemode: ADVENTURE
+      pvp: false
+      difficulty: PEACEFUL
+      time-lock: "0"
+      weather-lock: "true"

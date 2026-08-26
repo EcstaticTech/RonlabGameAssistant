@@ -53,6 +53,7 @@ public class RGA extends JavaPlugin implements RGASessionControl {
     private MenuManager menuManager;
     private PaginatedMapMenu paginatedMapMenu;
     private TemplateDiscoveryService templateDiscoveryService;
+    private com.ronlab.rga.core.template.TemplateStagingManager templateStagingManager;
     private RGACommandRouter commandRouter;
     private LocationTracker locationTracker;
     private InventoryManager inventoryManager;
@@ -123,6 +124,7 @@ public class RGA extends JavaPlugin implements RGASessionControl {
         menuManager = new MenuManager(this);
         paginatedMapMenu = new PaginatedMapMenu(this);
         templateDiscoveryService = new TemplateDiscoveryService(this);
+        templateStagingManager = new com.ronlab.rga.core.template.TemplateStagingManager(this);
         commandRouter = new DefaultRGACommandRouter(this);
         minigameManager = new MinigameManager(this);
         lobbyGui = new LobbyGui(this);
@@ -139,6 +141,7 @@ public class RGA extends JavaPlugin implements RGASessionControl {
 
         hubListener = new HubListener(this);
         getServer().getPluginManager().registerEvents(hubListener, this);
+        getServer().getPluginManager().registerEvents(templateStagingManager, this);
         getServer().getPluginManager().registerEvents(new CompassListener(this, menuManager, hubListener), this);
         getServer().getPluginManager().registerEvents(new MenuListener(this, menuManager), this);
         getServer().getPluginManager().registerEvents(new WorldEnforcementListener(this), this);
@@ -193,6 +196,10 @@ public class RGA extends JavaPlugin implements RGASessionControl {
 
         if (sessionManager != null) {
             sessionManager.shutdown();
+        }
+
+        if (templateStagingManager != null) {
+            templateStagingManager.unloadAllTemplates();
         }
 
         if (worldManager != null) {
@@ -256,6 +263,7 @@ public class RGA extends JavaPlugin implements RGASessionControl {
     public MenuManager getMenuManager() { return menuManager; }
     public PaginatedMapMenu getPaginatedMapMenu() { return paginatedMapMenu; }
     public TemplateDiscoveryService getTemplateDiscoveryService() { return templateDiscoveryService; }
+    public com.ronlab.rga.core.template.TemplateStagingManager getTemplateStagingManager() { return templateStagingManager; }
     public RGACommandRouter getCommandRouter() { return commandRouter; }
     public LocationTracker getLocationTracker() { return locationTracker; }
     public InventoryManager getInventoryManager() { return inventoryManager; }

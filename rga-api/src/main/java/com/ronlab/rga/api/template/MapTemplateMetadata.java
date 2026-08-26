@@ -15,6 +15,7 @@ import java.util.Objects;
 public record MapTemplateMetadata(
         String id,
         String category,
+        String minigameId,
         Component displayName,
         Material icon,
         List<Component> lore,
@@ -32,6 +33,12 @@ public record MapTemplateMetadata(
         }
 
         category = (category == null || category.isBlank()) ? "minigames" : category.toLowerCase().trim();
+        if (minigameId == null || minigameId.isBlank()) {
+            minigameId = category.equalsIgnoreCase("parkour") ? "parkour" : id;
+        } else {
+            minigameId = minigameId.trim();
+        }
+
         displayName = (displayName == null) ? Component.text(id) : displayName;
         icon = (icon == null) ? Material.BARRIER : icon;
         lore = (lore == null) ? List.of() : List.copyOf(lore);
@@ -41,6 +48,26 @@ public record MapTemplateMetadata(
         spawnVectors = (spawnVectors == null) ? List.of() : List.copyOf(spawnVectors);
     }
 
+    public MapTemplateMetadata(
+            String id,
+            String category,
+            Component displayName,
+            Material icon,
+            List<Component> lore,
+            String difficulty,
+            int minPlayers,
+            int maxPlayers,
+            List<Vector> spawnVectors,
+            double fallThresholdY,
+            Path templatePath
+    ) {
+        this(id, category, null, displayName, icon, lore, difficulty, minPlayers, maxPlayers, spawnVectors, fallThresholdY, templatePath);
+    }
+
+    public String resolveEngineId() {
+        return this.minigameId;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -48,6 +75,7 @@ public record MapTemplateMetadata(
     public static class Builder {
         private String id;
         private String category = "minigames";
+        private String minigameId;
         private Component displayName;
         private Material icon = Material.BARRIER;
         private List<Component> lore = new ArrayList<>();
@@ -65,6 +93,11 @@ public record MapTemplateMetadata(
 
         public Builder category(String category) {
             this.category = category;
+            return this;
+        }
+
+        public Builder minigameId(String minigameId) {
+            this.minigameId = minigameId;
             return this;
         }
 
@@ -125,7 +158,7 @@ public record MapTemplateMetadata(
 
         public MapTemplateMetadata build() {
             return new MapTemplateMetadata(
-                    id, category, displayName, icon, lore, difficulty,
+                    id, category, minigameId, displayName, icon, lore, difficulty,
                     minPlayers, maxPlayers, spawnVectors, fallThresholdY, templatePath
             );
         }

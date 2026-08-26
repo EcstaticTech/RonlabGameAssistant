@@ -8,6 +8,8 @@ import org.bukkit.entity.Player;
 import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -104,21 +106,38 @@ public class WorldCopyManager {
      * Returns the new world name, or null on failure.
      */
     public CompletableFuture<String> copyTemplateWorld(Minigame minigame) {
-        String templateWorldName = minigame.getTemplateWorld();
+        return copyTemplateWorld(minigame, minigame.getTemplateWorld());
+    }
+
+    public CompletableFuture<String> copyTemplateWorld(Minigame minigame, String templateWorldOverride) {
+        String templateWorldName = (templateWorldOverride != null && !templateWorldOverride.isBlank())
+                ? templateWorldOverride
+                : minigame.getTemplateWorld();
         String cleanId = com.ronlab.rga.util.WorldNameValidator.sanitizeForFilesystem(minigame.getId());
         long timestamp = System.currentTimeMillis();
         String shortUuid = UUID.randomUUID().toString().substring(0, 8);
         String newWorldName = "session_" + cleanId + "_" + timestamp + "_" + shortUuid;
 
 
-        File templateFolder = resolveWorldFolder(templateWorldName);
-        if (!templateFolder.exists() || !templateFolder.isDirectory()) {
-            plugin.getLogger().severe(
-                "Template world folder not found: " + templateWorldName);
+        if (plugin != null && plugin.getTemplateStagingManager() != null && plugin.getTemplateStagingManager().isTemplateEditing(templateWorldName)) {
+            plugin.getLogger().warning("Blocked cloning of template '" + templateWorldName + "' because it is currently open for administrative editing.");
             return CompletableFuture.completedFuture(null);
         }
 
-        File destination = new File(templateFolder.getParentFile(), newWorldName);
+        File templateFolder = resolveWorldFolder(templateWorldName);
+        if (templateFolder == null || !templateFolder.exists() || !templateFolder.isDirectory() || !isFolderWithWorldData(templateFolder)) {
+            plugin.getLogger().severe(
+                "[RGA] Cannot copy template world: Source path does not contain valid world data: "
+                        + templateWorldName + " -> " + (templateFolder != null ? templateFolder.getAbsolutePath() : "null"));
+            return CompletableFuture.completedFuture(null);
+        }
+
+        File destination;
+        if (plugin != null && plugin.getWorldManager() != null) {
+            destination = plugin.getWorldManager().getWorldFolder(newWorldName);
+        } else {
+            destination = new File(templateFolder.getParentFile(), newWorldName);
+        }
         boolean disableNether = minigame.isDisableNether();
         boolean disableEnd = minigame.isDisableEnd();
 
@@ -176,10 +195,16 @@ public class WorldCopyManager {
      * @param templateWorldName the associated template world name or world identifier
      */
     public void applyDeterministicSpawn(World world, String templateWorldName) {
-        if (world == null) return;
-
         Location spawnLoc = null;
-        if (plugin != null && plugin.getWorldManager() != null && templateWorldName != null) {
+        if (plugin != null && plugin.getTemplateDiscoveryService() != null && templateWorldName != null) {
+            com.ronlab.rga.api.template.MapTemplateMetadata meta = plugin.getTemplateDiscoveryService().get(templateWorldName);
+            if (meta != null && meta.spawnVectors() != null && !meta.spawnVectors().isEmpty()) {
+                org.bukkit.util.Vector v = meta.spawnVectors().get(0);
+                spawnLoc = new Location(world, v.getX(), v.getY(), v.getZ());
+            }
+        }
+
+        if (spawnLoc == null && plugin != null && plugin.getWorldManager() != null && templateWorldName != null) {
             com.ronlab.rga.world.WorldSettings settings = plugin.getWorldManager().getSettings(templateWorldName);
             if (settings != null && settings.getFirstVisitSpawn() != null) {
                 spawnLoc = settings.getFirstVisitSpawn().toLocation(world);
@@ -219,8 +244,12 @@ public class WorldCopyManager {
      */
     @SuppressWarnings("unchecked")
     public void applyMinigameSettings(World world, Minigame minigame) {
-        if (plugin != null && plugin.getWorldConfigManager() != null) {
-            plugin.getWorldConfigManager().applyDefaultTemplateSettings(world);
+        if (world == null) return;
+
+        if (minigame != null && minigame.getWorldType() == Minigame.WorldType.TEMPLATE) {
+            if (plugin != null && plugin.getWorldConfigManager() != null) {
+                plugin.getWorldConfigManager().applyDefaultTemplateSettings(world);
+            }
         }
 
         if (minigame == null) return;
@@ -283,30 +312,74 @@ public class WorldCopyManager {
     // ── Folder utilities ─────────────────────────────────────────
 
     public File resolveWorldFolder(String worldName) {
-        if (plugin != null && plugin.getWorldManager() != null) {
-            return plugin.getWorldManager().getWorldFolder(worldName);
+        if (worldName == null || worldName.isBlank()) return new File(worldName != null ? worldName : "");
+
+        // 1. Discovered template path (if it contains actual world chunks)
+        if (plugin != null && plugin.getTemplateDiscoveryService() != null) {
+            com.ronlab.rga.api.template.MapTemplateMetadata meta = plugin.getTemplateDiscoveryService().get(worldName);
+            if (meta != null && meta.templatePath() != null) {
+                File templateDir = meta.templatePath().toFile();
+                if (isFolderWithWorldData(templateDir)) {
+                    return templateDir;
+                }
+            }
         }
-        File dimensionsFolder = new File(Bukkit.getWorldContainer(), "dimensions/minecraft");
-        if (dimensionsFolder.exists() && dimensionsFolder.isDirectory()) {
-            File[] files = dimensionsFolder.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isDirectory() && file.getName().equalsIgnoreCase(worldName)) {
-                        return file;
+
+        // 2. WorldManager standard search (world/dimensions/minecraft/, dimensions/minecraft/, server root)
+        if (plugin != null && plugin.getWorldManager() != null) {
+            File wmFolder = plugin.getWorldManager().getWorldFolder(worldName);
+            if (isFolderWithWorldData(wmFolder)) {
+                return wmFolder;
+            }
+        }
+
+        // 3. Fallback filesystem search across all dimension candidate directories
+        File worldContainer = Bukkit.getWorldContainer();
+        if (worldContainer != null) {
+            String normQuery = worldName.replaceAll("[^a-zA-Z0-9]", "").toLowerCase(Locale.ROOT);
+            java.util.List<File> searchDirs = java.util.List.of(
+                    new File(worldContainer, "world/dimensions/minecraft"),
+                    new File(worldContainer, "dimensions/minecraft"),
+                    worldContainer
+            );
+
+            for (File dir : searchDirs) {
+                if (dir.exists() && dir.isDirectory()) {
+                    File[] files = dir.listFiles();
+                    if (files != null) {
+                        for (File file : files) {
+                            if (file.isDirectory()) {
+                                if (file.getName().equalsIgnoreCase(worldName)) {
+                                    return file;
+                                }
+                                String normFile = file.getName().replaceAll("[^a-zA-Z0-9]", "").toLowerCase(Locale.ROOT);
+                                if (normFile.equals(normQuery)) {
+                                    return file;
+                                }
+                            }
+                        }
                     }
                 }
             }
+            return new File(new File(worldContainer, "world/dimensions/minecraft"), worldName);
         }
-        File serverRoot = Bukkit.getWorldContainer();
-        File[] rootFiles = serverRoot.listFiles();
-        if (rootFiles != null) {
-            for (File file : rootFiles) {
-                if (file.isDirectory() && file.getName().equalsIgnoreCase(worldName)) {
-                    return file;
-                }
-            }
+        return new File(worldName);
+    }
+
+    public boolean hasWorldData(String worldName) {
+        if (worldName == null || worldName.isBlank()) return false;
+        File folder = resolveWorldFolder(worldName);
+        return folder != null && folder.exists() && isFolderWithWorldData(folder);
+    }
+
+    private boolean isFolderWithWorldData(File dir) {
+        if (dir == null || !dir.exists() || !dir.isDirectory()) return false;
+        File[] files = dir.listFiles();
+        if (files == null || files.length == 0) return false;
+        if (files.length == 1 && files[0].getName().equalsIgnoreCase("map.yml")) {
+            return false;
         }
-        return new File(dimensionsFolder, worldName);
+        return true;
     }
 
     /**

@@ -58,6 +58,18 @@ public interface RGACommandRouter {
     boolean executeJoinMinigame(Player player, String minigameId);
 
     /**
+     * Executes minigame join with an explicit template world override after sanitization, party validation, and permission checks.
+     *
+     * @param player     player initiating join
+     * @param minigameId target minigame identifier
+     * @param templateId target template world/descriptor identifier
+     * @return true if join was executed successfully
+     */
+    default boolean executeJoinMinigame(Player player, String minigameId, String templateId) {
+        return executeJoinMinigame(player, minigameId);
+    }
+
+    /**
      * Executes world teleport after sanitization and permission checks.
      *
      * @param player      player initiating teleport

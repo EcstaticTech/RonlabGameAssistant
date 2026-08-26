@@ -23,6 +23,7 @@ public class Party {
     private final Map<UUID, Map<String, List<String>>> spectatorPreGameAdvancements = new HashMap<>();
 
     private final Set<UUID> awayPlayers = new HashSet<>();
+    private String selectedTemplateWorld;
 
     public Party(UUID leaderUuid, Minigame minigame) {
         this.id = UUID.randomUUID();
@@ -33,6 +34,7 @@ public class Party {
         this.readyPlayers = new HashSet<>();
         this.state = State.LOBBY;
         this.members.add(leaderUuid);
+        this.selectedTemplateWorld = minigame.getTemplateWorld();
     }
 
     public boolean addMember(UUID uuid) {
@@ -186,4 +188,6 @@ public class Party {
     public String getActiveWorldName() { return activeWorldName; }
     public void setActiveWorldName(String name) { this.activeWorldName = name; }
     public int getMemberCount() { return members.size(); }
+    public String getSelectedTemplateWorld() { return selectedTemplateWorld != null ? selectedTemplateWorld : minigame.getTemplateWorld(); }
+    public void setSelectedTemplateWorld(String templateWorld) { this.selectedTemplateWorld = templateWorld; }
 }

@@ -29,7 +29,7 @@ menus:
         lore:
           - "&7Return to your last known"
           - "&7location in the SMP."
-        slot: 10
+        slot: 11
         show-player-count: true
         player-count-world: "world,world_nether,world_the_end"
         left_click:
@@ -41,7 +41,7 @@ menus:
         name: "&b&lCreative World"
         lore:
           - "&7Enter the Creative world."
-        slot: 11
+        slot: 12
         show-player-count: true
         player-count-world: "Creative"
         left_click:
@@ -49,17 +49,18 @@ menus:
         right_click:
           - "rga:tp Creative"
       option3:
-        material: MAP
+        material: MACE
         name: "&e&lAdventure Map"
         lore:
-          - "&7Enter the Adventure map."
-        slot: 12
+          - "&7Explore the vast cities and"
+          - "&7landscapes of Project Zearth."
+        slot: 13
         show-player-count: true
-        player-count-world: "Adventure"
+        player-count-world: "ProjectZearth"
         left_click:
-          - "rga:tp Adventure"
+          - "rga:tp ProjectZearth"
         right_click:
-          - "rga:tp Adventure"
+          - "rga:tp ProjectZearth"
       option4:
         material: LEATHER_BOOTS
         name: "&d&lParkour"
@@ -81,7 +82,7 @@ menus:
           - "&7Browse available minigames."
           - ""
           - "&eClick to open"
-        slot: 16
+        slot: 15
         left_click:
           - "rga:open_category minigames"
         right_click:

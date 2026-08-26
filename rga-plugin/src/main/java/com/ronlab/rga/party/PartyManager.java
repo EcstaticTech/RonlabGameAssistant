@@ -5,6 +5,7 @@ import com.ronlab.rga.api.event.ConcludeResult;
 import com.ronlab.rga.api.event.MinigameConcludeEvent;
 import com.ronlab.rga.api.event.MinigameStartEvent;
 import com.ronlab.rga.api.event.RGAGameRequestConcludeEvent;
+import com.ronlab.rga.api.template.MapTemplateMetadata;
 import com.ronlab.rga.minigame.Minigame;
 import com.ronlab.rga.minigame.WorldCopyManager;
 import com.ronlab.rga.session.SpectatorSnapshot;
@@ -875,10 +876,29 @@ public class PartyManager implements Listener {
     // ── Join / Leave ─────────────────────────────────────────────
 
     public void joinMinigame(Player player, String minigameId) {
+        joinMinigame(player, minigameId, null);
+    }
+
+    public void joinMinigame(Player player, String minigameId, String templateId) {
         Minigame minigame = plugin.getMinigameManager().getMinigame(minigameId);
+        if (minigame == null && plugin.getTemplateDiscoveryService() != null) {
+            MapTemplateMetadata meta = plugin.getTemplateDiscoveryService().get(minigameId);
+            if (meta != null) {
+                minigame = plugin.getMinigameManager().getMinigame(meta.resolveEngineId());
+                if (templateId == null || templateId.isBlank()) {
+                    templateId = meta.id();
+                }
+                minigameId = meta.resolveEngineId();
+            }
+        }
+
         if (minigame == null) {
             player.sendMessage(Component.text("Unknown minigame: " + minigameId, NamedTextColor.RED));
             return;
+        }
+
+        if (templateId != null && templateId.equalsIgnoreCase(minigameId)) {
+            templateId = null;
         }
 
         // If the player is a spectator, redirect them to leave spectate mode first
@@ -904,6 +924,9 @@ public class PartyManager implements Listener {
         // Already in a party for this minigame — just reopen lobby
         Party existingParty = playerParties.get(player.getUniqueId());
         if (existingParty != null && existingParty.getMinigameId().equals(minigameId)) {
+            if (templateId != null && !templateId.isBlank() && existingParty.getLeaderUuid().equals(player.getUniqueId())) {
+                existingParty.setSelectedTemplateWorld(templateId);
+            }
             plugin.getLobbyGui().openLobby(player, existingParty);
             return;
         }
@@ -917,6 +940,9 @@ public class PartyManager implements Listener {
         if (party == null) {
             // No active party — create a new lobby
             party = new Party(player.getUniqueId(), minigame);
+            if (templateId != null && !templateId.isBlank()) {
+                party.setSelectedTemplateWorld(templateId);
+            }
             activeParties.put(minigameId, party);
             playerParties.put(player.getUniqueId(), party);
             player.sendMessage(Component.text()
@@ -936,6 +962,9 @@ public class PartyManager implements Listener {
 
             // Create a new party and enqueue it
             Party queueParty = new Party(player.getUniqueId(), minigame);
+            if (templateId != null && !templateId.isBlank()) {
+                queueParty.setSelectedTemplateWorld(templateId);
+            }
             queueParty.addMember(player.getUniqueId());
             playerParties.put(player.getUniqueId(), queueParty);
             player.sendMessage(Component.text()
@@ -953,6 +982,9 @@ public class PartyManager implements Listener {
                         .append(Component.text(" is full!", NamedTextColor.RED))
                         .build());
                 return;
+            }
+            if (templateId != null && !templateId.isBlank() && party.getLeaderUuid().equals(player.getUniqueId())) {
+                party.setSelectedTemplateWorld(templateId);
             }
             party.addMember(player.getUniqueId());
             playerParties.put(player.getUniqueId(), party);
@@ -1117,6 +1149,52 @@ public class PartyManager implements Listener {
                 }
             }
 
+            // Session Safety & Random Map Quick Play Resolution
+            String targetTemplateWorld = party.getSelectedTemplateWorld();
+            if (minigame.getWorldType() != Minigame.WorldType.VANILLA) {
+                boolean invalidTemplate = (targetTemplateWorld == null
+                        || targetTemplateWorld.isBlank()
+                        || targetTemplateWorld.equalsIgnoreCase(minigame.getId())
+                        || (worldCopyManager != null && !worldCopyManager.hasWorldData(targetTemplateWorld)));
+
+                if (invalidTemplate) {
+                    if (plugin.getTemplateDiscoveryService() != null) {
+                        List<MapTemplateMetadata> categoryMaps = plugin.getTemplateDiscoveryService().getTemplatesByCategory(minigame.getId());
+                        if (categoryMaps.isEmpty()) {
+                            categoryMaps = plugin.getTemplateDiscoveryService().getTemplatesByCategory(minigame.getName().toLowerCase(java.util.Locale.ROOT));
+                        }
+                        categoryMaps = categoryMaps.stream()
+                                .filter(m -> !m.id().equalsIgnoreCase(minigame.getId()))
+                                .toList();
+
+                        if (!categoryMaps.isEmpty()) {
+                            int randomIndex = java.util.concurrent.ThreadLocalRandom.current().nextInt(categoryMaps.size());
+                            targetTemplateWorld = categoryMaps.get(randomIndex).id();
+                            party.setSelectedTemplateWorld(targetTemplateWorld);
+                            broadcastToParty(party, Component.text()
+                                    .append(Component.text("[RGA] ", NamedTextColor.GOLD))
+                                    .append(Component.text("Quick Play selected map: ", NamedTextColor.YELLOW))
+                                    .append(Component.text(targetTemplateWorld, NamedTextColor.AQUA))
+                                    .append(Component.text("!", NamedTextColor.YELLOW))
+                                    .build(), null);
+                        }
+                    }
+                }
+            }
+
+            if (targetTemplateWorld == null || targetTemplateWorld.isBlank() || targetTemplateWorld.equalsIgnoreCase(minigame.getId())) {
+                targetTemplateWorld = minigame.getTemplateWorld();
+            }
+
+            if (minigame.getWorldType() != Minigame.WorldType.VANILLA && targetTemplateWorld != null) {
+                if (plugin.getTemplateStagingManager() != null && plugin.getTemplateStagingManager().isTemplateEditing(targetTemplateWorld)) {
+                    broadcastToParty(party, Component.text("Cannot start game: Template '" + targetTemplateWorld + "' is currently open for administrative editing.", NamedTextColor.RED), null);
+                    party.setState(Party.State.LOBBY);
+                    refreshLobbyForAll(party);
+                    return;
+                }
+            }
+
             if (minigame.getWorldType() == Minigame.WorldType.VANILLA) {
                 String worldName = worldCopyManager.createVanillaWorld(minigame);
                 if (worldName == null) {
@@ -1163,7 +1241,7 @@ public class PartyManager implements Listener {
 
                 startCountdownAndLaunch(party, worldName, world, minigame, true);
             } else {
-                worldCopyManager.copyTemplateWorld(minigame).thenAccept(worldName -> {
+                worldCopyManager.copyTemplateWorld(minigame, targetTemplateWorld).thenAccept(worldName -> {
                     if (worldName == null) {
                         broadcastToParty(party, Component.text("Failed to create game world. Please try again.", NamedTextColor.RED), null);
                         party.setState(Party.State.LOBBY);
@@ -1309,7 +1387,7 @@ public class PartyManager implements Listener {
 
         if (!minigame.getStartCommands().isEmpty()) {
             executeStartCommands(minigame.getStartCommands(), worldName,
-                    leaderName, allPlayers, allSpectators, playerNames, leaderPlayer);
+                    leaderName, allPlayers, allSpectators, playerNames, leaderPlayer, party.getSelectedTemplateWorld());
         }
     }
 
@@ -1370,7 +1448,8 @@ public class PartyManager implements Listener {
     private void executeStartCommands(List<String> commands, String worldName,
                                        String leaderName, String allPlayers,
                                        String allSpectators,
-                                       List<String> playerNames, Player leaderPlayer) {
+                                       List<String> playerNames, Player leaderPlayer,
+                                       String templateName) {
         // Named placeholders for each party position in join order
         String secondName  = playerNames.size() >= 2 ? playerNames.get(1) : "";
         String thirdName   = playerNames.size() >= 3 ? playerNames.get(2) : "";
@@ -1388,7 +1467,7 @@ public class PartyManager implements Listener {
                     String resolved = resolveCommand(cmd, worldName, leaderName,
                             allPlayers, allSpectators, playerName, secondName,
                             thirdName, fourthName, fifthName,
-                            sixthName, seventhName, eighthName);
+                            sixthName, seventhName, eighthName, templateName);
                     if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
                         plugin.getLogger().warning("Blocked unsafe start/conclude command: " + resolved);
                         continue;
@@ -1405,7 +1484,7 @@ public class PartyManager implements Listener {
                 String resolved = resolveCommand(cmd, worldName, leaderName,
                         allPlayers, allSpectators, leaderName, secondName,
                         thirdName, fourthName, fifthName,
-                        sixthName, seventhName, eighthName);
+                        sixthName, seventhName, eighthName, templateName);
                 if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
                     plugin.getLogger().warning("Blocked unsafe start/conclude command: " + resolved);
                     continue;
@@ -1426,7 +1505,7 @@ public class PartyManager implements Listener {
                         ? command.substring("console:".length()).trim()
                         : command.trim();
                 String resolved = resolveCommand(cmd, worldName, leaderName, allPlayers, allSpectators, "", secondName,
-                        thirdName, fourthName, fifthName, sixthName, seventhName, eighthName);
+                        thirdName, fourthName, fifthName, sixthName, seventhName, eighthName, templateName);
                 if (!PlaceholderSanitizer.isSafeToExecute(resolved)) {
                     plugin.getLogger().warning("Blocked unsafe start/conclude command: " + resolved);
                     continue;
@@ -1446,7 +1525,8 @@ public class PartyManager implements Listener {
                                    String playerName, String secondName,
                                    String thirdName, String fourthName,
                                    String fifthName, String sixthName,
-                                   String seventhName, String eighthName) {
+                                   String seventhName, String eighthName,
+                                   String templateName) {
         return command
                 .replace("%world%",      PlaceholderSanitizer.sanitize(worldName))
                 .replace("%leader%",     PlaceholderSanitizer.sanitize(leaderName))
@@ -1459,7 +1539,8 @@ public class PartyManager implements Listener {
                 .replace("%sixth%",      PlaceholderSanitizer.sanitize(sixthName))
                 .replace("%seventh%",    PlaceholderSanitizer.sanitize(seventhName))
                 .replace("%eighth%",     PlaceholderSanitizer.sanitize(eighthName))
-                .replace("%player%",     PlaceholderSanitizer.sanitize(playerName));
+                .replace("%player%",     PlaceholderSanitizer.sanitize(playerName))
+                .replace("%template%",   PlaceholderSanitizer.sanitize(templateName != null ? templateName : ""));
     }
 
     // ── Shutdown Cleanup ────────────────────────────────────────────
@@ -1724,7 +1805,7 @@ public class PartyManager implements Listener {
             }
             String allPlayers = String.join(",", playerNames);
             executeStartCommands(minigame.getConcludeCommands(), worldName,
-                    leaderName, allPlayers, allSpectators, playerNames, leaderPlayer);
+                    leaderName, allPlayers, allSpectators, playerNames, leaderPlayer, party.getSelectedTemplateWorld());
         }
 
         // Remove inventory groups immediately so dead players respawn with Hub inventory

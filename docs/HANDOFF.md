@@ -43,6 +43,8 @@ Ronlab Game Assistant (RGA) is an enterprise-grade Minecraft Paper 26.1 plugin a
 | **ADR-0037** | Command Routing | Defined `RGACommandRouter` interface and dynamic `PaginatedMapMenu` 54-slot GUI provider. |
 | **ADR-0038** | Configuration & DDL | Standardized `default-template` settings parser and expanded `minigame_id` DDL column to `VARCHAR(64)`. |
 | **ADR-0039** | Map Workspace | Deployed production `map.yml` descriptors with `PEACEFUL` world difficulty and deprecated static `config.yml` map lists. |
+| **ADR-0040** | Environment Guards | Hardened `WorldConfigManager` and `WorldManager` against daylight/weather mutations on `NETHER` and `THE_END` environments. |
+| **ADR-0041** | Template Staging | Implemented `TemplateStagingManager` (`/rga template <load|tp|save|unload|list>`) with Hub evacuation and `EDITING` concurrency locks. |
 | **Converged-1** | Log Hygiene | Elimination of `saveResource` log spam by enforcing explicit file existence pre-checks. |
 | **Converged-2** | Slot Safety | Guaranteed non-destructive hub item slotting for compass (slot 8) and social head (slot 7). |
 | **Converged-3** | Handoff | Single source-of-truth documentation consolidation (`HANDOFF.md` & `OPEN_QUESTIONS.md`). |

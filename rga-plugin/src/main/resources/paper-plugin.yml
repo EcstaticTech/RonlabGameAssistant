@@ -27,6 +27,7 @@ permissions:
       rga.session.conclude: true
       rga.session.status: true
       rga.session.cleanup: true
+      rga.admin.template: true
   rga.reload:
     description: Allows reloading RGA configs and world definitions (/rga reloadconfig, /rga reload).
     default: op
@@ -47,6 +48,9 @@ permissions:
     default: op
   rga.session.cleanup:
     description: Allows cleaning up orphaned session files (/rga cleanupsession).
+    default: op
+  rga.admin.template:
+    description: Allows loading, editing, saving, and unloading map templates (/rga template <load|tp|save|unload|list>).
     default: op
   rga.hub:
     description: Allows use of the /hub command.
